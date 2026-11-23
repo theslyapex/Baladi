@@ -3,6 +3,7 @@
 config_version=5
 
 [application]
+quit_on_go_back=false
 config/name="بلدی؟"
 config/description="یک بازی مرحله‌ای واژه‌سازی فارسی"
 run/main_scene="res://scenes/main.tscn"
