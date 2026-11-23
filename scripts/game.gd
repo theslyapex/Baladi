@@ -255,17 +255,20 @@ func _build_base() -> void:
 	page_box.add_theme_constant_override("separation", 14)
 	margin.add_child(page_box)
 
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 10)
+	var header := VBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
 	page_box.add_child(header)
 
+	var brand_row := HBoxContainer.new()
+	brand_row.add_theme_constant_override("separation", 10)
+	header.add_child(brand_row)
 	var brand_box := VBoxContainer.new()
 	brand_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	brand_box.add_theme_constant_override("separation", 0)
-	header.add_child(brand_box)
+	brand_row.add_child(brand_box)
 	var brand := Label.new()
 	brand.text = "بلدی؟"
-	brand.add_theme_font_size_override("font_size", 31)
+	brand.add_theme_font_size_override("font_size", 32)
 	brand.add_theme_color_override("font_color", GOLD)
 	brand_box.add_child(brand)
 	var tagline := Label.new()
@@ -274,16 +277,16 @@ func _build_base() -> void:
 	tagline.add_theme_color_override("font_color", MUTED)
 	brand_box.add_child(tagline)
 
-	var coin_panel := _panel(Color("#604b2b"))
-	coin_panel.custom_minimum_size = Vector2(108, 48)
-	header.add_child(coin_panel)
+	var coin_panel := _panel(Color("#b98a35"))
+	coin_panel.custom_minimum_size = Vector2(112, 52)
+	brand_row.add_child(coin_panel)
 	var coin_row := HBoxContainer.new()
 	coin_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	coin_row.add_theme_constant_override("separation", 6)
 	coin_panel.add_child(coin_row)
 	var coin_icon := TextureRect.new()
 	coin_icon.texture = load("res://assets/icons/coin.svg")
-	coin_icon.custom_minimum_size = Vector2(27, 27)
+	coin_icon.custom_minimum_size = Vector2(36, 36)
 	coin_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	coin_row.add_child(coin_icon)
@@ -294,18 +297,23 @@ func _build_base() -> void:
 	coin_label.add_theme_color_override("font_color", CREAM)
 	coin_row.add_child(coin_label)
 
+	var action_row := HBoxContainer.new()
+	action_row.alignment = BoxContainer.ALIGNMENT_END
+	action_row.add_theme_constant_override("separation", 8)
+	header.add_child(action_row)
 	profile_button = _make_button("پروفایل", Color("#294c43"), CREAM)
 	profile_button.icon = load("res://assets/icons/profile.svg")
-	profile_button.custom_minimum_size = Vector2(92, 48)
+	profile_button.icon_max_width = 25
+	profile_button.custom_minimum_size = Vector2(112, 44)
 	profile_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	profile_button.pressed.connect(_show_profile)
-	header.add_child(profile_button)
+	action_row.add_child(profile_button)
 
 	exit_button = _make_button("خروج", Color("#70413b"), CREAM)
-	exit_button.custom_minimum_size = Vector2(74, 48)
+	exit_button.custom_minimum_size = Vector2(104, 44)
 	exit_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	exit_button.pressed.connect(_logout)
-	header.add_child(exit_button)
+	action_row.add_child(exit_button)
 
 	var rule := ColorRect.new()
 	rule.custom_minimum_size.y = 2
@@ -609,52 +617,91 @@ func _show_profile() -> void:
 	_clear_content()
 	if profile_button != null:
 		profile_button.visible = true
+
 	var heading := Label.new()
 	heading.text = "پروفایل بازیکن"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.add_theme_font_size_override("font_size", 27)
+	heading.add_theme_font_size_override("font_size", 28)
 	heading.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(heading)
 
 	var identity := _panel(GOLD)
 	content_box.add_child(identity)
-	var identity_box := VBoxContainer.new()
-	identity_box.add_theme_constant_override("separation", 8)
-	identity.add_child(identity_box)
+	var identity_row := HBoxContainer.new()
+	identity_row.add_theme_constant_override("separation", 14)
+	identity.add_child(identity_row)
+	var avatar := TextureRect.new()
+	avatar.texture = load("res://assets/icons/profile.svg")
+	avatar.custom_minimum_size = Vector2(76, 76)
+	avatar.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	identity_row.add_child(avatar)
+	var identity_info := VBoxContainer.new()
+	identity_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity_info.alignment = BoxContainer.ALIGNMENT_CENTER
+	identity_info.add_theme_constant_override("separation", 4)
+	identity_row.add_child(identity_info)
+	var player_name := Label.new()
+	player_name.text = display_name
+	player_name.add_theme_font_size_override("font_size", 22)
+	player_name.add_theme_color_override("font_color", CREAM)
+	identity_info.add_child(player_name)
+	var player_tag := Label.new()
+	player_tag.text = "ماجراجوی واژه‌ها"
+	player_tag.add_theme_font_size_override("font_size", 13)
+	player_tag.add_theme_color_override("font_color", GOLD)
+	identity_info.add_child(player_tag)
+
 	var name_title := Label.new()
 	name_title.text = "نام نمایشی"
 	name_title.add_theme_color_override("font_color", MUTED)
-	identity_box.add_child(name_title)
+	content_box.add_child(name_title)
 	profile_name_input = LineEdit.new()
 	profile_name_input.text = display_name
 	profile_name_input.placeholder_text = "نامی که در بازی نمایش داده می‌شود"
-	profile_name_input.custom_minimum_size.y = 48
+	profile_name_input.custom_minimum_size.y = 50
 	_style_input(profile_name_input)
-	identity_box.add_child(profile_name_input)
+	content_box.add_child(profile_name_input)
 	var save_name := _make_button("ذخیره نام پروفایل", Color("#287c68"), CREAM)
 	save_name.pressed.connect(_save_profile_name)
-	identity_box.add_child(save_name)
+	content_box.add_child(save_name)
 
-	var stats := _panel()
-	content_box.add_child(stats)
-	var stats_box := VBoxContainer.new()
-	stats_box.add_theme_constant_override("separation", 10)
-	stats.add_child(stats_box)
 	var words_total := 0
 	for value in level_solved.values():
 		if value is Array:
 			words_total += value.size()
-	var stats_label := Label.new()
-	stats_label.text = "مرحله فعلی: %d از %d\nمراحل کامل‌شده: %d\nواژه‌های پیدا‌شده: %d\nموجودی سکه: %d" % [cloud_current_level, levels.size(), completed_levels.size(), words_total, coins]
-	stats_label.add_theme_color_override("font_color", CREAM)
-	stats_label.add_theme_font_size_override("font_size", 16)
-	stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	stats_box.add_child(stats_label)
-	var streak_label := Label.new()
-	streak_label.text = "ورودهای پیاپی: %d روز از ۷ روز\nبا ۷ روز حضور متوالی، ۵۰ سکه جایزه می‌گیری." % (daily_streak % 7 if daily_streak % 7 != 0 else (7 if daily_streak > 0 else 0))
-	streak_label.add_theme_color_override("font_color", GOLD)
-	streak_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	stats_box.add_child(streak_label)
+	var stats_grid := GridContainer.new()
+	stats_grid.columns = 2
+	stats_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_grid.add_theme_constant_override("h_separation", 9)
+	stats_grid.add_theme_constant_override("v_separation", 9)
+	content_box.add_child(stats_grid)
+	_add_profile_stat(stats_grid, "مرحله فعلی", "%d / %d" % [cloud_current_level, levels.size()], GOLD)
+	_add_profile_stat(stats_grid, "مراحل کامل‌شده", str(completed_levels.size()), GREEN)
+	_add_profile_stat(stats_grid, "واژه‌های پیدا‌شده", str(words_total), TEAL)
+	_add_profile_stat(stats_grid, "موجودی سکه", str(coins), GOLD)
+
+	var streak_panel := _panel(Color("#a77a35"))
+	content_box.add_child(streak_panel)
+	var streak_box := VBoxContainer.new()
+	streak_box.add_theme_constant_override("separation", 5)
+	streak_panel.add_child(streak_box)
+	var streak_title := Label.new()
+	streak_title.text = "زنجیره حضور روزانه"
+	streak_title.add_theme_font_size_override("font_size", 17)
+	streak_title.add_theme_color_override("font_color", GOLD)
+	streak_box.add_child(streak_title)
+	var streak_value := Label.new()
+	streak_value.text = "%d روز از ۷ روز" % (daily_streak % 7 if daily_streak % 7 != 0 else (7 if daily_streak > 0 else 0))
+	streak_value.add_theme_font_size_override("font_size", 20)
+	streak_value.add_theme_color_override("font_color", CREAM)
+	streak_box.add_child(streak_value)
+	var streak_hint := Label.new()
+	streak_hint.text = "با ۷ روز حضور متوالی، ۵۰ سکه جایزه می‌گیری."
+	streak_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	streak_hint.add_theme_color_override("font_color", MUTED)
+	streak_box.add_child(streak_hint)
+
 	profile_status_label = Label.new()
 	profile_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	profile_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -663,6 +710,27 @@ func _show_profile() -> void:
 	var back := _make_button("بازگشت به نقشه مراحل", Color("#294c43"), CREAM)
 	back.pressed.connect(_show_map)
 	content_box.add_child(back)
+
+func _add_profile_stat(parent: GridContainer, caption: String, value: String, accent: Color) -> void:
+	var tile := _panel(accent)
+	tile.custom_minimum_size = Vector2(0, 82)
+	parent.add_child(tile)
+	var stack := VBoxContainer.new()
+	stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	stack.add_theme_constant_override("separation", 3)
+	tile.add_child(stack)
+	var number := Label.new()
+	number.text = value
+	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	number.add_theme_font_size_override("font_size", 21)
+	number.add_theme_color_override("font_color", accent)
+	stack.add_child(number)
+	var label := Label.new()
+	label.text = caption
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", MUTED)
+	stack.add_child(label)
 
 func _save_profile_name() -> void:
 	var new_name := profile_name_input.text.strip_edges()
