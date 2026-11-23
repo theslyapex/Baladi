@@ -67,7 +67,7 @@ func _save() -> void:
 
 func _build_interface() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_layout_direction = Control.LAYOUT_DIRECTION_RTL
+	layout_direction = Control.LAYOUT_DIRECTION_RTL
 	var background := ColorRect.new()
 	background.color = BG
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -248,7 +248,7 @@ func _render_board() -> void:
 		style.content_margin_bottom = 9
 		tile.add_theme_stylebox_override("panel", style)
 		var label := Label.new()
-		label.text = word if solved.has(word) else "· " .repeat(word.length())
+		label.text = word if solved.has(word) else "·".repeat(word.length())
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.add_theme_font_size_override("font_size", 19)
 		label.add_theme_color_override("font_color", CREAM if solved.has(word) else MUTED)
@@ -281,6 +281,7 @@ func _on_letter_pressed(index: int) -> void:
 	letter_buttons[index].disabled = true
 	letter_buttons[index].modulate = Color("#82958a")
 	_update_selection_label()
+	_update_controls()
 
 func _update_selection_label() -> void:
 	selection_label.text = selected_word if not selected_word.is_empty() else "حروف انتخاب‌شده"
@@ -293,6 +294,7 @@ func _clear_selection() -> void:
 	selected_indices.clear()
 	selected_word = ""
 	_update_selection_label()
+	_update_controls()
 
 func _normalize_word(value: String) -> String:
 	var result := value.strip_edges().replace("ي", "ی").replace("ك", "ک")
