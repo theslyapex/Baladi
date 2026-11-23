@@ -99,6 +99,7 @@ var stage_touch_active := false
 var stage_touch_y := 0.0
 
 var startup_action_taken := false
+var startup_restore_in_progress := false
 var current_page := "auth"
 var back_confirm: ConfirmationDialog
 var back_navigation := {
@@ -122,9 +123,11 @@ func _ready() -> void:
 	_load_bonus_dictionary()
 	_build_base()
 	_init_audio()
+	startup_restore_in_progress = true
 	_show_auth("در حال بررسی حساب ذخیره‌شده…")
 	print("[Baladi] UI initialized; checking saved account in background.")
 	var restored: bool = await CloudAccount.restore_session()
+	startup_restore_in_progress = false
 	if startup_action_taken or guest_mode:
 		return
 	if restored:
@@ -558,7 +561,7 @@ func _show_auth(message: String = "") -> void:
 	auth_mode_toggle_button.pressed.connect(_toggle_signup_mode)
 	fields.add_child(auth_mode_toggle_button)
 
-	if CloudAccount.has_saved_session():
+	if CloudAccount.has_saved_session() and not startup_restore_in_progress:
 		var retry_button := _make_button("تلاش دوباره برای ورود خودکار", Color("#385b75"), CREAM)
 		retry_button.pressed.connect(_retry_saved_login)
 		fields.add_child(retry_button)
@@ -574,6 +577,7 @@ func _show_auth(message: String = "") -> void:
 	content_box.add_child(auth_status_label)
 
 func _retry_saved_login() -> void:
+	startup_action_taken = true
 	if auth_status_label != null:
 		auth_status_label.text = "در حال بازیابی نشست ذخیره‌شده…"
 		auth_status_label.add_theme_color_override("font_color", GOLD)
