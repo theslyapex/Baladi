@@ -127,7 +127,8 @@ func _enter_game() -> void:
 	equipped_frame_id = str(profile.get("equipped_frame_id", "frame_default"))
 	wins = int(profile.get("wins", 0))
 	losses = int(profile.get("losses", 0))
-	chat_unlocked = not str(profile.get("chat_unlocked_at", "")).is_empty()
+	var chat_stamp = profile.get("chat_unlocked_at", null)
+	chat_unlocked = chat_stamp != null and not str(chat_stamp).is_empty()
 	cloud_current_level = int(profile.get("current_level", 1))
 	level_index = clampi(cloud_current_level - 1, 0, max(0, levels.size() - 1))
 	var remote_completed = profile.get("completed_levels", [])
@@ -1022,7 +1023,9 @@ func _show_sticker_picker() -> void:
 				title.text = str(item.get("display_name", "استیکر"))
 				title.add_theme_color_override("font_color", CREAM)
 				card.add_child(title)
-				var action := _make_button("ارسال استیکر" if owned.has(sticker_id) else "خرید · %d سکه" % int(item.get("price_coins", 0)), Color("#765a31"), CREAM)
+				var action_text := "ارسال استیکر" if owned.has(sticker_id) and chat_unlocked else ("چت را باز کن تا ارسال کنی" if owned.has(sticker_id) else "خرید · %d سکه" % int(item.get("price_coins", 0)))
+				var action := _make_button(action_text, Color("#765a31"), CREAM)
+				action.disabled = owned.has(sticker_id) and not chat_unlocked
 				action.pressed.connect(func():
 					if owned.has(sticker_id):
 						_send_global_chat_sticker(sticker_id)
