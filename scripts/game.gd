@@ -672,23 +672,31 @@ func _show_map() -> void:
 	greeting.add_theme_font_size_override("font_size", 16)
 	greeting.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(greeting)
-	var guide_row := HBoxContainer.new()
-	guide_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	guide_row.add_theme_constant_override("separation", 10)
-	content_box.add_child(guide_row)
+	var guide_panel := _panel(Color("#287c68"))
+	guide_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_box.add_child(guide_panel)
+	var guide_body := VBoxContainer.new()
+	guide_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	guide_body.add_theme_constant_override("separation", 6)
+	guide_panel.add_child(guide_body)
 	var guide_mascot := TextureRect.new()
 	guide_mascot.texture = load("res://assets/characters/mascot.svg")
-	guide_mascot.custom_minimum_size = Vector2(68, 68)
+	guide_mascot.custom_minimum_size = Vector2(0, 76)
+	guide_mascot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	guide_mascot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	guide_mascot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	guide_mascot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	guide_row.add_child(guide_mascot)
+	guide_body.add_child(guide_mascot)
 	var guide_text := Label.new()
 	guide_text.text = "من راهنمای توام! هر ۲۰ مرحله یک سرزمین تازه منتظرته."
+	guide_text.custom_minimum_size = Vector2(0, 42)
+	guide_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	guide_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	guide_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	guide_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	guide_text.add_theme_font_size_override("font_size", 14)
 	guide_text.add_theme_color_override("font_color", CREAM)
-	guide_row.add_child(guide_text)
+	guide_body.add_child(guide_text)
 
 	var map_art := TextureRect.new()
 	map_art.texture = load("res://assets/backgrounds/wordlands.svg")
