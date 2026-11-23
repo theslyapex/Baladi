@@ -1469,11 +1469,13 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 			name.pressed.connect(func(): _show_public_profile(member_id))
 		row_box.add_child(name)
 		if member_id != CloudAccount.user_id and (role == "leader" or role == "deputy"):
-			if role == "leader" or member_role == "member":
-				var promote_role := "deputy" if role == "leader" and member_role == "member" else "veteran"
-				var promote := _make_button("تعیین مقام: %s" % _group_role_label(promote_role), Color("#385b75"), CREAM)
-				promote.pressed.connect(func(): _change_group_role(group_id, member_id, promote_role))
-				row_box.add_child(promote)
+			var target_roles: Array = ["member", "veteran", "deputy"] if role == "leader" else (["veteran"] if member_role == "member" else ["member"] if member_role == "veteran" else [])
+			for target_role in target_roles:
+				if target_role == member_role:
+					continue
+				var role_button := _make_button("تعیین مقام: %s" % _group_role_label(str(target_role)), Color("#385b75"), CREAM)
+				role_button.pressed.connect(func(): _change_group_role(group_id, member_id, str(target_role)))
+				row_box.add_child(role_button)
 			if role == "leader":
 				var transfer := _make_button("واگذاری رهبری", Color("#765a31"), CREAM)
 				transfer.pressed.connect(func(): _confirm_group_leadership_transfer(group_id, member_id, str(player.get("display_name", "این عضو"))))
