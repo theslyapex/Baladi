@@ -196,7 +196,13 @@ func api(action: String, extra: Dictionary = {}) -> Dictionary:
 	var payload := {"action": action}
 	for key in extra:
 		payload[key] = extra[key]
-	var result := await _request_json(GAME_API, HTTPClient.METHOD_POST, _headers(true), payload)
+	var result: Dictionary = await _request_json(GAME_API, HTTPClient.METHOD_POST, _headers(true), payload)
+	if not result.ok and int(result.get("status", 0)) == 401 and not refresh_token.is_empty():
+		# A server-side JWT rejection can occur before the locally cached expiry time.
+		# Refresh once, then retry the same action only after the auth layer rejected it.
+		var refresh_result: Dictionary = await _refresh_saved_session()
+		if refresh_result.get("ok", false) and is_authenticated():
+			result = await _request_json(GAME_API, HTTPClient.METHOD_POST, _headers(true), payload)
 	if not result.ok:
 		return result
 	var data: Dictionary = result.data
