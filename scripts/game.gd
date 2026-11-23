@@ -1182,10 +1182,12 @@ func _show_profile() -> void:
 			words_total += value.size()
 	var stats_grid := GridContainer.new()
 	stats_grid.columns = 2
+	stats_grid.layout_direction = Control.LAYOUT_DIRECTION_RTL
 	stats_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_grid.add_theme_constant_override("h_separation", 9)
 	stats_grid.add_theme_constant_override("v_separation", 9)
 	content_box.add_child(stats_grid)
+	# Two right-to-left columns create four compact rows for the seven profile metrics.
 	_add_profile_stat(stats_grid, "مرحله فعلی", "%d / %d" % [cloud_current_level, levels.size()], GOLD)
 	_add_profile_stat(stats_grid, "مراحل کامل‌شده", str(completed_levels.size()), GREEN)
 	_add_profile_stat(stats_grid, "واژه‌های پیدا‌شده", str(words_total), TEAL)
@@ -2383,17 +2385,18 @@ func _add_profile_stat(parent: GridContainer, caption: String, value: String, ac
 	parent.add_child(tile)
 	var stack := VBoxContainer.new()
 	stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	stack.layout_direction = Control.LAYOUT_DIRECTION_RTL
 	stack.add_theme_constant_override("separation", 3)
 	tile.add_child(stack)
 	var number := Label.new()
 	number.text = value
-	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	number.add_theme_font_size_override("font_size", 21)
 	number.add_theme_color_override("font_color", accent)
 	stack.add_child(number)
 	var label := Label.new()
 	label.text = caption
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	label.add_theme_font_size_override("font_size", 12)
 	label.add_theme_color_override("font_color", MUTED)
 	stack.add_child(label)
