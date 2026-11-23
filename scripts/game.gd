@@ -46,6 +46,7 @@ var auth_password_input: LineEdit
 var auth_name_input: LineEdit
 var auth_status_label: Label
 var session_timer: Timer
+var exit_button: Button
 
 func _ready() -> void:
 	_load_levels()
@@ -219,11 +220,11 @@ func _build_base() -> void:
 	coin_label.add_theme_font_size_override("font_size", 18)
 	coin_label.add_theme_color_override("font_color", CREAM)
 	coin_panel.add_child(coin_label)
-	var logout_button := _make_button("خروج", Color("#70413b"), CREAM)
-	logout_button.custom_minimum_size = Vector2(64, 48)
-	logout_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	logout_button.pressed.connect(_logout)
-	header.add_child(logout_button)
+	exit_button = _make_button("خروج", Color("#70413b"), CREAM)
+	exit_button.custom_minimum_size = Vector2(74, 48)
+	exit_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	exit_button.pressed.connect(_logout)
+	header.add_child(exit_button)
 
 	var rule := ColorRect.new()
 	rule.custom_minimum_size.y = 2
@@ -267,6 +268,8 @@ func _clear_content() -> void:
 
 func _show_auth(message: String = "") -> void:
 	_clear_content()
+	if exit_button != null:
+		exit_button.visible = false
 	coin_label.text = "حساب"
 	var heading := Label.new()
 	heading.text = "ورود به بازی"
@@ -375,6 +378,9 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 
 func _show_map() -> void:
 	_clear_content()
+	if exit_button != null:
+		exit_button.visible = true
+		exit_button.text = "خروج مهمان" if guest_mode else "خروج از حساب"
 	coin_label.text = "◆ %d" % coins
 
 	var heading := Label.new()
@@ -488,6 +494,9 @@ func _open_level(index: int) -> void:
 
 func _show_game() -> void:
 	_clear_content()
+	if exit_button != null:
+		exit_button.visible = true
+		exit_button.text = "خروج مهمان" if guest_mode else "خروج از حساب"
 	if levels.is_empty():
 		var error_label := Label.new()
 		error_label.text = "داده مراحل بارگذاری نشد."
