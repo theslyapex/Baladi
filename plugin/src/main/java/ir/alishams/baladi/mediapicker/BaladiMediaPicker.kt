@@ -79,6 +79,7 @@ class BaladiMediaPicker(godot: Godot) : GodotPlugin(godot) {
         if (Build.VERSION.SDK_INT >= 28) {
             val source = ImageDecoder.createSource(resolver, uri)
             return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 val maxSide = maxOf(info.size.width, info.size.height)
                 if (maxSide > MAX_IMAGE_SIDE) {
                     val ratio = MAX_IMAGE_SIDE.toDouble() / maxSide.toDouble()
