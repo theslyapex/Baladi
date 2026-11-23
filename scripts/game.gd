@@ -244,8 +244,11 @@ func _build_base() -> void:
 	page_box.add_child(footer)
 
 	trace_line = Line2D.new()
-	trace_line.width = 7.0
+	trace_line.width = 8.5
 	trace_line.default_color = GOLD
+	var trace_gradient := Gradient.new()
+	trace_gradient.colors = PackedColorArray([Color("#f4d48e"), Color("#55c6b5")])
+	trace_line.gradient = trace_gradient
 	trace_line.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	trace_line.end_cap_mode = Line2D.LINE_CAP_ROUND
 	trace_line.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -729,11 +732,17 @@ func _continue_trace(point: Vector2) -> void:
 	var index := _letter_at(point)
 	if index >= 0 and (selected_indices.is_empty() or selected_indices[-1] != index):
 		_add_trace_letter(index)
-	var curve := Curve2D.new()
+	var trace_points: Array[Vector2] = []
 	for selected_index in selected_indices:
 		var rect := letter_buttons[selected_index].get_global_rect()
-		curve.add_point(rect.get_center())
-	curve.add_point(point)
+		trace_points.append(rect.get_center())
+	trace_points.append(point)
+	var curve := Curve2D.new()
+	for i in range(trace_points.size()):
+		var previous := trace_points[max(0, i - 1)]
+		var following := trace_points[min(trace_points.size() - 1, i + 1)]
+		var tangent := (following - previous) * 0.24
+		curve.add_point(trace_points[i], -tangent, tangent)
 	trace_line.points = curve.get_baked_points()
 
 func _add_trace_letter(index: int) -> void:
