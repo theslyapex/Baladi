@@ -17,6 +17,12 @@ var game_session_id := ""
 func is_authenticated() -> bool:
 	return not access_token.is_empty() and not user_id.is_empty()
 
+func has_saved_session() -> bool:
+	var cfg := ConfigFile.new()
+	if cfg.load(AUTH_SAVE_PATH) != OK:
+		return false
+	return not str(cfg.get_value("auth", "refresh_token", "")).is_empty()
+
 func _headers(with_auth: bool = false) -> PackedStringArray:
 	var result := PackedStringArray([
 		"Content-Type: application/json",
