@@ -105,6 +105,9 @@ jobs:
       - name: Import project
         run: godot --headless --editor --path . --quit
 
+      - name: Validate GDScript resources
+        run: godot --headless --path . --script res://scripts/validate_game.gd
+
       - name: Validate Persian level vocabulary
         run: godot --headless --path . --script res://scripts/validate_levels.gd
 
