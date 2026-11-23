@@ -544,7 +544,10 @@ func _show_map() -> void:
 		stage_button.custom_minimum_size = Vector2(0, 76)
 		stage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		stage_button.alignment = HORIZONTAL_ALIGNMENT_FILL
-		stage_button.text = ("✓   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_done else (("◆   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_open else ("قفل   ·   مرحله %02d" % stage_id))
+		stage_button.text = ("مرحله %02d   ·   %s" % [stage_id, str(data.get("title", ""))]) if is_open else ("مرحله %02d   ·   قفل" % stage_id)
+		stage_button.icon = load("res://assets/icons/stage-done.svg") if is_done else (load("res://assets/icons/stage-open.svg") if is_open else load("res://assets/icons/stage-locked.svg"))
+		stage_button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		stage_button.expand_icon = true
 		stage_button.disabled = not is_open or is_done or not is_current
 		stage_button.add_theme_font_size_override("font_size", 17)
 		stage_button.add_theme_color_override("font_color", GOLD if is_done else (CREAM if is_open else MUTED))
@@ -553,7 +556,10 @@ func _show_map() -> void:
 		style.bg_color = Color("#245448") if is_done else (PANEL_ALT if is_open else Color("#122d29"))
 		style.border_color = GOLD if is_done else (TEAL if is_open else Color("#29433c"))
 		style.set_border_width_all(1)
-		style.set_corner_radius_all(16)
+		style.set_corner_radius_all(18)
+		style.shadow_color = Color(0, 0, 0, 0.22)
+		style.shadow_size = 6
+		style.shadow_offset = Vector2(0, 3)
 		style.content_margin_left = 14
 		style.content_margin_right = 14
 		stage_button.add_theme_stylebox_override("normal", style)
@@ -833,6 +839,9 @@ func _panel(border_color: Color = Color("#557b6d")) -> PanelContainer:
 	style.border_color = border_color
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(17)
+	style.shadow_color = Color(0, 0, 0, 0.22)
+	style.shadow_size = 5
+	style.shadow_offset = Vector2(0, 3)
 	style.content_margin_left = 12
 	style.content_margin_right = 12
 	style.content_margin_top = 10
@@ -851,6 +860,9 @@ func _make_button(label_text: String, color: Color, text_color: Color) -> Button
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = color
 	normal.set_corner_radius_all(13)
+	normal.shadow_color = Color(0, 0, 0, 0.2)
+	normal.shadow_size = 4
+	normal.shadow_offset = Vector2(0, 2)
 	normal.content_margin_left = 9
 	normal.content_margin_right = 9
 	button.add_theme_stylebox_override("normal", normal)
