@@ -377,10 +377,20 @@ func _build_base() -> void:
 	rule.color = Color("#8d7548")
 	page_box.add_child(rule)
 
+	var content_scroll := ScrollContainer.new()
+	content_scroll.name = "ScreenContentScroll"
+	content_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	content_scroll.size_flags_stretch_ratio = 1.0
+	page_box.add_child(content_scroll)
+
 	content_box = VBoxContainer.new()
-	content_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	content_box.add_theme_constant_override("separation", 12)
-	page_box.add_child(content_box)
+	content_scroll.add_child(content_box)
 
 	var footer := Label.new()
 	footer.text = "ALISHAMS GAME STUDIO"
@@ -1622,11 +1632,17 @@ func _show_group_chat(group_id: String, group_name: String) -> void:
 func _build_avatar_widget(path: String, frame_id: String, widget_size: int) -> Control:
 	var stack := Control.new()
 	stack.custom_minimum_size = Vector2(widget_size, widget_size)
+	stack.size = Vector2(widget_size, widget_size)
 	stack.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	stack.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	stack.clip_contents = true
 	var picture := TextureRect.new()
 	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	picture.custom_minimum_size = Vector2.ZERO
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.texture = load("res://assets/icons/profile.svg")
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(picture)
 	if not path.is_empty():
 		var request := HTTPRequest.new()
@@ -1649,7 +1665,10 @@ func _build_avatar_widget(path: String, frame_id: String, widget_size: int) -> C
 		frame_path = "res://assets/frames/default.svg"
 	var frame := TextureRect.new()
 	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	frame.custom_minimum_size = Vector2.ZERO
+	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	frame.texture = load(frame_path)
+	frame.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(frame)
 	return stack
