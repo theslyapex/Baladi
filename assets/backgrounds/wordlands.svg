@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="320" viewBox="0 0 960 320">
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#15564c"/><stop offset="1" stop-color="#0b2925"/></linearGradient>
+ <linearGradient id="hill" x2="0" y2="1"><stop stop-color="#3b9a79"/><stop offset="1" stop-color="#155446"/></linearGradient>
+ <linearGradient id="gold" x2="0" y2="1"><stop stop-color="#ffe69a"/><stop offset="1" stop-color="#c58a35"/></linearGradient>
+ <filter id="glow"><feGaussianBlur stdDeviation="7"/></filter>
+</defs>
+<rect width="960" height="320" rx="34" fill="url(#sky)"/>
+<circle cx="790" cy="72" r="40" fill="#f5d887" opacity=".16" filter="url(#glow)"/>
+<circle cx="790" cy="72" r="22" fill="#f4d68b" opacity=".9"/>
+<path d="M0 220Q110 150 220 210T450 200T690 198T960 184V320H0Z" fill="#103e35"/>
+<path d="M0 250Q120 165 240 220T470 216T720 210T960 224V320H0Z" fill="url(#hill)"/>
+<path d="M0 278Q130 220 260 260T510 255T760 252T960 260V320H0Z" fill="#0b302a"/>
+<path d="M80 270C170 205 245 275 330 222S500 188 560 232S690 282 760 202S860 198 910 176" fill="none" stroke="#f4d17d" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 15"/>
+<path d="M80 270C170 205 245 275 330 222S500 188 560 232S690 282 760 202S860 198 910 176" fill="none" stroke="#fff0bd" stroke-width="13" opacity=".14" filter="url(#glow)"/>
+<g fill="#f7d889" stroke="#9b6a2e" stroke-width="3">
+ <circle cx="80" cy="270" r="13"/><circle cx="330" cy="222" r="13"/><circle cx="560" cy="232" r="13"/><circle cx="760" cy="202" r="13"/><circle cx="910" cy="176" r="16"/>
+</g>
+<g fill="#fff0bd" opacity=".8">
+ <path d="M145 78l5 13 13 5-13 5-5 13-5-13-13-5 13-5z"/>
+ <path d="M440 58l4 10 10 4-10 4-4 10-4-10-10-4 10-4z"/>
+ <path d="M665 118l4 10 10 4-10 4-4 10-4-10-10-4 10-4z"/>
+</g>
+<g>
+ <path d="M185 224l-18-42h36z" fill="#0c4738"/><path d="M185 195l-24-38h48z" fill="#1a6b4e"/><rect x="181" y="221" width="8" height="22" rx="3" fill="#79502c"/>
+ <path d="M700 221l-18-42h36z" fill="#0c4738"/><path d="M700 192l-24-38h48z" fill="#1a6b4e"/><rect x="696" y="218" width="8" height="22" rx="3" fill="#79502c"/>
+</g>
+<g fill="#e7c77b" opacity=".8"><circle cx="265" cy="112" r="3"/><circle cx="515" cy="105" r="2"/><circle cx="860" cy="142" r="3"/><circle cx="390" cy="145" r="2"/></g>
+</svg>
