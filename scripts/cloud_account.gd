@@ -193,6 +193,45 @@ func use_hint_clue(hint_type: String, level: int) -> Dictionary:
 func record_word_found(word: String, level: int) -> Dictionary:
 	return await api("word_found", {"word": word, "level": level, "session_id": game_session_id})
 
+func get_groups() -> Dictionary:
+	return await api("groups_list")
+
+func get_my_group() -> Dictionary:
+	return await api("my_group")
+
+func create_group(group_name: String, description: String = "") -> Dictionary:
+	return await api("create_group", {"name": group_name, "description": description})
+
+func join_group(group_id: String) -> Dictionary:
+	return await api("join_group", {"group_id": group_id})
+
+func upgrade_group_capacity(group_id: String, new_capacity: int) -> Dictionary:
+	return await api("upgrade_group_capacity", {"group_id": group_id, "new_capacity": new_capacity})
+
+func set_group_role(group_id: String, target_user_id: String, role: String) -> Dictionary:
+	return await api("set_group_role", {"group_id": group_id, "target_user_id": target_user_id, "role": role})
+
+func remove_group_member(group_id: String, target_user_id: String) -> Dictionary:
+	return await api("remove_group_member", {"group_id": group_id, "target_user_id": target_user_id})
+
+func transfer_group_leadership(group_id: String, target_user_id: String) -> Dictionary:
+	return await api("transfer_group_leadership", {"group_id": group_id, "target_user_id": target_user_id})
+
+func leave_group(group_id: String) -> Dictionary:
+	return await api("leave_group", {"group_id": group_id})
+
+func get_group_chat_messages(group_id: String) -> Dictionary:
+	return await api("group_chat_list", {"group_id": group_id})
+
+func send_group_chat_message(group_id: String, message_body: String) -> Dictionary:
+	return await api("group_chat_send", {"group_id": group_id, "body": message_body})
+
+func send_group_chat_sticker(group_id: String, sticker_id: String) -> Dictionary:
+	return await api("group_chat_send", {"group_id": group_id, "sticker_id": sticker_id})
+
+func pin_group_chat_message(group_id: String, message_id: int, pinned: bool) -> Dictionary:
+	return await api("pin_group_message", {"group_id": group_id, "message_id": message_id, "pinned": pinned})
+
 func unlock_global_chat() -> Dictionary:
 	return await api("unlock_global_chat")
 
