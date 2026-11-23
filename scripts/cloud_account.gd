@@ -193,6 +193,24 @@ func use_hint_clue(hint_type: String, level: int) -> Dictionary:
 func record_word_found(word: String, level: int) -> Dictionary:
 	return await api("word_found", {"word": word, "level": level, "session_id": game_session_id})
 
+func get_cosmetics_catalog() -> Dictionary:
+	return await api("cosmetics_catalog")
+
+func purchase_cosmetic(cosmetic_id: String) -> Dictionary:
+	return await api("purchase_cosmetic", {"cosmetic_id": cosmetic_id})
+
+func equip_frame(frame_id: String) -> Dictionary:
+	return await api("equip_frame", {"frame_id": frame_id})
+
+func set_avatar_path(avatar_path: String) -> Dictionary:
+	return await api("set_avatar_path", {"avatar_path": avatar_path})
+
+func get_leaderboard() -> Dictionary:
+	return await api("leaderboard")
+
+func get_public_profile(target_user_id: String) -> Dictionary:
+	return await api("public_profile", {"user_id": target_user_id})
+
 func sign_out() -> void:
 	await end_session()
 	_clear_auth()
