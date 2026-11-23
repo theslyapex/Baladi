@@ -1869,9 +1869,7 @@ func _show_cosmetic_shop() -> void:
 	for item in result.get("catalog", []):
 		var item_id := str(item.get("id", ""))
 		var item_kind := str(item.get("kind", ""))
-		if item_kind == "sticker":
-			continue
-		var card := _panel(GOLD if item_kind == "avatar_unlock" else TEAL)
+		var card := _panel(GOLD if item_kind == "avatar_unlock" else (Color("#b18a4d") if item_kind == "sticker" else TEAL))
 		content_box.add_child(card)
 		var body := VBoxContainer.new()
 		body.add_theme_constant_override("separation", 6)
@@ -1882,13 +1880,14 @@ func _show_cosmetic_shop() -> void:
 		title.add_theme_color_override("font_color", CREAM)
 		body.add_child(title)
 		var asset_path := str(item.get("asset_path", ""))
-		if not asset_path.is_empty() and asset_path.begins_with("assets/frames/"):
-			var frame_art := TextureRect.new()
-			frame_art.texture = load("res://" + asset_path)
-			frame_art.custom_minimum_size = Vector2(72, 72)
-			frame_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-			frame_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			body.add_child(frame_art)
+		if not asset_path.is_empty() and (asset_path.begins_with("assets/frames/") or asset_path.begins_with("assets/stickers/")):
+			var item_art := TextureRect.new()
+			item_art.texture = load("res://" + asset_path)
+			item_art.custom_minimum_size = Vector2(76, 76)
+			item_art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			item_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+			item_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			body.add_child(item_art)
 		var price := Label.new()
 		price.text = "رایگان" if int(item.get("price_coins", 0)) == 0 else "%s سکه" % str(item.get("price_coins", 0))
 		price.add_theme_color_override("font_color", GOLD)
@@ -2106,12 +2105,12 @@ func _build_chapter_banner(level_number: int) -> Control:
 	banner.add_child(row)
 	var mascot := TextureRect.new()
 	mascot.texture = load("res://assets/characters/mascot.svg")
-	mascot.custom_minimum_size = Vector2(96, 96)
+	mascot.custom_minimum_size = Vector2(76, 76)
 	mascot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	mascot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	mascot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(mascot)
-	mascot.pivot_offset = Vector2(48, 48)
+	mascot.pivot_offset = Vector2(38, 38)
 	var mascot_tween := create_tween()
 	mascot_tween.set_loops()
 	mascot_tween.tween_property(mascot, "scale", Vector2(1.045, 1.045), 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -2122,7 +2121,7 @@ func _build_chapter_banner(level_number: int) -> Control:
 	row.add_child(text_box)
 	var chapter := Label.new()
 	chapter.text = _chapter_title(level_number)
-	chapter.add_theme_font_size_override("font_size", 20)
+	chapter.add_theme_font_size_override("font_size", 18)
 	chapter.add_theme_color_override("font_color", GOLD)
 	text_box.add_child(chapter)
 	var line := Label.new()
@@ -2163,10 +2162,12 @@ func _show_game() -> void:
 	subtitle_label.add_theme_color_override("font_color", MUTED)
 	content_box.add_child(subtitle_label)
 	var chapter_level := duel_round_number * 10 if duel_mode else int(data.get("id", level_index + 1))
-	content_box.add_child(_build_chapter_banner(chapter_level))
+	var game_banner := _build_chapter_banner(chapter_level)
+	game_banner.custom_minimum_size = Vector2(0, 88)
+	content_box.add_child(game_banner)
 
-	var board_panel := _panel()
-	board_panel.custom_minimum_size.y = 145
+	var board_panel := _panel(Color("#8f7547"))
+	board_panel.custom_minimum_size.y = 150
 	content_box.add_child(board_panel)
 	board_box = GridContainer.new()
 	board_box.columns = 1
@@ -2176,19 +2177,19 @@ func _show_game() -> void:
 	board_panel.add_child(board_box)
 	_render_board()
 
-	var selection_panel := _panel(Color("#4c432e"))
-	selection_panel.custom_minimum_size.y = 60
+	var selection_panel := _panel(Color("#9a7738"))
+	selection_panel.custom_minimum_size.y = 68
 	content_box.add_child(selection_panel)
 	selection_label = Label.new()
 	selection_label.text = "حروف را با کشیدن انگشت به هم وصل کن"
 	selection_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	selection_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	selection_label.add_theme_font_size_override("font_size", 22)
+	selection_label.add_theme_font_size_override("font_size", 18)
 	selection_label.add_theme_color_override("font_color", GOLD)
 	selection_panel.add_child(selection_label)
 
 	letters_grid = Control.new()
-	letters_grid.custom_minimum_size = Vector2(0, 260)
+	letters_grid.custom_minimum_size = Vector2(0, 248)
 	letters_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content_box.add_child(letters_grid)
 	letters_grid.resized.connect(_layout_letters)
@@ -2426,11 +2427,11 @@ func _render_letters() -> void:
 	var letters: Array = _current_letters()
 	for i in range(letters.size()):
 		var button := _make_button(str(letters[i]), PANEL_ALT, CREAM)
-		button.custom_minimum_size = Vector2(68, 68)
-		button.size = Vector2(68, 68)
-		button.add_theme_font_size_override("font_size", 28)
+		button.custom_minimum_size = Vector2(58, 58)
+		button.size = Vector2(58, 58)
+		button.add_theme_font_size_override("font_size", 25)
 		button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		button.pivot_offset = Vector2(34, 34)
+		button.pivot_offset = Vector2(29, 29)
 		var circle_style := StyleBoxFlat.new()
 		circle_style.bg_color = Color("#205247")
 		circle_style.border_color = Color("#d4b46f")
@@ -2452,13 +2453,17 @@ func _layout_letters() -> void:
 	if letters_grid == null or not is_instance_valid(letters_grid) or letter_buttons.is_empty():
 		return
 	var center := letters_grid.size * 0.5
-	var radius := minf(letters_grid.size.x * 0.36, letters_grid.size.y * 0.37)
-	radius = maxf(70.0, radius)
 	var count := letter_buttons.size()
+	var button_size := clampf(minf(letters_grid.size.x * 0.19, letters_grid.size.y * 0.25), 50.0, 62.0)
+	var radius := minf(letters_grid.size.x * 0.34, letters_grid.size.y * 0.34)
+	radius = maxf(0.0, radius)
 	for i in range(count):
 		var angle := -PI * 0.5 + TAU * float(i) / float(count)
 		var target := center + Vector2(cos(angle), sin(angle)) * radius
 		var button := letter_buttons[i]
+		button.size = Vector2(button_size, button_size)
+		button.custom_minimum_size = Vector2(button_size, button_size)
+		button.pivot_offset = Vector2(button_size * 0.5, button_size * 0.5)
 		button.position = target - button.size * 0.5
 
 func _words_for_current_level() -> Array:
