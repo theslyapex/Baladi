@@ -861,6 +861,9 @@ func _show_profile() -> void:
 	var leaderboard_button := _make_button("جدول رتبه‌بندی بازیکنان", Color("#245448"), GOLD)
 	leaderboard_button.pressed.connect(_show_leaderboard)
 	content_box.add_child(leaderboard_button)
+	var duel_invites_button := _make_button("درخواست‌های بازی دونفره", Color("#385b75"), CREAM)
+	duel_invites_button.pressed.connect(_show_duel_invites)
+	content_box.add_child(duel_invites_button)
 
 	profile_status_label = Label.new()
 	profile_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -899,7 +902,7 @@ func _refresh_duel_round() -> void:
 	var state: Dictionary = result.get("state", {})
 	_apply_cloud_profile(result.get("profile", {}))
 	if str(state.get("status", "")) == "completed":
-		_show_duel_result(str(state.get("winner_id", "")), int(state.get("elapsed_ms", 0)))
+		_show_duel_result(str(state.get("winner_id", "")), int(state.get("winner_elapsed_ms", 0)))
 		return
 	duel_round_number = int(state.get("current_round", 1))
 	duel_current_letters = state.get("letters", [])
@@ -939,7 +942,7 @@ func _show_duel_result(winner_id: String, elapsed_ms: int) -> void:
 	heading.add_theme_color_override("font_color", GOLD if won else RED)
 	content_box.add_child(heading)
 	var detail := Label.new()
-	detail.text = "زمان تو: %.1f ثانیه" % (float(elapsed_ms) / 1000.0)
+	detail.text = "زمان ثبت‌شده برنده: %.1f ثانیه" % (float(elapsed_ms) / 1000.0)
 	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	detail.add_theme_font_size_override("font_size", 18)
 	detail.add_theme_color_override("font_color", CREAM)
@@ -958,6 +961,71 @@ func _leave_duel_to_map() -> void:
 	duel_mode = false
 	duel_match_id = ""
 	_show_map()
+
+func _send_duel_invite_to(target_user_id: String) -> void:
+	if guest_mode or target_user_id.is_empty() or target_user_id == CloudAccount.user_id:
+		return
+	var result: Dictionary = await CloudAccount.send_duel_invite(target_user_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "ارسال دعوت مسابقه انجام نشد.")), RED)
+		return
+	_set_status("دعوت مسابقهٔ ۱۰مرحله‌ای ارسال شد.", GREEN)
+
+func _show_duel_invites() -> void:
+	_clear_content()
+	var heading := Label.new()
+	heading.text = "درخواست‌های مسابقه"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 24)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	var result: Dictionary = await CloudAccount.get_duel_invites()
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "درخواست‌ها بارگذاری نشدند.")), RED)
+	else:
+		var invites: Array = result.get("invites", [])
+		if invites.is_empty():
+			var empty := Label.new()
+			empty.text = "در حال حاضر دعوت مسابقه‌ای نداری."
+			empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			empty.add_theme_color_override("font_color", MUTED)
+			content_box.add_child(empty)
+		for invite in invites:
+			var invite_id := str(invite.get("id", ""))
+			var sender: Dictionary = invite.get("sender", {})
+			var card := _panel(GOLD)
+			content_box.add_child(card)
+			var body := VBoxContainer.new()
+			body.add_theme_constant_override("separation", 7)
+			card.add_child(body)
+			var name := Label.new()
+			name.text = "%s تو را به رقابت دعوت کرده است." % str(sender.get("display_name", "بازیکن"))
+			name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			name.add_theme_color_override("font_color", CREAM)
+			body.add_child(name)
+			var accept := _make_button("پذیرش و شروع مسابقه", Color("#287c68"), CREAM)
+			accept.pressed.connect(func(): _accept_duel_invite(invite_id))
+			body.add_child(accept)
+			var decline := _make_button("رد دعوت", Color("#713e3b"), CREAM)
+			decline.pressed.connect(func(): _decline_duel_invite(invite_id))
+			body.add_child(decline)
+	var back := _make_button("بازگشت به پروفایل", PANEL_ALT, CREAM)
+	back.pressed.connect(_show_profile)
+	content_box.add_child(back)
+
+func _accept_duel_invite(invite_id: String) -> void:
+	var result: Dictionary = await CloudAccount.accept_duel_invite(invite_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "شروع مسابقه انجام نشد.")), RED)
+		return
+	_show_duel_game(str(result.get("match_id", "")))
+
+func _decline_duel_invite(invite_id: String) -> void:
+	var result: Dictionary = await CloudAccount.decline_duel_invite(invite_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "رد دعوت انجام نشد.")), RED)
+		return
+	_show_duel_invites()
 
 func _show_global_chat() -> void:
 	active_group_chat_id = ""
@@ -1078,10 +1146,14 @@ func _refresh_global_chat() -> void:
 			body.add_theme_constant_override("separation", 3)
 			card.add_child(body)
 			var player: Dictionary = message.get("player", {})
-			var name_label := Label.new()
-			name_label.text = str(player.get("display_name", "بازیکن"))
+			var player_id := str(message.get("user_id", ""))
+			var name_label := _make_button(str(player.get("display_name", "بازیکن")), Color("#294c43"), GOLD)
+			name_label.custom_minimum_size = Vector2(0, 34)
 			name_label.add_theme_font_size_override("font_size", 12)
-			name_label.add_theme_color_override("font_color", GOLD)
+			if player_id == CloudAccount.user_id:
+				name_label.disabled = true
+			else:
+				name_label.pressed.connect(func(): _show_public_profile(player_id))
 			body.add_child(name_label)
 			var sticker_id := str(message.get("sticker_id", ""))
 			if not sticker_id.is_empty():
@@ -1578,6 +1650,9 @@ func _show_public_profile(target_user_id: String) -> void:
 	_add_profile_stat(stats, "واژه‌های پیدا‌شده", str(player.get("words_found", 0)), TEAL)
 	_add_profile_stat(stats, "برد دونفره", str(player.get("wins", 0)), GREEN)
 	_add_profile_stat(stats, "باخت دونفره", str(player.get("losses", 0)), RED)
+	var challenge := _make_button("دعوت به مسابقهٔ دونفره", Color("#765a31"), CREAM)
+	challenge.pressed.connect(func(): _send_duel_invite_to(target_user_id))
+	content_box.add_child(challenge)
 	var back := _make_button("بازگشت به رتبه‌بندی", PANEL_ALT, CREAM)
 	back.pressed.connect(_show_leaderboard)
 	content_box.add_child(back)
