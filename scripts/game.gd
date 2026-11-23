@@ -745,45 +745,194 @@ func _submit_word() -> void:
 	if selected_word.is_empty():
 		return
 	var candidate := _normalize_word(selected_word)
+	var stage_id := int(levels[level_index].get("id", level_index + 1))
 	var answers: Array = levels[level_index].get("answers", [])
 	var matched := ""
 	for answer in answers:
 		if _normalize_word(str(answer)) == candidate:
 			matched = str(answer)
 			break
-	if matched.is_empty():
-		_set_status("این واژه در این مرحله نیست. دوباره تلاش کن.", RED)
-	elif _words_for_current_level().has(matched):
-		_set_status("این واژه را قبلاً پیدا کرده‌ای.", GOLD)
-	else:
-		var stage_id := int(levels[level_index].get("id", level_index + 1))
-		var word_result: Dictionary = await CloudAccount.record_word_found(matched, stage_id)
-		if not word_result.get("ok", false):
-			_set_status(str(word_result.get("error", "ثبت واژه در حساب انجام نشد.")), RED)
-			_clear_selection()
-			return
-		var word_profile: Dictionary = word_result.get("profile", {})
-		if not word_profile.is_empty():
-			_apply_cloud_profile(word_profile)
-		var key := str(stage_id)
-		var words := _words_for_current_level()
-		words.append(matched)
-		level_solved[key] = words
-		if _is_level_complete():
-			var completion: Dictionary = await CloudAccount.complete_level(stage_id)
-			if not completion.get("ok", false):
-				words.erase(matched)
-				level_solved[key] = words
-				_set_status(str(completion.get("error", "ثبت تکمیل مرحله انجام نشد.")), RED)
+
+	if not matched.is_empty():
+		if _words_for_current_level().has(matched):
+			_set_status("این واژه را قبلاً پیدا کرده‌ای.", GOLD)
+		elif guest_mode:
+			var guest_words := _words_for_current_level()
+			guest_words.append(matched)
+			level_solved[str(stage_id)] = guest_words
+			coins += 3
+			_play_sfx("found")
+			_animate_coin_reward(3)
+			if _is_level_complete():
+				_complete_guest_level()
 			else:
-				_apply_cloud_profile(completion.get("profile", {}))
-				_set_status("مرحله کامل شد! پاداش سکه به حسابت اضافه شد.", GREEN)
+				_set_status("آفرین! واژه پیدا شد و ۳ سکه گرفتی.", GREEN)
+				_render_board()
 		else:
-			_set_status("آفرین! یک واژه دیگر پیدا کردی.", GREEN)
-		_render_board()
+			var word_result: Dictionary = await CloudAccount.record_word_found(matched, stage_id)
+			if not word_result.get("ok", false):
+				_set_status(str(word_result.get("error", "ثبت واژه در حساب انجام نشد.")), RED)
+			elif word_result.get("already_found", false):
+				_set_status("این واژه قبلاً در حسابت ثبت شده است.", GOLD)
+			else:
+				_apply_cloud_profile(word_result.get("profile", {}))
+				var member_words := _words_for_current_level()
+				member_words.append(matched)
+				level_solved[str(stage_id)] = member_words
+				var awarded := int(word_result.get("coins_awarded", 3))
+				if awarded > 0:
+					_play_sfx("found")
+					_animate_coin_reward(awarded)
+				if _is_level_complete():
+					var completion: Dictionary = await CloudAccount.complete_level(stage_id)
+					if completion.get("ok", false):
+						_apply_cloud_profile(completion.get("profile", {}))
+						_show_stage_complete(int(levels[level_index].get("reward", 0)))
+					else:
+						_set_status(str(completion.get("error", "ثبت تکمیل مرحله انجام نشد.")), RED)
+						_render_board()
+				else:
+					_set_status("آفرین! یک واژه دیگر پیدا کردی.", GREEN)
+					_render_board()
 		_save()
+	elif bonus_word_set.has(candidate):
+		if _bonus_words_for_current_level().has(candidate):
+			_set_status("این واژه اضافه را قبلاً پیدا کرده‌ای و پاداشش را گرفته‌ای.", GOLD)
+		elif guest_mode:
+			var guest_bonus := _bonus_words_for_current_level()
+			guest_bonus.append(candidate)
+			level_bonus_found[str(stage_id)] = guest_bonus
+			coins += 7
+			_play_sfx("bonus")
+			_animate_coin_reward(7)
+			_show_bonus_word_feedback(candidate)
+			_save()
+		else:
+			var bonus_result: Dictionary = await CloudAccount.record_word_found(candidate, stage_id)
+			if not bonus_result.get("ok", false):
+				_set_status(str(bonus_result.get("error", "اعتبار واژه بررسی نشد.")), RED)
+			elif bonus_result.get("already_found", false):
+				_set_status("این واژه را قبلاً پیدا کرده‌ای؛ پاداش آن قبلاً پرداخت شده است.", GOLD)
+				var existing_bonus := _bonus_words_for_current_level()
+				if not existing_bonus.has(candidate):
+					existing_bonus.append(candidate)
+					level_bonus_found[str(stage_id)] = existing_bonus
+			else:
+				_apply_cloud_profile(bonus_result.get("profile", {}))
+				var member_bonus := _bonus_words_for_current_level()
+				member_bonus.append(candidate)
+				level_bonus_found[str(stage_id)] = member_bonus
+				var bonus_coins := int(bonus_result.get("coins_awarded", 7))
+				if bonus_coins > 0:
+					_play_sfx("bonus")
+					_animate_coin_reward(bonus_coins)
+				_show_bonus_word_feedback(candidate)
+				_save()
+	else:
+		_set_status("این واژه در واژه‌نامه فارسی پیدا نشد. دوباره تلاش کن.", RED)
 	_clear_selection()
 	_update_controls()
+
+func _complete_guest_level() -> void:
+	var stage_id := int(levels[level_index].get("id", level_index + 1))
+	if completed_levels.has(stage_id):
+		return
+	completed_levels.append(stage_id)
+	var reward := int(levels[level_index].get("reward", 0))
+	coins += reward
+	cloud_current_level = stage_id + 1
+	_play_sfx("complete")
+	_animate_coin_reward(reward)
+	_save()
+	_show_stage_complete(reward)
+
+func _show_bonus_word_feedback(word: String) -> void:
+	_set_status("«%s» واژه فارسی معتبری است، اما پاسخ اصلی این مرحله نیست؛ ۷ سکه هدیه گرفتی!" % word, GOLD)
+	_spawn_floating_text("+۷ سکه هدیه", GOLD)
+
+func _spawn_floating_text(message: String, color: Color) -> void:
+	var popup := Label.new()
+	popup.text = message
+	popup.add_theme_font_size_override("font_size", 19)
+	popup.add_theme_color_override("font_color", color)
+	popup.add_theme_color_override("font_shadow_color", Color("#071613"))
+	popup.add_theme_constant_override("shadow_offset_x", 1)
+	popup.add_theme_constant_override("shadow_offset_y", 2)
+	popup.z_index = 100
+	popup.position = Vector2(size.x * 0.5 - 100, size.y * 0.58)
+	popup.size = Vector2(200, 38)
+	popup.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(popup)
+	popup.scale = Vector2(0.65, 0.65)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(popup, "position:y", popup.position.y - 78, 0.85).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(popup, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(popup, "modulate:a", 0.0, 0.85).set_delay(0.22)
+	tween.chain().tween_callback(popup.queue_free)
+
+func _animate_coin_reward(amount: int) -> void:
+	if amount <= 0:
+		return
+	if coin_label != null and is_instance_valid(coin_label):
+		var pulse := create_tween()
+		pulse.tween_property(coin_label, "scale", Vector2(1.24, 1.24), 0.13).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		pulse.tween_property(coin_label, "scale", Vector2.ONE, 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		coin_label.text = "◆ %d" % coins
+	_spawn_floating_text("+%d ◆" % amount, GOLD)
+
+func _show_stage_complete(reward: int) -> void:
+	_play_sfx("complete")
+	var overlay := ColorRect.new()
+	overlay.color = Color("#061512")
+	overlay.modulate.a = 0.0
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.z_index = 200
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(center)
+	var card := _panel(GOLD)
+	card.custom_minimum_size = Vector2(310, 270)
+	center.add_child(card)
+	card.scale = Vector2(0.72, 0.72)
+	var body := VBoxContainer.new()
+	body.alignment = BoxContainer.ALIGNMENT_CENTER
+	body.add_theme_constant_override("separation", 14)
+	card.add_child(body)
+	var title := Label.new()
+	title.text = "مرحله با موفقیت کامل شد!"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 23)
+	title.add_theme_color_override("font_color", GOLD)
+	body.add_child(title)
+	var reward_label := Label.new()
+	reward_label.text = "◆  +%d سکه پاداش" % reward
+	reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reward_label.add_theme_font_size_override("font_size", 21)
+	reward_label.add_theme_color_override("font_color", CREAM)
+	body.add_child(reward_label)
+	var next_button := _make_button("رفتن به مرحله بعد", Color("#287c68"), CREAM)
+	next_button.disabled = cloud_current_level > levels.size()
+	next_button.pressed.connect(func():
+		overlay.queue_free()
+		if level_index + 1 < levels.size():
+			_open_level(level_index + 1)
+		else:
+			_show_map()
+	)
+	body.add_child(next_button)
+	var map_button := _make_button("مشاهده نقشه مراحل", Color("#294c43"), GOLD)
+	map_button.pressed.connect(func():
+		overlay.queue_free()
+		_show_map()
+	)
+	body.add_child(map_button)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(overlay, "modulate:a", 0.82, 0.22)
+	tween.tween_property(card, "scale", Vector2.ONE, 0.48).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _set_status(message: String, color: Color) -> void:
 	if status_label != null and is_instance_valid(status_label):
