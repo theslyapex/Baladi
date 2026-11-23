@@ -927,7 +927,6 @@ func _complete_guest_level() -> void:
 
 func _show_bonus_word_feedback(word: String) -> void:
 	_set_status("«%s» واژه فارسی معتبری است، اما پاسخ اصلی این مرحله نیست؛ ۷ سکه هدیه گرفتی!" % word, GOLD)
-	_spawn_floating_text("+۷ سکه هدیه", GOLD)
 
 func _spawn_floating_text(message: String, color: Color) -> void:
 	var popup := Label.new()
@@ -953,13 +952,36 @@ func _spawn_floating_text(message: String, color: Color) -> void:
 func _animate_coin_reward(amount: int) -> void:
 	if amount == 0:
 		return
-	if coin_label != null and is_instance_valid(coin_label):
-		var pulse := create_tween()
-		pulse.tween_property(coin_label, "scale", Vector2(1.24, 1.24), 0.13).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		pulse.tween_property(coin_label, "scale", Vector2.ONE, 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		coin_label.text = "◆ %d" % coins
 	var display_text := "+%d ◆" % amount if amount > 0 else "−%d ◆" % abs(amount)
-	_spawn_floating_text(display_text, GOLD if amount > 0 else CREAM)
+	var popup := Label.new()
+	popup.text = display_text
+	popup.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	popup.add_theme_font_size_override("font_size", 23)
+	popup.add_theme_color_override("font_color", GOLD if amount > 0 else RED)
+	popup.add_theme_color_override("font_shadow_color", Color("#071613"))
+	popup.add_theme_constant_override("shadow_offset_x", 2)
+	popup.add_theme_constant_override("shadow_offset_y", 2)
+	popup.size = Vector2(110, 42)
+	popup.z_index = 130
+	add_child(popup)
+	var center_position := Vector2(size.x * 0.5 - 55, size.y * 0.56)
+	var coin_position := center_position
+	if coin_label != null and is_instance_valid(coin_label):
+		coin_position = coin_label.get_global_rect().get_center() - Vector2(55, 21)
+	popup.position = center_position if amount > 0 else coin_position
+	popup.scale = Vector2(0.72, 0.72)
+	if coin_label != null and is_instance_valid(coin_label):
+		coin_label.text = "◆ %d" % coins
+		var pulse := create_tween()
+		pulse.tween_property(coin_label, "scale", Vector2(1.28, 1.28), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		pulse.tween_property(coin_label, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var target_position := coin_position if amount > 0 else center_position
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(popup, "position", target_position, 0.68).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.tween_property(popup, "scale", Vector2(0.48, 0.48), 0.68).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.tween_property(popup, "modulate:a", 0.0, 0.68).set_delay(0.18)
+	tween.chain().tween_callback(popup.queue_free)
 
 func _show_stage_complete(reward: int) -> void:
 	_play_sfx("complete")
