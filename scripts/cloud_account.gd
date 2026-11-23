@@ -286,6 +286,9 @@ func avatar_public_url(avatar_path: String) -> String:
 func upload_avatar(image: Image) -> Dictionary:
 	if not is_authenticated():
 		return {"ok": false, "error": "برای بارگذاری تصویر باید وارد حساب شوی."}
+	var session_valid: bool = await _refresh_if_needed()
+	if not session_valid:
+		return {"ok": false, "error": "نشست حساب کاربری منقضی شده است. دوباره وارد شو."}
 	var bytes := image.save_jpg_to_buffer(0.9)
 	if bytes.is_empty():
 		return {"ok": false, "error": "تبدیل تصویر پروفایل ناموفق بود."}
