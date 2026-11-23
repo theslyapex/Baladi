@@ -54,6 +54,8 @@ var profile_button: Button
 var profile_name_input: LineEdit
 var profile_status_label: Label
 var display_name := "بازیکن"
+var diamonds := 0
+var sound_enabled := true
 var daily_streak := 0
 var last_checkin_date := ""
 var avatar_path := ""
@@ -154,7 +156,7 @@ func _enter_game() -> void:
 	_load_save()
 	coins = int(profile.get("coins", 100))
 	var profile_name = profile.get("display_name", null)
-	display_name = str(profile_name) if profile_name != null else ""
+	display_name = _safe_player_name(profile_name, CloudAccount.display_name)
 	if display_name.is_empty():
 		display_name = CloudAccount.display_name if not CloudAccount.display_name.is_empty() else "بازیکن"
 	daily_streak = int(profile.get("daily_streak", 0))
@@ -270,7 +272,7 @@ func _load_save() -> void:
 	coins = int(cfg.get_value("player", "coins", 100))
 	level_index = clampi(int(cfg.get_value("player", "level_index", 0)), 0, max(0, levels.size() - 1))
 	cloud_current_level = int(cfg.get_value("player", "current_level", level_index + 1))
-	display_name = str(cfg.get_value("player", "display_name", "بازیکن"))
+	display_name = _safe_player_name(cfg.get_value("player", "display_name", "بازیکن"))
 	daily_streak = int(cfg.get_value("player", "daily_streak", 0))
 	last_checkin_date = str(cfg.get_value("player", "last_checkin_date", ""))
 	var saved_levels = cfg.get_value("player", "level_solved", {})
@@ -290,6 +292,12 @@ func _load_save() -> void:
 		var legacy = cfg.get_value("player", "solved", [])
 		if legacy is Array and not legacy.is_empty() and not levels.is_empty():
 			level_solved[str(levels[level_index].get("id", level_index + 1))] = legacy
+
+func _safe_player_name(value: Variant, fallback: String = "بازیکن") -> String:
+	var candidate := str(value).strip_edges()
+	if candidate.is_empty() or candidate.to_lower() in ["null", "none"]:
+		return fallback
+	return candidate
 
 func _save() -> void:
 	var cfg := ConfigFile.new()
@@ -885,7 +893,6 @@ func _show_map() -> void:
 func _show_profile() -> void:
 	current_page = "profile"
 	_clear_content()
-	_add_section_art("assets/backgrounds/orbit.svg", 92)
 	stage_scroll = get_node_or_null("MainMargin/PageBox/ScreenContentScroll") as ScrollContainer
 	if profile_button != null:
 		profile_button.visible = true
@@ -1300,7 +1307,7 @@ func _refresh_global_chat() -> void:
 			card.add_child(body)
 			var player: Dictionary = message.get("player", {})
 			var player_id := str(message.get("user_id", ""))
-			var name_label := _make_button(str(player.get("display_name", "بازیکن")), Color("#294c43"), GOLD)
+			var name_label := _make_button(_safe_player_name(player.get("display_name", null)), Color("#294c43"), GOLD)
 			name_label.custom_minimum_size = Vector2(0, 34)
 			name_label.add_theme_font_size_override("font_size", 12)
 			if player_id == CloudAccount.user_id:
@@ -1392,7 +1399,8 @@ func _show_sticker_picker() -> void:
 				card.add_child(title)
 				var sticker_art := TextureRect.new()
 				sticker_art.texture = load("res://" + str(item.get("asset_path", "")))
-				sticker_art.custom_minimum_size = Vector2(78, 78)
+				sticker_art.custom_minimum_size = Vector2(104, 104)
+				sticker_art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 				sticker_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 				sticker_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				card.add_child(sticker_art)
@@ -1514,7 +1522,7 @@ func _render_group_discovery() -> void:
 		title.add_theme_color_override("font_color", CREAM)
 		body.add_child(title)
 		var info := Label.new()
-		info.text = "رهبر: %s  ·  اعضا: %d / %d" % [str(group.get("leader_name", "بازیکن")), int(group.get("member_count", 0)), int(group.get("capacity", 20))]
+		info.text = "رهبر: %s  ·  اعضا: %d / %d" % [_safe_player_name(group.get("leader_name", null)), int(group.get("member_count", 0)), int(group.get("capacity", 20))]
 		info.add_theme_color_override("font_color", MUTED)
 		body.add_child(info)
 		if int(group.get("member_count", 0)) < int(group.get("capacity", 20)):
@@ -1925,6 +1933,8 @@ func _show_cosmetic_shop() -> void:
 	var shop_grid := GridContainer.new()
 	shop_grid.columns = 2
 	shop_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shop_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	shop_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	shop_grid.add_theme_constant_override("h_separation", 9)
 	shop_grid.add_theme_constant_override("v_separation", 9)
 	content_box.add_child(shop_grid)
@@ -1932,7 +1942,9 @@ func _show_cosmetic_shop() -> void:
 		var item_id := str(item.get("id", ""))
 		var item_kind := str(item.get("kind", ""))
 		var card := _panel(GOLD if item_kind == "avatar_unlock" else (Color("#b18a4d") if item_kind == "sticker" else TEAL))
-		card.custom_minimum_size = Vector2(0, 190)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		card.custom_minimum_size = Vector2(0, 220)
 		shop_grid.add_child(card)
 		var body := VBoxContainer.new()
 		body.add_theme_constant_override("separation", 6)
@@ -2027,7 +2039,8 @@ func _show_leaderboard() -> void:
 			for player in result.get("leaderboard", []):
 				var player_id := str(player.get("user_id", ""))
 				var rank := int(player.get("rank", 0))
-				var row := _make_button("#%d   %s   ·   مرحله %d   ·   %d سکه" % [rank, str(player.get("display_name", "بازیکن")), int(player.get("current_level", 1)), int(player.get("coins", 0))], PANEL_ALT, CREAM)
+				var player_name := _safe_player_name(player.get("display_name", null))
+				var row := _make_button("#%d   %s   ·   مرحله %d   ·   %d سکه" % [rank, player_name, int(player.get("current_level", 1)), int(player.get("coins", 0))], PANEL_ALT, CREAM)
 				row.pressed.connect(func(): _show_public_profile(player_id))
 				content_box.add_child(row)
 	var back := _make_button("بازگشت", PANEL, CREAM)
@@ -3289,11 +3302,6 @@ func _confirm_app_exit() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		_handle_back_request()
-	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
-		_handle_back_request()
-		_save()
-		if not guest_mode and CloudAccount.is_authenticated():
-			await CloudAccount.end_session()
 	elif what == NOTIFICATION_APPLICATION_PAUSED:
 		_save()
 		if not guest_mode and CloudAccount.is_authenticated():
