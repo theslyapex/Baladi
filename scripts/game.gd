@@ -1122,6 +1122,15 @@ func _render_letters() -> void:
 	letter_buttons.clear()
 	selected_indices.clear()
 	selected_word = ""
+
+	var tray := TextureRect.new()
+	tray.texture = load("res://assets/backgrounds/letter-wheel.svg")
+	tray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tray.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tray.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tray.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	letters_grid.add_child(tray)
+
 	var letters: Array = levels[level_index].get("letters", [])
 	for i in range(letters.size()):
 		var button := _make_button(str(letters[i]), PANEL_ALT, CREAM)
