@@ -183,11 +183,12 @@ func update_profile_name(new_name: String) -> Dictionary:
 func daily_checkin() -> Dictionary:
 	return await api("daily_checkin")
 
-func use_hint_clue(hint_type: String, level: int) -> Dictionary:
+func use_hint_clue(hint_type: String, level: int, clue_key: String) -> Dictionary:
 	return await api("hint_clue", {
 		"hint_type": hint_type,
 		"level": level,
-		"session_id": game_session_id
+		"session_id": game_session_id,
+		"clue_key": clue_key
 	})
 
 func record_word_found(word: String, level: int) -> Dictionary:
@@ -303,7 +304,7 @@ func upload_avatar(image: Image) -> Dictionary:
 		"Content-Type: image/jpeg",
 		"x-upsert: false"
 	])
-	var request_error := request.request(
+	var request_error := request.request_raw(
 		SUPABASE_URL + "/storage/v1/object/baladi-avatars/" + avatar_path,
 		headers,
 		HTTPClient.METHOD_POST,
