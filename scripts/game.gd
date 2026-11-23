@@ -69,6 +69,7 @@ var chat_status_label: Label
 var chat_poll_busy := false
 var active_group_chat_id := ""
 var active_group_chat_name := ""
+var active_group_role := ""
 var group_name_input: LineEdit
 var group_description_input: LineEdit
 var duel_mode := false
@@ -1194,10 +1195,28 @@ func _refresh_global_chat() -> void:
 				message_label.text = str(message.get("body", ""))
 				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				message_label.add_theme_color_override("font_color", CREAM)
-				body.add_child(message_label)
+					body.add_child(message_label)
+			if not active_group_chat_id.is_empty() and bool(message.get("is_pinned", false)):
+				var pinned_label := Label.new()
+				pinned_label.text = "پیام سنجاق‌شده"
+				pinned_label.add_theme_color_override("font_color", GOLD)
+				body.add_child(pinned_label)
+			if not active_group_chat_id.is_empty() and active_group_role in ["veteran", "deputy", "leader"]:
+				var pin_button := _make_button("برداشتن سنجاق" if bool(message.get("is_pinned", false)) else "سنجاق پیام", Color("#765a31"), CREAM)
+				var group_message_id := int(message.get("id", 0))
+				var should_pin := not bool(message.get("is_pinned", false))
+				pin_button.pressed.connect(func(): _toggle_group_message_pin(active_group_chat_id, group_message_id, should_pin))
+				body.add_child(pin_button)
 	elif not result.get("ok", false) and chat_status_label != null and is_instance_valid(chat_status_label):
 		chat_status_label.text = str(result.get("error", "دریافت پیام‌ها انجام نشد."))
 	chat_poll_busy = false
+
+func _toggle_group_message_pin(group_id: String, message_id: int, pinned: bool) -> void:
+	var result: Dictionary = await CloudAccount.pin_group_chat_message(group_id, message_id, pinned)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "تغییر وضعیت پیام انجام نشد.")), RED)
+		return
+	await _refresh_global_chat()
 
 func _send_global_chat_message() -> void:
 	if chat_input == null or not is_instance_valid(chat_input):
@@ -1294,6 +1313,7 @@ func _send_global_chat_sticker(sticker_id: String) -> void:
 func _show_groups() -> void:
 	active_group_chat_id = ""
 	active_group_chat_name = ""
+	active_group_role = ""
 	_clear_content()
 	var heading := Label.new()
 	heading.text = "باشگاه گروه‌ها"
@@ -1397,6 +1417,7 @@ func _join_group_now(group_id: String) -> void:
 func _render_my_group(group: Dictionary, members: Array) -> void:
 	var group_id := str(group.get("id", ""))
 	var role := str(group.get("my_role", "member"))
+	active_group_role = role
 	var card := _panel(GOLD)
 	content_box.add_child(card)
 	var body := VBoxContainer.new()
@@ -1450,6 +1471,10 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 				var promote := _make_button("تعیین مقام: %s" % _group_role_label(promote_role), Color("#385b75"), CREAM)
 				promote.pressed.connect(func(): _change_group_role(group_id, member_id, promote_role))
 				row_box.add_child(promote)
+			if role == "leader":
+				var transfer := _make_button("واگذاری رهبری", Color("#765a31"), CREAM)
+				transfer.pressed.connect(func(): _confirm_group_leadership_transfer(group_id, member_id, str(player.get("display_name", "این عضو"))))
+				row_box.add_child(transfer)
 			if role == "leader" or member_role in ["member", "veteran"]:
 				var remove := _make_button("حذف از گروه", Color("#713e3b"), CREAM)
 				remove.pressed.connect(func(): _remove_group_member_now(group_id, member_id))
@@ -1481,6 +1506,21 @@ func _remove_group_member_now(group_id: String, target_id: String) -> void:
 	var result: Dictionary = await CloudAccount.remove_group_member(group_id, target_id)
 	if not result.get("ok", false):
 		_set_status(str(result.get("error", "حذف عضو انجام نشد.")), RED)
+		return
+	_show_groups()
+
+func _confirm_group_leadership_transfer(group_id: String, target_id: String, target_name: String) -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "انتقال رهبری گروه"
+	dialog.dialog_text = "رهبری گروه به %s منتقل شود؟ مقام تو پس از انتقال، قائم‌مقام خواهد شد." % target_name
+	dialog.confirmed.connect(func(): _transfer_group_leadership(group_id, target_id))
+	add_child(dialog)
+	dialog.popup_centered()
+
+func _transfer_group_leadership(group_id: String, target_id: String) -> void:
+	var result: Dictionary = await CloudAccount.transfer_group_leadership(group_id, target_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "انتقال رهبری انجام نشد.")), RED)
 		return
 	_show_groups()
 
