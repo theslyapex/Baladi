@@ -1,0 +1,2 @@
+Icon inspiration/reference: Icons8, “Diamond” icon, https://icons8.com/icon/17333/diamond
+The bundled diamond artwork is a custom in-project SVG, not a redistributed Icons8 asset.
