@@ -103,9 +103,10 @@ jobs:
           java -cp /tmp Download "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz" /tmp/godot-templates.tpz
           mkdir -p /tmp/godot-templates
           (cd /tmp/godot-templates && jar xf /tmp/godot-templates.tpz)
-          find /tmp/godot-templates -type f \( -name 'android_debug.apk' -o -name 'android_release.apk' \) -exec cp {} "$HOME/.local/share/godot/export_templates/4.7.2.stable/" \;
+          find /tmp/godot-templates -type f \( -name 'android_debug.apk' -o -name 'android_release.apk' -o -name 'android_source.zip' \) -exec cp {} "$HOME/.local/share/godot/export_templates/4.7.2.stable/" \;
           test -s "$HOME/.local/share/godot/export_templates/4.7.2.stable/android_debug.apk"
           test -s "$HOME/.local/share/godot/export_templates/4.7.2.stable/android_release.apk"
+          test -s "$HOME/.local/share/godot/export_templates/4.7.2.stable/android_source.zip"
 
       - name: Download Estedad Persian font
         run: |
