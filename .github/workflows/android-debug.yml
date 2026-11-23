@@ -12,6 +12,10 @@ on:
       - 'export_presets.cfg'
       - '.github/workflows/android-debug.yml'
 
+concurrency:
+  group: baladi-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   export:
     runs-on: ubuntu-latest
