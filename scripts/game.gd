@@ -311,6 +311,9 @@ func _safe_player_name(value: Variant, fallback: String = "بازیکن") -> Str
 		return fallback
 	return candidate
 
+func _format_coin_price(value: Variant) -> String:
+	return str(maxi(0, int(value)))
+
 func _save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("player", "coins", coins)
@@ -733,6 +736,8 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 
 func _show_map() -> void:
 	current_page = "map"
+	if chat_poll_timer != null:
+		chat_poll_timer.stop()
 	if duel_poll_timer != null:
 		duel_poll_timer.stop()
 	duel_mode = false
@@ -850,6 +855,11 @@ func _show_map() -> void:
 	settings_nav.custom_minimum_size = Vector2(0, 44)
 	settings_nav.pressed.connect(_show_settings)
 	social_row.add_child(settings_nav)
+
+	if not guest_mode and not chat_unlocked:
+		var unlock_chat_nav := _make_button("خرید دسترسی دائمی چت عمومی · ۱۸٬۰۰۰ سکه", Color("#a77a35"), CREAM)
+		unlock_chat_nav.pressed.connect(_unlock_global_chat)
+		content_box.add_child(unlock_chat_nav)
 
 	if cloud_current_level > levels.size():
 		var finished := Label.new()
@@ -1508,15 +1518,20 @@ func _unlock_global_chat() -> void:
 	_show_global_chat()
 
 func _refresh_global_chat() -> void:
+	if current_page not in ["global_chat", "group_chat"]:
+		return
 	if chat_poll_busy or chat_messages_box == null or not is_instance_valid(chat_messages_box):
 		return
 	chat_poll_busy = true
+	var requested_page := current_page
+	var requested_group_id := active_group_chat_id
 	var result: Dictionary
-	if active_group_chat_id.is_empty():
-		result = await CloudAccount.get_global_chat_messages()
+	if requested_page == "group_chat" and not requested_group_id.is_empty():
+		result = await CloudAccount.get_group_chat_messages(requested_group_id)
 	else:
-		result = await CloudAccount.get_group_chat_messages(active_group_chat_id)
-	if result.get("ok", false) and chat_messages_box != null and is_instance_valid(chat_messages_box):
+		result = await CloudAccount.get_global_chat_messages()
+	var still_same_chat := current_page == requested_page and active_group_chat_id == requested_group_id
+	if result.get("ok", false) and still_same_chat and chat_messages_box != null and is_instance_valid(chat_messages_box):
 		for child in chat_messages_box.get_children():
 			child.queue_free()
 		for message in result.get("messages", []):
@@ -1561,7 +1576,7 @@ func _refresh_global_chat() -> void:
 				var should_pin := not bool(message.get("is_pinned", false))
 				pin_button.pressed.connect(func(): _toggle_group_message_pin(active_group_chat_id, group_message_id, should_pin))
 				body.add_child(pin_button)
-	elif not result.get("ok", false) and chat_status_label != null and is_instance_valid(chat_status_label):
+	elif not result.get("ok", false) and still_same_chat and chat_status_label != null and is_instance_valid(chat_status_label):
 		chat_status_label.text = str(result.get("error", "دریافت پیام‌ها انجام نشد."))
 	chat_poll_busy = false
 
@@ -1578,16 +1593,27 @@ func _send_global_chat_message() -> void:
 	var message := chat_input.text.strip_edges()
 	if message.is_empty():
 		return
-	var result: Dictionary
-	if active_group_chat_id.is_empty():
-		result = await CloudAccount.send_global_chat_message(message)
-	else:
-		result = await CloudAccount.send_group_chat_message(active_group_chat_id, message)
+	if current_page == "group_chat":
+		await _send_group_chat_message(active_group_chat_id, message)
+		return
+	var result: Dictionary = await CloudAccount.send_global_chat_message(message)
 	if not result.get("ok", false):
 		if chat_status_label != null and is_instance_valid(chat_status_label):
 			chat_status_label.text = str(result.get("error", "ارسال پیام انجام نشد."))
 		return
 	chat_input.clear()
+	await _refresh_global_chat()
+
+func _send_group_chat_message(group_id: String, message: String) -> void:
+	if group_id.is_empty() or message.is_empty():
+		return
+	var result: Dictionary = await CloudAccount.send_group_chat_message(group_id, message)
+	if not result.get("ok", false):
+		if chat_status_label != null and is_instance_valid(chat_status_label):
+			chat_status_label.text = str(result.get("error", "ارسال پیام گروه انجام نشد."))
+		return
+	if chat_input != null and is_instance_valid(chat_input):
+		chat_input.clear()
 	await _refresh_global_chat()
 
 func _show_sticker_picker() -> void:
@@ -1613,19 +1639,39 @@ func _show_sticker_picker() -> void:
 				var sticker_id := str(item.get("id", ""))
 				var card := _panel(GOLD)
 				content_box.add_child(card)
+				var card_body := VBoxContainer.new()
+				card_body.add_theme_constant_override("separation", 8)
+				card.add_child(card_body)
 				var title := Label.new()
 				title.text = str(item.get("display_name", "استیکر"))
+				title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				title.add_theme_font_size_override("font_size", 17)
 				title.add_theme_color_override("font_color", CREAM)
-				card.add_child(title)
+				card_body.add_child(title)
+				var preview_panel := PanelContainer.new()
+				preview_panel.custom_minimum_size = Vector2(0, 142)
+				var preview_style := StyleBoxFlat.new()
+				preview_style.bg_color = Color("#183b34")
+				preview_style.set_corner_radius_all(14)
+				preview_panel.add_theme_stylebox_override("panel", preview_style)
+				card_body.add_child(preview_panel)
 				var sticker_art := TextureRect.new()
-				sticker_art.texture = load("res://" + str(item.get("asset_path", "")))
-				sticker_art.custom_minimum_size = Vector2(104, 104)
-				sticker_art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+				var sticker_asset_path := "res://" + str(item.get("asset_path", ""))
+				if ResourceLoader.exists(sticker_asset_path):
+					sticker_art.texture = load(sticker_asset_path)
+				sticker_art.custom_minimum_size = Vector2(0, 128)
+				sticker_art.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				sticker_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 				sticker_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-				card.add_child(sticker_art)
+				sticker_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				preview_panel.add_child(sticker_art)
+				var price_label := Label.new()
+				price_label.text = "خریداری شده" if owned.has(sticker_id) else "%s سکه" % _format_coin_price(item.get("price_coins", 0))
+				price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				price_label.add_theme_color_override("font_color", GOLD)
+				card_body.add_child(price_label)
 				var can_send_sticker := not active_group_chat_id.is_empty() or chat_unlocked
-				var action_text := "ارسال استیکر" if owned.has(sticker_id) and can_send_sticker else ("برای ارسال، چت را باز کن" if owned.has(sticker_id) else "خرید · %d سکه" % int(item.get("price_coins", 0)))
+				var action_text := "ارسال استیکر" if owned.has(sticker_id) and can_send_sticker else ("برای ارسال، چت را باز کن" if owned.has(sticker_id) else "خرید · %s سکه" % _format_coin_price(item.get("price_coins", 0)))
 				var action := _make_button(action_text, Color("#765a31"), CREAM)
 				action.disabled = owned.has(sticker_id) and not can_send_sticker
 				action.pressed.connect(func():
@@ -1634,7 +1680,8 @@ func _show_sticker_picker() -> void:
 					else:
 						_purchase_sticker(sticker_id)
 				)
-				card.add_child(action)
+				card_body.add_child(action)
+
 		else:
 			_set_status(str(result.get("error", "فروشگاه استیکر بارگذاری نشد.")), RED)
 	var back := _make_button("بازگشت به چت", PANEL_ALT, CREAM)
@@ -1668,6 +1715,8 @@ func _send_global_chat_sticker(sticker_id: String) -> void:
 
 func _show_groups() -> void:
 	current_page = "groups"
+	if chat_poll_timer != null:
+		chat_poll_timer.stop()
 	active_group_chat_id = ""
 	active_group_chat_name = ""
 	active_group_role = ""
@@ -1898,6 +1947,8 @@ func _leave_my_group(group_id: String) -> void:
 
 func _show_group_chat(group_id: String, group_name: String) -> void:
 	current_page = "group_chat"
+	if chat_poll_timer != null:
+		chat_poll_timer.stop()
 	active_group_chat_id = group_id
 	active_group_chat_name = group_name
 	_clear_content()
@@ -1926,7 +1977,7 @@ func _show_group_chat(group_id: String, group_name: String) -> void:
 	composer.add_child(chat_input)
 	var send := _make_button("ارسال", Color("#287c68"), CREAM)
 	send.custom_minimum_size = Vector2(76, 48)
-	send.pressed.connect(_send_global_chat_message)
+	send.pressed.connect(func(): _send_group_chat_message(group_id, chat_input.text.strip_edges()))
 	composer.add_child(send)
 	var stickers := _make_button("استیکرها", Color("#765a31"), CREAM)
 	stickers.pressed.connect(_show_sticker_picker)
@@ -2196,7 +2247,7 @@ func _show_cosmetic_shop() -> void:
 			item_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			body.add_child(item_art)
 		var price := Label.new()
-		price.text = "رایگان" if int(item.get("price_coins", 0)) == 0 else "%s سکه" % str(item.get("price_coins", 0))
+		price.text = "رایگان" if int(item.get("price_coins", 0)) == 0 else "%s سکه" % _format_coin_price(item.get("price_coins", 0))
 		price.add_theme_color_override("font_color", GOLD)
 		body.add_child(price)
 		if owned_ids.has(item_id):
