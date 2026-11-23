@@ -62,6 +62,7 @@ func _enter_game() -> void:
 		_show_auth(str(response.get("error", "ورود به بازی انجام نشد.")))
 		return
 	var profile: Dictionary = response.get("profile", {})
+	_load_save()
 	coins = int(profile.get("coins", 100))
 	level_index = clampi(int(profile.get("current_level", 1)) - 1, 0, max(0, levels.size() - 1))
 	var remote_completed = profile.get("completed_levels", [])
@@ -244,7 +245,7 @@ func _show_auth(message: String = "") -> void:
 
 	auth_email_input = LineEdit.new()
 	auth_email_input.placeholder_text = "ایمیل حساب کاربری"
-	auth_email_input.keyboard_type = LineEdit.KEYBOARD_TYPE_EMAIL_ADDRESS
+	auth_email_input.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_EMAIL_ADDRESS
 	auth_email_input.custom_minimum_size.y = 48
 	fields.add_child(auth_email_input)
 
@@ -725,12 +726,13 @@ func _use_hint() -> void:
 			break
 	if target.is_empty():
 		return
-	var spend_result: Dictionary = await CloudAccount.use_hint()
+	var stage_id := int(levels[level_index].get("id", level_index + 1))
+	var spend_result: Dictionary = await CloudAccount.use_hint(target, stage_id)
 	if not spend_result.get("ok", false):
 		_set_status(str(spend_result.get("error", "مصرف سکه انجام نشد.")), RED)
 		return
 	_apply_cloud_profile(spend_result.get("profile", {}))
-	var key := str(int(levels[level_index].get("id", level_index + 1)))
+	var key := str(stage_id)
 	var words := _words_for_current_level()
 	words.append(target)
 	level_solved[key] = words
