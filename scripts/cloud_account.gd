@@ -141,7 +141,11 @@ func _refresh_if_needed() -> bool:
 		"refresh_token": refresh_token
 	})
 	if not result.ok:
-		_clear_auth()
+		# Do not discard a valid refresh credential because of a temporary offline/5xx response.
+		var status := int(result.get("status", 0))
+		var message := str(result.get("error", "")).to_lower()
+		if status in [400, 401, 403] and (message.contains("refresh") or message.contains("token") or message.contains("invalid")):
+			_clear_auth()
 		return false
 	_accept_session(result.data)
 	return true
