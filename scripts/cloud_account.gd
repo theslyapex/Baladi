@@ -214,7 +214,7 @@ func submit_duel_word(match_id: String, word: String) -> Dictionary:
 func spend_duel_hint(match_id: String, hint_type: String) -> Dictionary:
 	return await api("duel_spend_hint", {"match_id": match_id, "hint_type": hint_type})
 
-func get_groups() -> Dictionary:
+func fetch_groups() -> Dictionary:
 	return await api("groups_list")
 
 func get_my_group() -> Dictionary:
