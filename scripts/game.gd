@@ -60,15 +60,23 @@ var stage_scroll: ScrollContainer
 var stage_touch_active := false
 var stage_touch_y := 0.0
 
+var startup_action_taken := false
+
 func _ready() -> void:
 	_load_levels()
 	_load_bonus_dictionary()
 	_build_base()
 	_init_audio()
+	_show_auth("در حال بررسی حساب ذخیره‌شده…")
+	print("[Baladi] UI initialized; checking saved account in background.")
 	var restored: bool = await CloudAccount.restore_session()
+	if startup_action_taken or guest_mode:
+		return
 	if restored:
+		print("[Baladi] Saved account restored; starting game session.")
 		await _enter_game()
 	else:
+		print("[Baladi] No saved account; showing sign-in screen.")
 		_show_auth()
 
 func _load_bonus_dictionary() -> void:
@@ -130,6 +138,7 @@ func _enter_game() -> void:
 	_show_map()
 
 func _enter_guest() -> void:
+	startup_action_taken = true
 	guest_mode = true
 	_load_save()
 	_guest_daily_checkin()
@@ -429,6 +438,7 @@ func _toggle_signup_mode() -> void:
 	auth_status_label.add_theme_color_override("font_color", MUTED)
 
 func _on_login_pressed() -> void:
+	startup_action_taken = true
 	if auth_signup_mode:
 		await _on_signup_pressed()
 		return
@@ -445,6 +455,7 @@ func _on_login_pressed() -> void:
 	await _enter_game()
 
 func _on_signup_pressed() -> void:
+	startup_action_taken = true
 	if auth_name_input.text.strip_edges().length() < 2 or auth_email_input.text.strip_edges().is_empty() or auth_password_input.text.length() < 8:
 		auth_status_label.text = "نام، ایمیل و رمز عبور حداقل ۸ نویسه‌ای را وارد کن."
 		auth_status_label.add_theme_color_override("font_color", RED)
