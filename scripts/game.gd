@@ -663,12 +663,6 @@ func _show_profile() -> void:
 	var back := _make_button("بازگشت به نقشه مراحل", Color("#294c43"), CREAM)
 	back.pressed.connect(_show_map)
 	content_box.add_child(back)
-	var attribution := Label.new()
-	attribution.text = "آیکون سکه: Icons8 · icons8.com"
-	attribution.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	attribution.add_theme_font_size_override("font_size", 11)
-	attribution.add_theme_color_override("font_color", MUTED)
-	content_box.add_child(attribution)
 
 func _save_profile_name() -> void:
 	var new_name := profile_name_input.text.strip_edges()
