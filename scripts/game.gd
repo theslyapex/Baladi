@@ -1263,7 +1263,8 @@ func _refresh_global_chat() -> void:
 			var sticker_id := str(message.get("sticker_id", ""))
 			if not sticker_id.is_empty():
 				var sticker_art := TextureRect.new()
-				sticker_art.texture = load("res://assets/stickers/%s.svg" % sticker_id)
+				var sticker_file := sticker_id.trim_prefix("sticker_")
+				sticker_art.texture = load("res://assets/stickers/%s.svg" % sticker_file)
 				sticker_art.custom_minimum_size = Vector2(72, 72)
 				sticker_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 				sticker_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
