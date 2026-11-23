@@ -68,10 +68,9 @@ func _load_bonus_dictionary() -> void:
 			bonus_word_set[str(word)] = true
 
 func _save_path() -> String:
-	var account_id := str(CloudAccount.user_id)
-	if account_id.is_empty():
+	if guest_mode or not CloudAccount.is_authenticated():
 		return "user://baladi_save_guest.cfg"
-	return SAVE_PATH_PREFIX + account_id + ".cfg"
+	return SAVE_PATH_PREFIX + str(CloudAccount.user_id) + ".cfg"
 
 func _enter_game() -> void:
 	guest_mode = false
