@@ -79,6 +79,13 @@ var duel_current_letters: Array = []
 var duel_found_words: Array = []
 var duel_poll_timer: Timer
 var duel_poll_busy := false
+var crop_source_image: Image
+var crop_viewport: Control
+var crop_texture_rect: TextureRect
+var crop_zoom_slider: HSlider
+var crop_zoom := 1.0
+var crop_offset := Vector2.ZERO
+var crop_dragging := false
 var auth_signup_mode := false
 var auth_login_button: Button
 var auth_mode_toggle_button: Button
@@ -600,7 +607,8 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 		display_name = CloudAccount.display_name if not CloudAccount.display_name.is_empty() else "بازیکن"
 	daily_streak = int(profile.get("daily_streak", daily_streak))
 	last_checkin_date = str(profile.get("last_checkin_date", last_checkin_date))
-	avatar_path = str(profile.get("avatar_path", avatar_path))
+	var new_avatar_path = profile.get("avatar_path", avatar_path)
+	avatar_path = "" if new_avatar_path == null else str(new_avatar_path)
 	avatar_unlocked = bool(profile.get("avatar_unlocked", avatar_unlocked))
 	equipped_frame_id = str(profile.get("equipped_frame_id", equipped_frame_id))
 	wins = int(profile.get("wins", wins))
@@ -781,11 +789,7 @@ func _show_profile() -> void:
 	var identity_row := HBoxContainer.new()
 	identity_row.add_theme_constant_override("separation", 14)
 	identity.add_child(identity_row)
-	var avatar := TextureRect.new()
-	avatar.texture = load("res://assets/icons/profile.svg")
-	avatar.custom_minimum_size = Vector2(76, 76)
-	avatar.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-	avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var avatar := _build_avatar_widget(avatar_path, equipped_frame_id, 76)
 	identity_row.add_child(avatar)
 	var identity_info := VBoxContainer.new()
 	identity_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -859,6 +863,10 @@ func _show_profile() -> void:
 	streak_hint.add_theme_color_override("font_color", MUTED)
 	streak_box.add_child(streak_hint)
 
+	if avatar_unlocked:
+		var change_avatar := _make_button("انتخاب یا تغییر عکس پروفایل", Color("#765a31"), CREAM)
+		change_avatar.pressed.connect(_pick_avatar_from_gallery)
+		content_box.add_child(change_avatar)
 	var shop_button := _make_button("فروشگاه قاب‌ها و تصویر پروفایل", Color("#765a31"), CREAM)
 	shop_button.pressed.connect(_show_cosmetic_shop)
 	content_box.add_child(shop_button)
@@ -1532,6 +1540,177 @@ func _show_group_chat(group_id: String, group_name: String) -> void:
 	back.pressed.connect(_show_groups)
 	content_box.add_child(back)
 
+func _build_avatar_widget(path: String, frame_id: String, widget_size: int) -> Control:
+	var stack := Control.new()
+	stack.custom_minimum_size = Vector2(widget_size, widget_size)
+	stack.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var picture := TextureRect.new()
+	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	picture.texture = load("res://assets/icons/profile.svg")
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	stack.add_child(picture)
+	if not path.is_empty():
+		var request := HTTPRequest.new()
+		request.timeout = 15.0
+		add_child(request)
+		request.request_completed.connect(func(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
+			if response_code == 200 and is_instance_valid(picture):
+				var image := Image.new()
+				var image_error := image.load_jpg_from_buffer(body)
+				if image_error != OK:
+					image_error = image.load_png_from_buffer(body)
+				if image_error == OK:
+					picture.texture = ImageTexture.create_from_image(image)
+			request.queue_free()
+		)
+		request.request(CloudAccount.avatar_public_url(path))
+	var frame_name := frame_id.trim_prefix("frame_")
+	var frame_path := "res://assets/frames/%s.svg" % frame_name
+	if not ResourceLoader.exists(frame_path):
+		frame_path = "res://assets/frames/default.svg"
+	var frame := TextureRect.new()
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	frame.texture = load(frame_path)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(frame)
+	return stack
+
+func _pick_avatar_from_gallery() -> void:
+	if guest_mode or not avatar_unlocked:
+		_set_status("ابتدا باید قابلیت عکس پروفایل را با ۷۰۰۰ سکه فعال کنی.", GOLD)
+		return
+	var picker = Engine.get_singleton("BaladiMediaPicker")
+	if picker == null:
+		_set_status("انتخاب عکس از گالری در نسخه اندروید فعال می‌شود.", RED)
+		return
+	var picked_callback := Callable(self, "_on_avatar_image_picked")
+	var cancelled_callback := Callable(self, "_on_avatar_picker_cancelled")
+	var error_callback := Callable(self, "_on_avatar_picker_error")
+	if not picker.is_connected("image_picked", picked_callback):
+		picker.connect("image_picked", picked_callback)
+	if not picker.is_connected("picker_cancelled", cancelled_callback):
+		picker.connect("picker_cancelled", cancelled_callback)
+	if not picker.is_connected("picker_error", error_callback):
+		picker.connect("picker_error", error_callback)
+	picker.call("pickImage")
+
+func _on_avatar_image_picked(image_path: String) -> void:
+	crop_source_image = Image.new()
+	var error := crop_source_image.load(image_path)
+	if error != OK:
+		_set_status("خواندن تصویر انتخاب‌شده ناموفق بود.", RED)
+		return
+	crop_zoom = 1.0
+	crop_offset = Vector2.ZERO
+	_show_avatar_crop()
+
+func _on_avatar_picker_cancelled() -> void:
+	pass
+
+func _on_avatar_picker_error(message: String) -> void:
+	_set_status(message, RED)
+
+func _show_avatar_crop() -> void:
+	_clear_content()
+	var heading := Label.new()
+	heading.text = "تنظیم عکس پروفایل"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 24)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	var note := Label.new()
+	note.text = "تصویر را جابه‌جا کن و بزرگ‌نمایی را تنظیم کن. خروجی همیشه مربع ۱:۱ است."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.add_theme_color_override("font_color", MUTED)
+	content_box.add_child(note)
+	crop_viewport = Control.new()
+	crop_viewport.custom_minimum_size = Vector2(280, 280)
+	crop_viewport.size = Vector2(280, 280)
+	crop_viewport.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	crop_viewport.clip_contents = true
+	crop_viewport.mouse_filter = Control.MOUSE_FILTER_STOP
+	crop_viewport.gui_input.connect(_on_avatar_crop_input)
+	var crop_backdrop := ColorRect.new()
+	crop_backdrop.color = Color("#102b25")
+	crop_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	crop_viewport.add_child(crop_backdrop)
+	crop_texture_rect = TextureRect.new()
+	crop_texture_rect.texture = ImageTexture.create_from_image(crop_source_image)
+	crop_texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	crop_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	crop_texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	crop_viewport.add_child(crop_texture_rect)
+	content_box.add_child(crop_viewport)
+	crop_zoom_slider = HSlider.new()
+	crop_zoom_slider.min_value = 1.0
+	crop_zoom_slider.max_value = 3.0
+	crop_zoom_slider.step = 0.05
+	crop_zoom_slider.value = 1.0
+	crop_zoom_slider.value_changed.connect(func(value: float):
+		crop_zoom = value
+		_update_avatar_crop_preview()
+	)
+	content_box.add_child(crop_zoom_slider)
+	_update_avatar_crop_preview()
+	var save := _make_button("تأیید برش و ذخیره عکس", Color("#287c68"), CREAM)
+	save.pressed.connect(_confirm_avatar_crop)
+	content_box.add_child(save)
+	var cancel := _make_button("انصراف", PANEL_ALT, CREAM)
+	cancel.pressed.connect(_show_profile)
+	content_box.add_child(cancel)
+
+func _update_avatar_crop_preview() -> void:
+	if crop_viewport == null or crop_texture_rect == null or crop_source_image == null:
+		return
+	var view_size := crop_viewport.size
+	if view_size.x <= 0.0 or view_size.y <= 0.0:
+		view_size = Vector2(280, 280)
+	var image_size := Vector2(crop_source_image.get_width(), crop_source_image.get_height())
+	var base_scale := maxf(view_size.x / image_size.x, view_size.y / image_size.y)
+	var rendered_size := image_size * base_scale * crop_zoom
+	var centered_position := (view_size - rendered_size) * 0.5
+	var position := centered_position + crop_offset
+	position.x = clampf(position.x, view_size.x - rendered_size.x, 0.0)
+	position.y = clampf(position.y, view_size.y - rendered_size.y, 0.0)
+	crop_offset = position - centered_position
+	crop_texture_rect.size = rendered_size
+	crop_texture_rect.position = position
+
+func _on_avatar_crop_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		crop_dragging = event.pressed
+	elif event is InputEventScreenDrag and crop_dragging:
+		crop_offset += event.relative
+		_update_avatar_crop_preview()
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		crop_dragging = event.pressed
+	elif event is InputEventMouseMotion and crop_dragging:
+		crop_offset += event.relative
+		_update_avatar_crop_preview()
+
+func _confirm_avatar_crop() -> void:
+	if crop_source_image == null or crop_viewport == null or crop_texture_rect == null:
+		return
+	var source_width := crop_source_image.get_width()
+	var source_height := crop_source_image.get_height()
+	var view_size := crop_viewport.size
+	var scale_factor := maxf(view_size.x / source_width, view_size.y / source_height) * crop_zoom
+	var source_side := int(floor(minf(view_size.x, view_size.y) / scale_factor))
+	source_side = clampi(source_side, 1, min(source_width, source_height))
+	var source_x := clampi(int(round(-crop_texture_rect.position.x / scale_factor)), 0, source_width - source_side)
+	var source_y := clampi(int(round(-crop_texture_rect.position.y / scale_factor)), 0, source_height - source_side)
+	var cropped := crop_source_image.get_region(Rect2i(source_x, source_y, source_side, source_side))
+	cropped.resize(512, 512, Image.INTERPOLATE_LANCZOS)
+	var result: Dictionary = await CloudAccount.upload_avatar(cropped)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "ذخیره عکس پروفایل ناموفق بود.")), RED)
+		return
+	_apply_cloud_profile(result.get("profile", {}))
+	avatar_path = str(result.get("avatar_path", avatar_path))
+	crop_source_image = null
+	_show_profile()
+
 func _show_cosmetic_shop() -> void:
 	_clear_content()
 	var heading := Label.new()
@@ -1584,6 +1763,10 @@ func _show_cosmetic_shop() -> void:
 				equip.disabled = equipped_frame_id == item_id
 				equip.pressed.connect(func(): _equip_cosmetic_frame(item_id))
 				body.add_child(equip)
+			elif item_kind == "avatar_unlock":
+				var choose_photo := _make_button("انتخاب عکس از گالری", Color("#287c68"), CREAM)
+				choose_photo.pressed.connect(_pick_avatar_from_gallery)
+				body.add_child(choose_photo)
 			else:
 				var bought := Label.new()
 				bought.text = "خریداری شده"
@@ -1652,6 +1835,8 @@ func _show_public_profile(target_user_id: String) -> void:
 		content_box.add_child(back_error)
 		return
 	var player: Dictionary = result.get("profile", {})
+	var public_avatar := _build_avatar_widget(str(player.get("avatar_path", "")), str(player.get("equipped_frame_id", "frame_default")), 92)
+	content_box.add_child(public_avatar)
 	var heading := Label.new()
 	heading.text = str(player.get("display_name", "بازیکن"))
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
