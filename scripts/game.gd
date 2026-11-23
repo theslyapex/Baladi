@@ -369,15 +369,16 @@ func _show_map() -> void:
 		var stage_id := int(data.get("id", i + 1))
 		var is_done := completed_levels.has(stage_id)
 		var is_open := i == 0 or completed_levels.has(int(levels[i - 1].get("id", i)))
+		var is_current := i == cloud_current_level - 1
 		var stage_button := Button.new()
 		stage_button.custom_minimum_size = Vector2(0, 76)
 		stage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		stage_button.alignment = HORIZONTAL_ALIGNMENT_FILL
 		stage_button.text = ("✓   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_done else (("◈   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_open else ("🔒   مرحله %02d     قفل است" % stage_id))
-		stage_button.disabled = not is_open
+		stage_button.disabled = not is_open or is_done or not is_current
 		stage_button.add_theme_font_size_override("font_size", 17)
 		stage_button.add_theme_color_override("font_color", GOLD if is_done else (CREAM if is_open else MUTED))
-		stage_button.add_theme_color_override("font_disabled_color", Color("#70877e"))
+		stage_button.add_theme_color_override("font_disabled_color", GOLD if is_done else Color("#70877e"))
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color("#245448") if is_done else (PANEL_ALT if is_open else Color("#122d29"))
 		style.border_color = GOLD if is_done else (TEAL if is_open else Color("#29433c"))
@@ -390,7 +391,7 @@ func _show_map() -> void:
 		hover.bg_color = style.bg_color.lightened(0.10)
 		stage_button.add_theme_stylebox_override("hover", hover)
 		var disabled_style := style.duplicate()
-		disabled_style.bg_color = Color("#122d29")
+		disabled_style.bg_color = style.bg_color
 		stage_button.add_theme_stylebox_override("disabled", disabled_style)
 		stage_button.pressed.connect(_open_level.bind(i))
 		stage_list.add_child(stage_button)
