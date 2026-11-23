@@ -1058,7 +1058,7 @@ func _input(event: InputEvent) -> void:
 			elif not event.pressed:
 				stage_touch_active = false
 		elif event is InputEventScreenDrag and stage_touch_active:
-			var delta_y := stage_touch_y - event.position.y
+			var delta_y: float = stage_touch_y - event.position.y
 			stage_scroll.scroll_vertical = clampi(stage_scroll.scroll_vertical + int(delta_y), 0, maxi(0, int(stage_scroll.get_v_scroll_bar().max_value)))
 			stage_touch_y = event.position.y
 			return
