@@ -969,16 +969,20 @@ func _refresh_global_chat() -> void:
 			name_label.add_theme_font_size_override("font_size", 12)
 			name_label.add_theme_color_override("font_color", GOLD)
 			body.add_child(name_label)
-			var message_label := Label.new()
-			if not str(message.get("sticker_id", "")).is_empty():
-				message_label.text = "✦  " + str(message.get("sticker_id", "استیکر"))
-				message_label.add_theme_font_size_override("font_size", 17)
-				message_label.add_theme_color_override("font_color", GOLD)
+			var sticker_id := str(message.get("sticker_id", ""))
+			if not sticker_id.is_empty():
+				var sticker_art := TextureRect.new()
+				sticker_art.texture = load("res://assets/stickers/%s.svg" % sticker_id)
+				sticker_art.custom_minimum_size = Vector2(72, 72)
+				sticker_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+				sticker_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				body.add_child(sticker_art)
 			else:
+				var message_label := Label.new()
 				message_label.text = str(message.get("body", ""))
 				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				message_label.add_theme_color_override("font_color", CREAM)
-			body.add_child(message_label)
+				body.add_child(message_label)
 	elif not result.get("ok", false) and chat_status_label != null and is_instance_valid(chat_status_label):
 		chat_status_label.text = str(result.get("error", "دریافت پیام‌ها انجام نشد."))
 	chat_poll_busy = false
@@ -1023,6 +1027,12 @@ func _show_sticker_picker() -> void:
 				title.text = str(item.get("display_name", "استیکر"))
 				title.add_theme_color_override("font_color", CREAM)
 				card.add_child(title)
+				var sticker_art := TextureRect.new()
+				sticker_art.texture = load("res://" + str(item.get("asset_path", "")))
+				sticker_art.custom_minimum_size = Vector2(78, 78)
+				sticker_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+				sticker_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				card.add_child(sticker_art)
 				var action_text := "ارسال استیکر" if owned.has(sticker_id) and chat_unlocked else ("چت را باز کن تا ارسال کنی" if owned.has(sticker_id) else "خرید · %d سکه" % int(item.get("price_coins", 0)))
 				var action := _make_button(action_text, Color("#765a31"), CREAM)
 				action.disabled = owned.has(sticker_id) and not chat_unlocked
@@ -1088,6 +1098,14 @@ func _show_cosmetic_shop() -> void:
 		title.add_theme_font_size_override("font_size", 17)
 		title.add_theme_color_override("font_color", CREAM)
 		body.add_child(title)
+		var asset_path := str(item.get("asset_path", ""))
+		if not asset_path.is_empty() and asset_path.begins_with("assets/frames/"):
+			var frame_art := TextureRect.new()
+			frame_art.texture = load("res://" + asset_path)
+			frame_art.custom_minimum_size = Vector2(72, 72)
+			frame_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+			frame_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			body.add_child(frame_art)
 		var price := Label.new()
 		price.text = "رایگان" if int(item.get("price_coins", 0)) == 0 else "%s سکه" % str(item.get("price_coins", 0))
 		price.add_theme_color_override("font_color", GOLD)
