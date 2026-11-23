@@ -569,13 +569,15 @@ func _show_map() -> void:
 		var is_open := i == 0 or completed_levels.has(int(levels[i - 1].get("id", i)))
 		var is_current := i == cloud_current_level - 1
 		var stage_button := Button.new()
-		stage_button.custom_minimum_size = Vector2(0, 76)
+		stage_button.custom_minimum_size = Vector2(0, 82)
 		stage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		stage_button.alignment = HORIZONTAL_ALIGNMENT_FILL
-		stage_button.text = ("مرحله %02d   ·   %s" % [stage_id, str(data.get("title", ""))]) if is_open else ("مرحله %02d   ·   قفل" % stage_id)
+		stage_button.size_flags_stretch_ratio = 0.78
+		stage_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		stage_button.text = ("مرحله %02d  ·  %s" % [stage_id, str(data.get("title", ""))]) if is_open else ("مرحله %02d  ·  قفل شده" % stage_id)
 		stage_button.icon = load("res://assets/icons/stage-done.svg") if is_done else (load("res://assets/icons/stage-open.svg") if is_open else load("res://assets/icons/stage-locked.svg"))
 		stage_button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		stage_button.expand_icon = true
+		stage_button.icon_max_width = 32
+		stage_button.expand_icon = false
 		stage_button.disabled = not is_open or is_done or not is_current
 		stage_button.add_theme_font_size_override("font_size", 17)
 		stage_button.add_theme_color_override("font_color", GOLD if is_done else (CREAM if is_open else MUTED))
@@ -603,6 +605,7 @@ func _show_map() -> void:
 		stage_list.add_child(route_row)
 		var route_spacer := Control.new()
 		route_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		route_spacer.size_flags_stretch_ratio = 0.22
 		if i % 2 == 0:
 			route_row.add_child(stage_button)
 			route_row.add_child(route_spacer)
