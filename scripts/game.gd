@@ -282,7 +282,7 @@ func _build_base() -> void:
 	coin_row.add_theme_constant_override("separation", 6)
 	coin_panel.add_child(coin_row)
 	var coin_icon := TextureRect.new()
-	coin_icon.texture = load("res://assets/icons/coin.png")
+	coin_icon.texture = load("res://assets/icons/coin.svg")
 	coin_icon.custom_minimum_size = Vector2(27, 27)
 	coin_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -1237,7 +1237,7 @@ func _animate_coin_reward(amount: int) -> void:
 	popup.size = Vector2(150, 42)
 	popup.z_index = 230
 	var popup_icon := TextureRect.new()
-	popup_icon.texture = load("res://assets/icons/coin.png")
+	popup_icon.texture = load("res://assets/icons/coin.svg")
 	popup_icon.custom_minimum_size = Vector2(30, 30)
 	popup_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	popup_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -1299,7 +1299,7 @@ func _show_stage_complete(reward: int) -> void:
 	reward_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	reward_row.add_theme_constant_override("separation", 8)
 	var reward_icon := TextureRect.new()
-	reward_icon.texture = load("res://assets/icons/coin.png")
+	reward_icon.texture = load("res://assets/icons/coin.svg")
 	reward_icon.custom_minimum_size = Vector2(32, 32)
 	reward_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	reward_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
