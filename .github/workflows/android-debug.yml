@@ -72,6 +72,12 @@ jobs:
           curl -fL --retry 3 --retry-delay 3 "https://fonts.gstatic.com/s/estedad/v3/QdVWSTk1OgitjvYTJJDEvDlh.woff2" -o assets/fonts/Estedad.woff2
           test -s assets/fonts/Estedad.woff2
 
+      - name: Download Icons8 coin icon
+        run: |
+          mkdir -p assets/icons
+          curl -fL --retry 3 --retry-delay 3 "https://img.icons8.com/fluency/96/coins.png" -o assets/icons/coin.png
+          test -s assets/icons/coin.png
+
       - name: Prepare build directory
         run: mkdir -p build
 
