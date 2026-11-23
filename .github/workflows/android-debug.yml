@@ -90,8 +90,8 @@ jobs:
       - name: Download Estedad Persian font
         run: |
           mkdir -p assets/fonts build
-          java -cp /tmp Download "https://raw.githubusercontent.com/aminabedi68/Estedad/master/fonts/webfonts/Estedad%5Bwght%5D.woff2" assets/fonts/Estedad.woff2
-          test -s assets/fonts/Estedad.woff2
+          java -cp /tmp Download "https://raw.githubusercontent.com/aminabedi68/Estedad/master/fonts/variable/Estedad%5Bwght%5D.ttf" assets/fonts/Estedad.ttf
+          test -s assets/fonts/Estedad.ttf
 
       - name: Download Icons8 coin icon
         run: |
