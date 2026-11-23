@@ -55,6 +55,7 @@ var profile_name_input: LineEdit
 var profile_rename_button: Button
 var profile_status_label: Label
 var display_name := "بازیکن"
+var is_verified := false
 var diamonds := 0
 var name_change_count := 0
 var sound_enabled := true
@@ -158,6 +159,7 @@ func _enter_game() -> void:
 		_show_auth(str(response.get("error", "ورود به بازی انجام نشد.")))
 		return
 	var profile: Dictionary = response.get("profile", {})
+	is_verified = bool(profile.get("is_verified", false))
 	_load_save()
 	coins = int(profile.get("coins", 100))
 	diamonds = int(profile.get("diamonds", 0))
@@ -711,6 +713,7 @@ func _on_signup_pressed() -> void:
 
 func _apply_cloud_profile(profile: Dictionary) -> void:
 	coins = int(profile.get("coins", coins))
+	is_verified = bool(profile.get("is_verified", is_verified))
 	diamonds = int(profile.get("diamonds", diamonds))
 	name_change_count = int(profile.get("name_change_count", name_change_count))
 	var profile_name = profile.get("display_name", null)
@@ -1142,10 +1145,16 @@ func _show_profile() -> void:
 	identity_info.add_theme_constant_override("separation", 4)
 	identity_row.add_child(identity_info)
 	var player_name := Label.new()
-	player_name.text = display_name
+	player_name.text = display_name + ("  ✓" if is_verified else "")
 	player_name.add_theme_font_size_override("font_size", 22)
 	player_name.add_theme_color_override("font_color", CREAM)
 	identity_info.add_child(player_name)
+	if is_verified:
+		var verified_note := Label.new()
+		verified_note.text = "حساب رسمی و تأییدشده"
+		verified_note.add_theme_font_size_override("font_size", 12)
+		verified_note.add_theme_color_override("font_color", Color("#35a9ff"))
+		identity_info.add_child(verified_note)
 	var player_tag := Label.new()
 	player_tag.text = "ماجراجوی واژه‌ها"
 	player_tag.add_theme_font_size_override("font_size", 13)
@@ -1544,7 +1553,7 @@ func _refresh_global_chat() -> void:
 			card.add_child(body)
 			var player: Dictionary = message.get("player", {})
 			var player_id := str(message.get("user_id", ""))
-			var name_label := _make_button(_safe_player_name(player.get("display_name", null)), Color("#294c43"), GOLD)
+			var name_label := _make_button(_safe_player_name(player.get("display_name", null)) + ("  ✓" if bool(player.get("is_verified", false)) else ""), Color("#294c43"), GOLD)
 			name_label.custom_minimum_size = Vector2(0, 34)
 			name_label.add_theme_font_size_override("font_size", 12)
 			if player_id == CloudAccount.user_id:
@@ -1793,7 +1802,7 @@ func _render_group_discovery() -> void:
 		title.add_theme_color_override("font_color", CREAM)
 		body.add_child(title)
 		var info := Label.new()
-		info.text = "رهبر: %s  ·  اعضا: %d / %d" % [_safe_player_name(group.get("leader_name", null)), int(group.get("member_count", 0)), int(group.get("capacity", 20))]
+		info.text = "رهبر: %s%s  ·  اعضا: %d / %d" % [_safe_player_name(group.get("leader_name", null)), ("  ✓" if bool(group.get("leader_is_verified", false)) else ""), int(group.get("member_count", 0)), int(group.get("capacity", 20))]
 		info.add_theme_color_override("font_color", MUTED)
 		body.add_child(info)
 		if int(group.get("member_count", 0)) < int(group.get("capacity", 20)):
@@ -1871,7 +1880,7 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 		var row_box := VBoxContainer.new()
 		row_box.add_theme_constant_override("separation", 4)
 		row.add_child(row_box)
-		var name := _make_button("%s  ·  %s" % [_safe_player_name(player.get("display_name", null)), _group_role_label(member_role)], Color("#294c43"), CREAM)
+		var name := _make_button("%s%s  ·  %s" % [_safe_player_name(player.get("display_name", null)), ("  ✓" if bool(player.get("is_verified", false)) else ""), _group_role_label(member_role)], Color("#294c43"), CREAM)
 		name.custom_minimum_size = Vector2(0, 36)
 		if member_id == CloudAccount.user_id:
 			name.disabled = true
@@ -2313,7 +2322,7 @@ func _show_leaderboard() -> void:
 			for player in result.get("leaderboard", []):
 				var player_id := str(player.get("user_id", ""))
 				var rank := int(player.get("rank", 0))
-				var player_name := _safe_player_name(player.get("display_name", null))
+				var player_name := _safe_player_name(player.get("display_name", null)) + ("  ✓" if bool(player.get("is_verified", false)) else "")
 				var row := _make_button("#%d   %s   ·   مرحله %d   ·   %d سکه" % [rank, player_name, int(player.get("current_level", 1)), int(player.get("coins", 0))], PANEL_ALT, CREAM)
 				row.pressed.connect(func(): _show_public_profile(player_id))
 				content_box.add_child(row)
@@ -2337,7 +2346,7 @@ func _show_public_profile(target_user_id: String) -> void:
 	var public_avatar := _build_avatar_widget(str(player.get("avatar_path", "")), str(player.get("equipped_frame_id", "frame_default")), 92)
 	content_box.add_child(public_avatar)
 	var heading := Label.new()
-	heading.text = _safe_player_name(player.get("display_name", null))
+	heading.text = _safe_player_name(player.get("display_name", null)) + ("  ✓" if bool(player.get("is_verified", false)) else "")
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.add_theme_font_size_override("font_size", 25)
 	heading.add_theme_color_override("font_color", GOLD)
