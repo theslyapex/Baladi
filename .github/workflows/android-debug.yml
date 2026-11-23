@@ -121,9 +121,6 @@ jobs:
       - name: Import project
         run: godot --headless --editor --path . --quit
 
-      - name: Install Android Gradle build template
-        run: godot --headless --editor --path . --install-android-build-template --quit
-
       - name: Validate GDScript resources
         run: godot --headless --path . --script res://scripts/validate_game.gd
 
