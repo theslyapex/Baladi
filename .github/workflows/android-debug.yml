@@ -34,6 +34,23 @@ jobs:
           java -version
           javac -version
 
+      - name: Restore stable Android debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: baladi-android-debug-keystore-v1
+
+      - name: Create stable Android debug signing key
+        run: |
+          mkdir -p "$HOME/.android"
+          if [ ! -s "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storetype JKS \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Baladi Debug, OU=Alishams Game Studio, O=Alishams, L=Shiraz, ST=Fars, C=IR"
+          fi
+          keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey
+
       - name: Install matching Godot export templates
         run: |
           mkdir -p "$HOME/.local/share/godot/export_templates/4.7.2.stable"
@@ -66,6 +83,7 @@ jobs:
           test -n "$JAVA_HOME"
           test -x "$JAVA_HOME/bin/java"
           test -s "$HOME/.local/share/godot/export_templates/4.7.2.stable/android_debug.apk"
+          sed -i "s#^version/code=.*#version/code=${GITHUB_RUN_NUMBER}#" export_presets.cfg
           godot --headless --path . --export-debug "Android" build/baladi-debug.apk
 
       - name: Upload APK
