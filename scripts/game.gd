@@ -2326,23 +2326,119 @@ func _show_leaderboard() -> void:
 	_clear_content()
 	_add_section_art("assets/backgrounds/chapter-mountains.svg", 92)
 	var heading := Label.new()
-	heading.text = "جدول قهرمانان"
+	heading.text = "رقابت ماهانه"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.add_theme_font_size_override("font_size", 25)
 	heading.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(heading)
 	if guest_mode:
-		_set_status("جدول رتبه‌بندی برای بازیکنان دارای حساب نمایش داده می‌شود.", GOLD)
+		_set_status("برای شرکت در رقابت ماهانه و دریافت جایزه، وارد حساب کاربری شو.", GOLD)
 	else:
 		var result: Dictionary = await CloudAccount.get_leaderboard()
 		if not result.get("ok", false):
 			_set_status(str(result.get("error", "جدول رتبه‌بندی بارگذاری نشد.")), RED)
 		else:
+			var month_key := str(result.get("monthly_month_key", ""))
+			var month_parts := month_key.split("-")
+			var month_names := ["", "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"]
+			var month_label := month_key
+			if month_parts.size() == 2:
+				var month_number := int(month_parts[1])
+				if month_number >= 1 and month_number <= 12:
+					month_label = "%s %s" % [month_names[month_number], month_parts[0]]
+			var period_label := Label.new()
+			period_label.text = "جدول امتیازات %s" % month_label
+			period_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			period_label.add_theme_font_size_override("font_size", 17)
+			period_label.add_theme_color_override("font_color", TEAL)
+			content_box.add_child(period_label)
+			var criteria := Label.new()
+			criteria.text = "اولویت رتبه: واژه معتبر ← مرحله ← سکه کسب‌شده ← برد دونفره"
+			criteria.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			criteria.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			criteria.add_theme_font_size_override("font_size", 12)
+			criteria.add_theme_color_override("font_color", MUTED)
+			content_box.add_child(criteria)
+
+			var prize_panel := _panel(GOLD)
+			content_box.add_child(prize_panel)
+			var prize_stack := VBoxContainer.new()
+			prize_stack.add_theme_constant_override("separation", 5)
+			prize_panel.add_child(prize_stack)
+			var prize_title := Label.new()
+			prize_title.text = "جوایز پایان ماه"
+			prize_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			prize_title.add_theme_color_override("font_color", GOLD)
+			prize_title.add_theme_font_size_override("font_size", 17)
+			prize_stack.add_child(prize_title)
+			for prize in ["🥇 نفر اول: ۷٬۵۰۰ سکه", "🥈 نفر دوم: ۴٬۸۰۰ سکه", "🥉 نفر سوم: ۳٬۰۰۰ سکه"]:
+				var prize_label := Label.new()
+				prize_label.text = prize
+				prize_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				prize_label.add_theme_font_size_override("font_size", 15)
+				prize_label.add_theme_color_override("font_color", CREAM)
+				prize_stack.add_child(prize_label)
+
+			var monthly_players: Array = result.get("monthly_leaderboard", [])
+			if monthly_players.is_empty():
+				_set_status("هنوز امتیازی برای این ماه ثبت نشده است. اولین نفری باش که وارد رقابت می‌شود!", TEAL)
+			else:
+				for player in monthly_players:
+					var player_id := str(player.get("user_id", ""))
+					var rank := int(player.get("rank", 0))
+					var medal := "🥇" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "#%d" % rank))
+					var player_name := _safe_player_name(player.get("display_name", null)) + ("  ✓" if bool(player.get("is_verified", false)) else "")
+					var row_text := "%s  %s\nواژه: %s  ·  مرحله: %s\nسکه: %s  ·  برد: %s" % [
+						medal, player_name,
+						_format_coin_price(int(player.get("valid_words", 0))),
+						_format_coin_price(int(player.get("highest_level", 0))),
+						_format_coin_price(int(player.get("coins_earned", 0))),
+						_format_coin_price(int(player.get("duel_wins", 0)))
+					]
+					var row_color := Color("#5A4828") if rank == 1 else (Color("#39434C") if rank == 2 else (Color("#59402F") if rank == 3 else PANEL_ALT))
+					var row := _make_button(row_text, row_color, CREAM)
+					row.custom_minimum_size = Vector2(0, 82)
+					row.pressed.connect(func(): _show_public_profile(player_id))
+					content_box.add_child(row)
+
+			var previous_heading := Label.new()
+			previous_heading.text = "برندگان ماه گذشته"
+			previous_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			previous_heading.add_theme_font_size_override("font_size", 18)
+			previous_heading.add_theme_color_override("font_color", GOLD)
+			content_box.add_child(previous_heading)
+			var previous_key := str(result.get("previous_month_key", ""))
+			var previous_winners: Array = result.get("previous_month_winners", [])
+			if previous_winners.is_empty():
+				_set_status("هنوز سابقه جایزه ماهانه‌ای ثبت نشده است.", MUTED)
+			else:
+				for winner in previous_winners:
+					var winner_rank := int(winner.get("rank", 0))
+					var winner_name := _safe_player_name(winner.get("display_name", null))
+					var winner_label := Label.new()
+					winner_label.text = "%s  %s  ·  %s سکه" % [
+						"🥇" if winner_rank == 1 else ("🥈" if winner_rank == 2 else "🥉"),
+						winner_name, _format_coin_price(int(winner.get("reward_coins", 0)))
+					]
+					winner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+					winner_label.add_theme_font_size_override("font_size", 14)
+					winner_label.add_theme_color_override("font_color", CREAM)
+					content_box.add_child(winner_label)
+
+			var alltime_heading := Label.new()
+			alltime_heading.text = "رتبه‌بندی کلی بازیکنان"
+			alltime_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			alltime_heading.add_theme_font_size_override("font_size", 19)
+			alltime_heading.add_theme_color_override("font_color", GOLD)
+			content_box.add_child(alltime_heading)
 			for player in result.get("leaderboard", []):
 				var player_id := str(player.get("user_id", ""))
 				var rank := int(player.get("rank", 0))
 				var player_name := _safe_player_name(player.get("display_name", null)) + ("  ✓" if bool(player.get("is_verified", false)) else "")
-				var row := _make_button("#%d   %s   ·   مرحله %d   ·   %d سکه" % [rank, player_name, int(player.get("current_level", 1)), int(player.get("coins", 0))], PANEL_ALT, CREAM)
+				var row := _make_button("#%d   %s   ·   مرحله %d   ·   %s سکه" % [
+					rank, player_name, int(player.get("current_level", 1)),
+					_format_coin_price(int(player.get("coins", 0)))
+				], PANEL_ALT, CREAM)
 				row.pressed.connect(func(): _show_public_profile(player_id))
 				content_box.add_child(row)
 	var back := _make_button("بازگشت", PANEL, CREAM)
