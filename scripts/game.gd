@@ -1579,7 +1579,7 @@ func _show_hint_menu() -> void:
 		option_button.custom_minimum_size.y = 64
 		option_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		option_button.alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		option_button.text = "%s   %s\n%s" % [str(item.title), str(item.detail), ""]
+		option_button.text = "%s\n%s" % [str(item.title), str(item.detail)]
 		option_button.icon = load(str(item.icon))
 		option_button.expand_icon = false
 		option_button.add_theme_constant_override("icon_max_width", 34)
@@ -1633,8 +1633,13 @@ func _use_hint_clue(hint_type: String) -> void:
 	if hint_type == "first_letter":
 		var save_key := "first_letter_%d" % stage_id
 		var used_words: Array = hint_history.get(save_key, [])
+		var used_initials: Dictionary = {}
+		for used_word in used_words:
+			if not str(used_word).is_empty():
+				used_initials[str(used_word).substr(0, 1)] = true
 		for candidate in remaining:
-			if not used_words.has(candidate):
+			var initial := candidate.substr(0, 1)
+			if not used_initials.has(initial):
 				target = candidate
 				break
 		if target.is_empty():
@@ -1674,13 +1679,20 @@ func _use_hint_clue(hint_type: String) -> void:
 	if hint_type == "first_letter":
 		var first_key := "first_letter_%d" % stage_id
 		var first_used: Array = hint_history.get(first_key, [])
-		first_used.append(target)
+		var revealed_initial := target.substr(0, 1)
+		for candidate in remaining:
+			if candidate.substr(0, 1) == revealed_initial and not first_used.has(candidate):
+				first_used.append(candidate)
 		hint_history[first_key] = first_used
 		_set_status("حرف اول واژه‌ای که هنوز پیدا نکرده‌ای: «%s»" % target.substr(0, 1), GOLD)
 	else:
 		var highlight_key := "highlight_%d" % stage_id
 		var highlighted: Array = hint_history.get(highlight_key, [])
-		highlighted.append(target_letter_index)
+		var stage_letters: Array = levels[level_index].get("letters", [])
+		var chosen_letter := str(stage_letters[target_letter_index])
+		for i in range(stage_letters.size()):
+			if str(stage_letters[i]) == chosen_letter and not highlighted.has(i):
+				highlighted.append(i)
 		hint_history[highlight_key] = highlighted
 		if target_letter_index >= 0 and target_letter_index < letter_buttons.size():
 			var button: Button = letter_buttons[target_letter_index]
