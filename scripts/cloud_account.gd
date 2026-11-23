@@ -132,7 +132,8 @@ func _refresh_if_needed() -> bool:
 	return true
 
 func api(action: String, extra: Dictionary = {}) -> Dictionary:
-	if not await _refresh_if_needed():
+	var session_valid: bool = await _refresh_if_needed()
+	if not session_valid:
 		return {"ok": false, "error": "نشست حساب کاربری منقضی شده است. دوباره وارد شو."}
 	var payload := {"action": action}
 	for key in extra:
