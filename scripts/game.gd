@@ -2057,6 +2057,11 @@ func _build_chapter_banner(level_number: int) -> Control:
 	mascot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	mascot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(mascot)
+	mascot.pivot_offset = Vector2(48, 48)
+	var mascot_tween := create_tween()
+	mascot_tween.set_loops()
+	mascot_tween.tween_property(mascot, "scale", Vector2(1.045, 1.045), 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	mascot_tween.tween_property(mascot, "scale", Vector2.ONE, 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	var text_box := VBoxContainer.new()
 	text_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2757,6 +2762,10 @@ func _show_stage_complete(reward: int) -> void:
 	chest_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	chest_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	body.add_child(chest_art)
+	chest_art.pivot_offset = Vector2(59, 39)
+	chest_art.scale = Vector2(0.72, 0.72)
+	var chest_tween := create_tween()
+	chest_tween.tween_property(chest_art, "scale", Vector2.ONE, 0.42).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var title := Label.new()
 	title.text = "مرحله با موفقیت کامل شد!"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
