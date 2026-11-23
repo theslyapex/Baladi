@@ -166,8 +166,8 @@ func end_session() -> Dictionary:
 func complete_level(level: int) -> Dictionary:
 	return await api("complete_level", {"level": level, "session_id": game_session_id})
 
-func use_hint() -> Dictionary:
-	return await api("use_hint")
+func use_hint(word: String, level: int) -> Dictionary:
+	return await api("use_hint", {"word": word, "level": level, "session_id": game_session_id})
 
 func record_word_found(word: String, level: int) -> Dictionary:
 	return await api("word_found", {"word": word, "level": level, "session_id": game_session_id})
