@@ -91,8 +91,12 @@ class BaladiMediaPicker(godot: Godot) : GodotPlugin(godot) {
         }
 
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        val boundsStream = resolver.openInputStream(uri)
             ?: throw IllegalArgumentException("فایل تصویر قابل خواندن نیست.")
+        boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            throw IllegalArgumentException("ابعاد تصویر قابل تشخیص نیست.")
+        }
         var sample = 1
         while (maxOf(bounds.outWidth / sample, bounds.outHeight / sample) > MAX_IMAGE_SIDE) {
             sample *= 2
