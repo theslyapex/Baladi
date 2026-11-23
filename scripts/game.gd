@@ -304,8 +304,10 @@ func _load_save() -> void:
 			level_solved[str(levels[level_index].get("id", level_index + 1))] = legacy
 
 func _safe_player_name(value: Variant, fallback: String = "بازیکن") -> String:
+	if value == null:
+		return fallback
 	var candidate := str(value).strip_edges()
-	if candidate.is_empty() or candidate.to_lower() in ["null", "none"]:
+	if candidate.is_empty() or candidate.to_lower() in ["null", "none", "<null>", "nil"]:
 		return fallback
 	return candidate
 
