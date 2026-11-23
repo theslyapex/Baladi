@@ -271,7 +271,7 @@ func _build_base() -> void:
 	coin_row.add_theme_constant_override("separation", 6)
 	coin_panel.add_child(coin_row)
 	var coin_icon := TextureRect.new()
-	coin_icon.texture = load("res://assets/icons/coin.svg")
+	coin_icon.texture = load("res://assets/icons/coin.png")
 	coin_icon.custom_minimum_size = Vector2(27, 27)
 	coin_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
