@@ -452,6 +452,27 @@ func _clear_content() -> void:
 	for child in content_box.get_children():
 		child.queue_free()
 
+func _add_section_art(asset_path: String, height: float = 104.0) -> void:
+	if content_box == null or not is_instance_valid(content_box):
+		return
+	var art_panel := PanelContainer.new()
+	art_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var art_style := StyleBoxFlat.new()
+	art_style.bg_color = Color("#183d35")
+	art_style.border_color = Color("#8d7548")
+	art_style.set_border_width_all(1)
+	art_style.set_corner_radius_all(18)
+	art_panel.add_theme_stylebox_override("panel", art_style)
+	content_box.add_child(art_panel)
+	var art := TextureRect.new()
+	art.texture = load("res://" + asset_path)
+	art.custom_minimum_size = Vector2(0, height)
+	art.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art_panel.add_child(art)
+
 func _show_auth(message: String = "") -> void:
 	current_page = "auth"
 	_clear_content()
@@ -864,6 +885,7 @@ func _show_map() -> void:
 func _show_profile() -> void:
 	current_page = "profile"
 	_clear_content()
+	_add_section_art("assets/backgrounds/orbit.svg", 92)
 	stage_scroll = get_node_or_null("MainMargin/PageBox/ScreenContentScroll") as ScrollContainer
 	if profile_button != null:
 		profile_button.visible = true
@@ -1101,6 +1123,7 @@ func _resume_active_duel() -> void:
 func _show_duel_invites() -> void:
 	current_page = "duel_invites"
 	_clear_content()
+	_add_section_art("assets/backgrounds/letter-wheel.svg", 92)
 	var heading := Label.new()
 	heading.text = "درخواست‌های مسابقه"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1160,6 +1183,7 @@ func _show_global_chat() -> void:
 	active_group_chat_id = ""
 	active_group_chat_name = ""
 	_clear_content()
+	_add_section_art("assets/backgrounds/ambient.svg", 92)
 	var heading := Label.new()
 	heading.text = "گفت‌وگوی بازیکنان"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1420,6 +1444,7 @@ func _show_groups() -> void:
 	active_group_chat_name = ""
 	active_group_role = ""
 	_clear_content()
+	_add_section_art("assets/backgrounds/chapter-caravanserai.svg", 92)
 	var heading := Label.new()
 	heading.text = "باشگاه گروه‌ها"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1877,6 +1902,7 @@ func _confirm_avatar_crop() -> void:
 func _show_cosmetic_shop() -> void:
 	current_page = "cosmetic_shop"
 	_clear_content()
+	_add_section_art("assets/backgrounds/chapter-palace.svg", 92)
 	var heading := Label.new()
 	heading.text = "فروشگاه قاب‌ها و تصویر پروفایل"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1984,6 +2010,7 @@ func _equip_cosmetic_frame(frame_id: String) -> void:
 func _show_leaderboard() -> void:
 	current_page = "leaderboard"
 	_clear_content()
+	_add_section_art("assets/backgrounds/chapter-mountains.svg", 92)
 	var heading := Label.new()
 	heading.text = "جدول قهرمانان"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
