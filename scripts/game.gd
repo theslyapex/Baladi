@@ -1462,12 +1462,21 @@ func _show_global_chat() -> void:
 		lock_title.add_theme_color_override("font_color", GOLD)
 		lock_body.add_child(lock_title)
 		var lock_text := Label.new()
-		lock_text.text = "با پرداخت یک‌بارهٔ ۱۸٬۰۰۰ سکه، چت عمومی برای همیشه برای حسابت فعال می‌شود."
+		lock_text.text = "چت عمومی هنوز برای حسابت فعال نیست. با یک خرید دائمی، فقط یک‌بار ۱۸٬۰۰۰ سکه پرداخت می‌کنی و دسترسی چت برای همیشه باز می‌شود."
 		lock_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		lock_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lock_text.add_theme_color_override("font_color", CREAM)
 		lock_body.add_child(lock_text)
-		var unlock := _make_button("بازکردن دائمی چت · ۱۸٬۰۰۰ سکه", Color("#a77a35"), CREAM)
+		var balance := Label.new()
+		balance.text = "موجودی فعلی: %s سکه" % _format_coin_price(coins)
+		balance.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		balance.add_theme_font_size_override("font_size", 16)
+		balance.add_theme_color_override("font_color", GOLD)
+		lock_body.add_child(balance)
+		var unlock := _make_button("خرید و فعال‌سازی چت عمومی · ۱۸٬۰۰۰ سکه", Color("#a77a35"), CREAM)
+		unlock.custom_minimum_size = Vector2(0, 58)
+		unlock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		unlock.add_theme_font_size_override("font_size", 17)
 		unlock.pressed.connect(_unlock_global_chat)
 		lock_body.add_child(unlock)
 		var sticker_shop := _make_button("فروشگاه استیکرها", PANEL_ALT, GOLD)
