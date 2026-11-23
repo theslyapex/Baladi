@@ -521,6 +521,15 @@ func _show_map() -> void:
 	greeting.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(greeting)
 
+	var map_art := TextureRect.new()
+	map_art.texture = load("res://assets/backgrounds/wordlands.svg")
+	map_art.custom_minimum_size = Vector2(0, 116)
+	map_art.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	map_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	map_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	map_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content_box.add_child(map_art)
+
 	var completed_count := completed_levels.size()
 	var progress_panel := _panel()
 	content_box.add_child(progress_panel)
