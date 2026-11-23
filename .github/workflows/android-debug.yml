@@ -69,7 +69,7 @@ jobs:
       - name: Download Estedad Persian font
         run: |
           mkdir -p assets/fonts build
-          curl -fL --retry 3 --retry-delay 3 "https://fonts.gstatic.com/s/estedad/v3/QdVWSTk1OgitjvYTJJDEvDlh.woff2" -o assets/fonts/Estedad.woff2
+          curl -fL --retry 3 --retry-delay 3 "https://raw.githubusercontent.com/aminabedi68/Estedad/master/fonts/webfonts/Estedad%5Bwght%5D.woff2" -o assets/fonts/Estedad.woff2
           test -s assets/fonts/Estedad.woff2
 
       - name: Download Icons8 coin icon
