@@ -14,6 +14,7 @@ const TEAL := Color("#55c6b5")
 
 var levels: Array = []
 var level_index := 0
+var cloud_current_level := 1
 var coins := 100
 var level_solved: Dictionary = {}
 var completed_levels: Array = []
@@ -64,7 +65,8 @@ func _enter_game() -> void:
 	var profile: Dictionary = response.get("profile", {})
 	_load_save()
 	coins = int(profile.get("coins", 100))
-	level_index = clampi(int(profile.get("current_level", 1)) - 1, 0, max(0, levels.size() - 1))
+	cloud_current_level = int(profile.get("current_level", 1))
+	level_index = clampi(cloud_current_level - 1, 0, max(0, levels.size() - 1))
 	var remote_completed = profile.get("completed_levels", [])
 	if remote_completed is Array:
 		completed_levels = remote_completed.duplicate()
@@ -306,6 +308,7 @@ func _on_signup_pressed() -> void:
 
 func _apply_cloud_profile(profile: Dictionary) -> void:
 	coins = int(profile.get("coins", coins))
+	cloud_current_level = int(profile.get("current_level", cloud_current_level))
 	var remote_completed = profile.get("completed_levels", completed_levels)
 	if remote_completed is Array:
 		completed_levels = remote_completed.duplicate()
@@ -384,6 +387,8 @@ func _show_map() -> void:
 
 func _open_level(index: int) -> void:
 	if index < 0 or index >= levels.size():
+		return
+	if index != cloud_current_level - 1:
 		return
 	if index > 0 and not completed_levels.has(int(levels[index - 1].get("id", index))):
 		return
