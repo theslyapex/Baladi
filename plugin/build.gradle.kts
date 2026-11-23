@@ -20,7 +20,7 @@ android {
         minSdk = 24
         manifestPlaceholders["godotPluginName"] = pluginName
         manifestPlaceholders["godotPluginPackageName"] = pluginPackageName
-        buildConfigField("String", "GODOT_PLUGIN_NAME", "\"\${pluginName}\"")
+                buildConfigField("String", "GODOT_PLUGIN_NAME", "\"BaladiMediaPicker\"")
         setProperty("archivesBaseName", pluginName)
     }
 
