@@ -177,7 +177,7 @@ func _refresh_if_needed() -> bool:
 	if not refresh_token.is_empty() and (access_token.is_empty() or expires_at <= Time.get_unix_time_from_system() + 90):
 		var result: Dictionary = await _refresh_saved_session()
 		return bool(result.get("ok", false)) and is_authenticated()
-	return is_authenticated()
+	return is_authenticated() and expires_at > Time.get_unix_time_from_system() + 90
 
 func api(action: String, extra: Dictionary = {}) -> Dictionary:
 	var session_valid: bool = await _refresh_if_needed()
