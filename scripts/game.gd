@@ -2624,9 +2624,6 @@ func _show_game() -> void:
 	hint_button = _make_button("راهنماها", Color("#765a31"), CREAM)
 	hint_button.pressed.connect(_show_hint_menu)
 	actions.add_child(hint_button)
-	submit_button = _make_button("ثبت واژه", GOLD, BG)
-	submit_button.pressed.connect(_submit_word)
-	actions.add_child(submit_button)
 
 	var map_button := _make_button("خروج از رقابت" if duel_mode else "بازگشت به نقشه مراحل", Color("#203e38"), CREAM)
 	map_button.pressed.connect(_leave_duel_to_map if duel_mode else _show_map)
