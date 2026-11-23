@@ -759,62 +759,88 @@ func _show_map() -> void:
 	stage_scroll = get_node_or_null("MainMargin/PageBox/ScreenContentScroll") as ScrollContainer
 	var stage_list := VBoxContainer.new()
 	stage_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stage_list.add_theme_constant_override("separation", 10)
+	stage_list.add_theme_constant_override("separation", 18)
 	content_box.add_child(stage_list)
 
-	for i in range(levels.size()):
-		var data: Dictionary = levels[i]
-		var stage_id := int(data.get("id", i + 1))
-		var is_done := completed_levels.has(stage_id)
-		var is_open := i == 0 or completed_levels.has(int(levels[i - 1].get("id", i)))
-		var is_current := i == cloud_current_level - 1
-		var stage_button := Button.new()
-		stage_button.custom_minimum_size = Vector2(0, 82)
-		stage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		stage_button.size_flags_stretch_ratio = 0.78
-		stage_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
-		stage_button.text = ("مرحله %02d  ·  %s" % [stage_id, str(data.get("title", ""))]) if is_open else ("مرحله %02d  ·  قفل شده" % stage_id)
-		stage_button.icon = load("res://assets/icons/stage-done.svg") if is_done else (load("res://assets/icons/stage-open.svg") if is_open else load("res://assets/icons/stage-locked.svg"))
-		stage_button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		stage_button.add_theme_constant_override("icon_max_width", 32)
-		stage_button.expand_icon = false
-		stage_button.disabled = not is_open or is_done or not is_current
-		stage_button.add_theme_font_size_override("font_size", 17)
-		stage_button.add_theme_color_override("font_color", GOLD if is_done else (CREAM if is_open else MUTED))
-		stage_button.add_theme_color_override("font_disabled_color", GOLD if is_done else Color("#70877e"))
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color("#245448") if is_done else (PANEL_ALT if is_open else Color("#122d29"))
-		style.border_color = GOLD if is_done else (TEAL if is_open else Color("#29433c"))
-		style.set_border_width_all(1)
-		style.set_corner_radius_all(18)
-		style.shadow_color = Color(0, 0, 0, 0.22)
-		style.shadow_size = 6
-		style.shadow_offset = Vector2(0, 3)
-		style.content_margin_left = 14
-		style.content_margin_right = 14
-		stage_button.add_theme_stylebox_override("normal", style)
-		var hover := style.duplicate()
-		hover.bg_color = style.bg_color.lightened(0.10)
-		stage_button.add_theme_stylebox_override("hover", hover)
-		var disabled_style := style.duplicate()
-		disabled_style.bg_color = style.bg_color
-		stage_button.add_theme_stylebox_override("disabled", disabled_style)
-		stage_button.pressed.connect(_open_level.bind(i))
-		var route_row := HBoxContainer.new()
-		route_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		stage_list.add_child(route_row)
-		var route_spacer := Control.new()
-		route_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		route_spacer.size_flags_stretch_ratio = 0.22
-		if i % 2 == 0:
-			route_row.add_child(stage_button)
-			route_row.add_child(route_spacer)
-		else:
-			route_row.add_child(route_spacer)
-			route_row.add_child(stage_button)
-		stage_button.modulate.a = 0.0
-		var node_tween := create_tween()
-		node_tween.tween_property(stage_button, "modulate:a", 1.0, 0.24).set_delay(float(i) * 0.018)
+	var chapter_count := int(ceil(float(levels.size()) / 20.0))
+	for chapter_index in range(chapter_count):
+		var first_index := chapter_index * 20
+		var last_index := mini(first_index + 20, levels.size())
+		var first_level := int(levels[first_index].get("id", first_index + 1))
+		var last_level := int(levels[last_index - 1].get("id", last_index))
+		var chapter_panel := _panel(Color("#8e6b35"))
+		chapter_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stage_list.add_child(chapter_panel)
+		var chapter_box := VBoxContainer.new()
+		chapter_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		chapter_box.add_theme_constant_override("separation", 10)
+		chapter_panel.add_child(chapter_box)
+		var chapter_banner := _build_chapter_banner(first_level)
+		chapter_banner.custom_minimum_size = Vector2(0, 104)
+		chapter_box.add_child(chapter_banner)
+		var chapter_meta := Label.new()
+		chapter_meta.text = "مراحل %d تا %d" % [first_level, last_level]
+		chapter_meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		chapter_meta.add_theme_font_size_override("font_size", 13)
+		chapter_meta.add_theme_color_override("font_color", MUTED)
+		chapter_box.add_child(chapter_meta)
+
+		var chapter_done := 0
+		for stage_index in range(first_index, last_index):
+			var stage_data: Dictionary = levels[stage_index]
+			var stage_id := int(stage_data.get("id", stage_index + 1))
+			if completed_levels.has(stage_id):
+				chapter_done += 1
+		var chapter_progress := ProgressBar.new()
+		chapter_progress.min_value = 0
+		chapter_progress.max_value = max(1, last_index - first_index)
+		chapter_progress.value = chapter_done
+		chapter_progress.show_percentage = false
+		chapter_progress.custom_minimum_size.y = 8
+		chapter_box.add_child(chapter_progress)
+		var chapter_count_label := Label.new()
+		chapter_count_label.text = "%d از %d مرحله تکمیل شده" % [chapter_done, last_index - first_index]
+		chapter_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		chapter_count_label.add_theme_font_size_override("font_size", 12)
+		chapter_count_label.add_theme_color_override("font_color", GOLD)
+		chapter_box.add_child(chapter_count_label)
+
+		var stage_grid := GridContainer.new()
+		stage_grid.columns = 4
+		stage_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stage_grid.add_theme_constant_override("h_separation", 8)
+		stage_grid.add_theme_constant_override("v_separation", 8)
+		chapter_box.add_child(stage_grid)
+		for stage_index in range(first_index, last_index):
+			var stage_data: Dictionary = levels[stage_index]
+			var stage_id := int(stage_data.get("id", stage_index + 1))
+			var is_done := completed_levels.has(stage_id)
+			var is_open := stage_index == 0 or completed_levels.has(int(levels[stage_index - 1].get("id", stage_index)))
+			var is_current := stage_index == cloud_current_level - 1
+			var stage_button := Button.new()
+			stage_button.custom_minimum_size = Vector2(0, 62)
+			stage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			stage_button.text = "✓" if is_done else "%02d" % stage_id
+			stage_button.disabled = not is_open or is_done or not is_current
+			stage_button.add_theme_font_size_override("font_size", 18)
+			stage_button.add_theme_color_override("font_color", Color("#fff4d0") if is_current else (GOLD if is_done else (CREAM if is_open else MUTED)))
+			stage_button.add_theme_color_override("font_disabled_color", GOLD if is_done else Color("#71837d"))
+			var node_style := StyleBoxFlat.new()
+			node_style.bg_color = Color("#246d59") if is_current else (Color("#315f4f") if is_done else (Color("#183b34") if is_open else Color("#142d29")))
+			node_style.border_color = GOLD if is_current or is_done else (TEAL if is_open else Color("#29443d"))
+			node_style.set_border_width_all(2 if is_current else 1)
+			node_style.set_corner_radius_all(18)
+			node_style.shadow_color = Color(0, 0, 0, 0.20)
+			node_style.shadow_size = 4 if is_current else 1
+			node_style.content_margin_left = 2
+			node_style.content_margin_right = 2
+			stage_button.add_theme_stylebox_override("normal", node_style)
+			var node_hover := node_style.duplicate()
+			node_hover.bg_color = node_style.bg_color.lightened(0.12)
+			stage_button.add_theme_stylebox_override("hover", node_hover)
+			stage_button.add_theme_stylebox_override("disabled", node_style)
+			stage_button.pressed.connect(_open_level.bind(stage_index))
+			stage_grid.add_child(stage_button)
 
 func _show_profile() -> void:
 	_clear_content()
