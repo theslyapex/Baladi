@@ -170,6 +170,19 @@ func complete_level(level: int) -> Dictionary:
 func use_hint(word: String, level: int) -> Dictionary:
 	return await api("use_hint", {"word": word, "level": level, "session_id": game_session_id})
 
+func update_profile_name(display_name: String) -> Dictionary:
+	return await api("update_profile", {"display_name": display_name.strip_edges()})
+
+func daily_checkin() -> Dictionary:
+	return await api("daily_checkin")
+
+func use_hint_clue(hint_type: String, level: int) -> Dictionary:
+	return await api("hint_clue", {
+		"hint_type": hint_type,
+		"level": level,
+		"session_id": game_session_id
+	})
+
 func record_word_found(word: String, level: int) -> Dictionary:
 	return await api("word_found", {"word": word, "level": level, "session_id": game_session_id})
 
