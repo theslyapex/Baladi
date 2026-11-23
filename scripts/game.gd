@@ -1,6 +1,7 @@
 extends Control
 
 const LEVELS_PATH := "res://data/levels/levels.json"
+const BONUS_DICTIONARY_PATH := "res://data/dictionary/bonus_words.json"
 const SAVE_PATH_PREFIX := "user://baladi_save_"
 const BG := Color("#0b211f")
 const PANEL := Color("#153a34")
@@ -18,6 +19,10 @@ var cloud_current_level := 1
 var coins := 100
 var level_solved: Dictionary = {}
 var completed_levels: Array = []
+var bonus_word_set: Dictionary = {}
+var level_bonus_found: Dictionary = {}
+var guest_mode := false
+var sfx_player: AudioStreamPlayer
 var selected_indices: Array[int] = []
 var selected_word := ""
 var is_dragging := false
@@ -44,12 +49,23 @@ var session_timer: Timer
 
 func _ready() -> void:
 	_load_levels()
+	_load_bonus_dictionary()
 	_build_base()
+	_init_audio()
 	var restored: bool = await CloudAccount.restore_session()
 	if restored:
 		await _enter_game()
 	else:
 		_show_auth()
+
+func _load_bonus_dictionary() -> void:
+	if not FileAccess.file_exists(BONUS_DICTIONARY_PATH):
+		push_warning("Persian bonus dictionary not found.")
+		return
+	var parsed = JSON.parse_string(FileAccess.get_file_as_string(BONUS_DICTIONARY_PATH))
+	if parsed is Dictionary:
+		for word in parsed.get("words", []):
+			bonus_word_set[str(word)] = true
 
 func _save_path() -> String:
 	var account_id := str(CloudAccount.user_id)
@@ -58,6 +74,7 @@ func _save_path() -> String:
 	return SAVE_PATH_PREFIX + account_id + ".cfg"
 
 func _enter_game() -> void:
+	guest_mode = false
 	var response: Dictionary = await CloudAccount.start_game_session()
 	if not response.get("ok", false):
 		_show_auth(str(response.get("error", "ورود به بازی انجام نشد.")))
@@ -83,13 +100,28 @@ func _enter_game() -> void:
 	session_timer.start()
 	_show_map()
 
+func _enter_guest() -> void:
+	guest_mode = true
+	_load_save()
+	cloud_current_level = clampi(cloud_current_level, 1, levels.size() + 1)
+	level_index = clampi(cloud_current_level - 1, 0, max(0, levels.size() - 1))
+	if session_timer != null:
+		session_timer.stop()
+	_show_map()
+	_set_status("حالت مهمان فعال است؛ پیشرفت فقط روی همین دستگاه می‌ماند.", GOLD)
+
 func _heartbeat() -> void:
-	await CloudAccount.touch_session()
+	if not guest_mode and CloudAccount.is_authenticated():
+		await CloudAccount.touch_session()
 
 func _logout() -> void:
 	_save()
 	if session_timer != null:
 		session_timer.stop()
+	if guest_mode:
+		guest_mode = false
+		_show_auth("از حالت مهمان خارج شدی.")
+		return
 	await CloudAccount.sign_out()
 	_show_auth("از حساب کاربری خارج شدی.")
 
@@ -109,12 +141,16 @@ func _load_save() -> void:
 		return
 	coins = int(cfg.get_value("player", "coins", 100))
 	level_index = clampi(int(cfg.get_value("player", "level_index", 0)), 0, max(0, levels.size() - 1))
+	cloud_current_level = int(cfg.get_value("player", "current_level", level_index + 1))
 	var saved_levels = cfg.get_value("player", "level_solved", {})
 	if saved_levels is Dictionary:
 		level_solved = saved_levels
 	var saved_completed = cfg.get_value("player", "completed_levels", [])
 	if saved_completed is Array:
 		completed_levels = saved_completed
+	var saved_bonus = cfg.get_value("player", "level_bonus_found", {})
+	if saved_bonus is Dictionary:
+		level_bonus_found = saved_bonus
 	# Migrate saves from the first prototype.
 	if level_solved.is_empty():
 		var legacy = cfg.get_value("player", "solved", [])
@@ -127,6 +163,8 @@ func _save() -> void:
 	cfg.set_value("player", "level_index", level_index)
 	cfg.set_value("player", "level_solved", level_solved)
 	cfg.set_value("player", "completed_levels", completed_levels)
+	cfg.set_value("player", "current_level", cloud_current_level)
+	cfg.set_value("player", "level_bonus_found", level_bonus_found)
 	cfg.save(_save_path())
 
 func _build_base() -> void:
@@ -269,12 +307,26 @@ func _show_auth(message: String = "") -> void:
 	signup_button.pressed.connect(_on_signup_pressed)
 	fields.add_child(signup_button)
 
+	var guest_button := _make_button("ورود مهمان", Color("#294c43"), GOLD)
+	guest_button.pressed.connect(_show_guest_warning)
+	fields.add_child(guest_button)
+
 	auth_status_label = Label.new()
 	auth_status_label.text = message
 	auth_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	auth_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	auth_status_label.add_theme_color_override("font_color", RED if not message.is_empty() else MUTED)
 	content_box.add_child(auth_status_label)
+
+func _show_guest_warning() -> void:
+	var warning := ConfirmationDialog.new()
+	warning.title = "ورود به‌صورت مهمان"
+	warning.dialog_text = "در حالت مهمان، پیشرفت، سکه‌ها و زمان بازی در حساب کاربری alishams.ir ثبت یا همگام‌سازی نمی‌شوند. اطلاعات فقط روی همین دستگاه ذخیره می‌شود و با حذف داده‌های بازی ممکن است از بین برود. برای ثبت دائمی پیشرفت، با حساب کاربری وارد شو."
+	warning.ok_button_text = "ادامه به‌عنوان مهمان"
+	warning.cancel_button_text = "بازگشت"
+	warning.confirmed.connect(_enter_guest)
+	add_child(warning)
+	warning.popup_centered(Vector2i(420, 260))
 
 func _on_login_pressed() -> void:
 	if auth_email_input.text.strip_edges().is_empty() or auth_password_input.text.is_empty():
@@ -584,6 +636,11 @@ func _render_letters() -> void:
 func _words_for_current_level() -> Array:
 	var key := str(int(levels[level_index].get("id", level_index + 1)))
 	var value = level_solved.get(key, [])
+	return value if value is Array else []
+
+func _bonus_words_for_current_level() -> Array:
+	var key := str(int(levels[level_index].get("id", level_index + 1)))
+	var value = level_bonus_found.get(key, [])
 	return value if value is Array else []
 
 func _letter_at(point: Vector2) -> int:
