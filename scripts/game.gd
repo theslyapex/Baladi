@@ -1417,6 +1417,8 @@ func _decline_duel_invite(invite_id: String) -> void:
 
 func _show_global_chat() -> void:
 	current_page = "global_chat"
+	if chat_poll_timer != null:
+		chat_poll_timer.stop()
 	active_group_chat_id = ""
 	active_group_chat_name = ""
 	_clear_content()
