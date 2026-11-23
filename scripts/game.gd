@@ -963,7 +963,11 @@ func _refresh_global_chat() -> void:
 	if chat_poll_busy or chat_messages_box == null or not is_instance_valid(chat_messages_box):
 		return
 	chat_poll_busy = true
-	var result: Dictionary = await CloudAccount.get_global_chat_messages() if active_group_chat_id.is_empty() else await CloudAccount.get_group_chat_messages(active_group_chat_id)
+	var result: Dictionary
+	if active_group_chat_id.is_empty():
+		result = await CloudAccount.get_global_chat_messages()
+	else:
+		result = await CloudAccount.get_group_chat_messages(active_group_chat_id)
 	if result.get("ok", false) and chat_messages_box != null and is_instance_valid(chat_messages_box):
 		for child in chat_messages_box.get_children():
 			child.queue_free()
@@ -1003,7 +1007,11 @@ func _send_global_chat_message() -> void:
 	var message := chat_input.text.strip_edges()
 	if message.is_empty():
 		return
-	var result: Dictionary = await CloudAccount.send_global_chat_message(message) if active_group_chat_id.is_empty() else await CloudAccount.send_group_chat_message(active_group_chat_id, message)
+	var result: Dictionary
+	if active_group_chat_id.is_empty():
+		result = await CloudAccount.send_global_chat_message(message)
+	else:
+		result = await CloudAccount.send_group_chat_message(active_group_chat_id, message)
 	if not result.get("ok", false):
 		if chat_status_label != null and is_instance_valid(chat_status_label):
 			chat_status_label.text = str(result.get("error", "ارسال پیام انجام نشد."))
@@ -1043,9 +1051,10 @@ func _show_sticker_picker() -> void:
 				sticker_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 				sticker_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				card.add_child(sticker_art)
-				var action_text := "ارسال استیکر" if owned.has(sticker_id) and chat_unlocked else ("چت را باز کن تا ارسال کنی" if owned.has(sticker_id) else "خرید · %d سکه" % int(item.get("price_coins", 0)))
+				var can_send_sticker := not active_group_chat_id.is_empty() or chat_unlocked
+				var action_text := "ارسال استیکر" if owned.has(sticker_id) and can_send_sticker else ("برای ارسال، چت را باز کن" if owned.has(sticker_id) else "خرید · %d سکه" % int(item.get("price_coins", 0)))
 				var action := _make_button(action_text, Color("#765a31"), CREAM)
-				action.disabled = owned.has(sticker_id) and not chat_unlocked
+				action.disabled = owned.has(sticker_id) and not can_send_sticker
 				action.pressed.connect(func():
 					if owned.has(sticker_id):
 						_send_global_chat_sticker(sticker_id)
@@ -1071,7 +1080,11 @@ func _purchase_sticker(sticker_id: String) -> void:
 	_show_sticker_picker()
 
 func _send_global_chat_sticker(sticker_id: String) -> void:
-	var result: Dictionary = await CloudAccount.send_global_chat_sticker(sticker_id) if active_group_chat_id.is_empty() else await CloudAccount.send_group_chat_sticker(active_group_chat_id, sticker_id)
+	var result: Dictionary
+	if active_group_chat_id.is_empty():
+		result = await CloudAccount.send_global_chat_sticker(sticker_id)
+	else:
+		result = await CloudAccount.send_group_chat_sticker(active_group_chat_id, sticker_id)
 	if not result.get("ok", false):
 		_set_status(str(result.get("error", "ارسال استیکر انجام نشد.")), RED)
 		return
