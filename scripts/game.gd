@@ -67,6 +67,10 @@ var chat_messages_box: VBoxContainer
 var chat_input: LineEdit
 var chat_status_label: Label
 var chat_poll_busy := false
+var active_group_chat_id := ""
+var active_group_chat_name := ""
+var group_name_input: LineEdit
+var group_description_input: LineEdit
 var auth_signup_mode := false
 var auth_login_button: Button
 var auth_mode_toggle_button: Button
@@ -663,6 +667,10 @@ func _show_map() -> void:
 	ranks_nav.custom_minimum_size = Vector2(0, 44)
 	ranks_nav.pressed.connect(_show_leaderboard)
 	social_row.add_child(ranks_nav)
+	var groups_nav := _make_button("گروه", Color("#385b75"), CREAM)
+	groups_nav.custom_minimum_size = Vector2(0, 44)
+	groups_nav.pressed.connect(_show_groups)
+	social_row.add_child(groups_nav)
 
 	if cloud_current_level > levels.size():
 		var finished := Label.new()
@@ -852,6 +860,8 @@ func _show_profile() -> void:
 	content_box.add_child(back)
 
 func _show_global_chat() -> void:
+	active_group_chat_id = ""
+	active_group_chat_name = ""
 	_clear_content()
 	var heading := Label.new()
 	heading.text = "گفت‌وگوی بازیکنان"
@@ -953,7 +963,7 @@ func _refresh_global_chat() -> void:
 	if chat_poll_busy or chat_messages_box == null or not is_instance_valid(chat_messages_box):
 		return
 	chat_poll_busy = true
-	var result: Dictionary = await CloudAccount.get_global_chat_messages()
+	var result: Dictionary = await CloudAccount.get_global_chat_messages() if active_group_chat_id.is_empty() else await CloudAccount.get_group_chat_messages(active_group_chat_id)
 	if result.get("ok", false) and chat_messages_box != null and is_instance_valid(chat_messages_box):
 		for child in chat_messages_box.get_children():
 			child.queue_free()
@@ -993,7 +1003,7 @@ func _send_global_chat_message() -> void:
 	var message := chat_input.text.strip_edges()
 	if message.is_empty():
 		return
-	var result: Dictionary = await CloudAccount.send_global_chat_message(message)
+	var result: Dictionary = await CloudAccount.send_global_chat_message(message) if active_group_chat_id.is_empty() else await CloudAccount.send_group_chat_message(active_group_chat_id, message)
 	if not result.get("ok", false):
 		if chat_status_label != null and is_instance_valid(chat_status_label):
 			chat_status_label.text = str(result.get("error", "ارسال پیام انجام نشد."))
@@ -1046,7 +1056,10 @@ func _show_sticker_picker() -> void:
 		else:
 			_set_status(str(result.get("error", "فروشگاه استیکر بارگذاری نشد.")), RED)
 	var back := _make_button("بازگشت به چت", PANEL_ALT, CREAM)
-	back.pressed.connect(_show_global_chat)
+	if active_group_chat_id.is_empty():
+		back.pressed.connect(_show_global_chat)
+	else:
+		back.pressed.connect(func(): _show_group_chat(active_group_chat_id, active_group_chat_name))
 	content_box.add_child(back)
 
 func _purchase_sticker(sticker_id: String) -> void:
@@ -1058,11 +1071,263 @@ func _purchase_sticker(sticker_id: String) -> void:
 	_show_sticker_picker()
 
 func _send_global_chat_sticker(sticker_id: String) -> void:
-	var result: Dictionary = await CloudAccount.send_global_chat_sticker(sticker_id)
+	var result: Dictionary = await CloudAccount.send_global_chat_sticker(sticker_id) if active_group_chat_id.is_empty() else await CloudAccount.send_group_chat_sticker(active_group_chat_id, sticker_id)
 	if not result.get("ok", false):
 		_set_status(str(result.get("error", "ارسال استیکر انجام نشد.")), RED)
 		return
-	_show_global_chat()
+	if active_group_chat_id.is_empty():
+		_show_global_chat()
+	else:
+		_show_group_chat(active_group_chat_id, active_group_chat_name)
+
+func _show_groups() -> void:
+	active_group_chat_id = ""
+	active_group_chat_name = ""
+	_clear_content()
+	var heading := Label.new()
+	heading.text = "باشگاه گروه‌ها"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 25)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	if guest_mode:
+		var note := Label.new()
+		note.text = "برای ساخت گروه یا عضویت در گروه‌ها، وارد حساب کاربری شو."
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		note.add_theme_color_override("font_color", MUTED)
+		content_box.add_child(note)
+	else:
+		var mine: Dictionary = await CloudAccount.get_my_group()
+		if mine.get("ok", false) and mine.get("group", null) != null:
+			_render_my_group(mine.get("group", {}), mine.get("members", []))
+		else:
+			_render_group_discovery()
+	var back := _make_button("بازگشت به نقشه", PANEL_ALT, CREAM)
+	back.pressed.connect(_show_map)
+	content_box.add_child(back)
+
+func _render_group_discovery() -> void:
+	var create_panel := _panel(GOLD)
+	content_box.add_child(create_panel)
+	var create_box := VBoxContainer.new()
+	create_box.add_theme_constant_override("separation", 7)
+	create_panel.add_child(create_box)
+	var create_title := Label.new()
+	create_title.text = "ساخت گروه جدید"
+	create_title.add_theme_font_size_override("font_size", 18)
+	create_title.add_theme_color_override("font_color", GOLD)
+	create_box.add_child(create_title)
+	group_name_input = LineEdit.new()
+	group_name_input.placeholder_text = "نام گروه، ۳ تا ۲۸ نویسه"
+	group_name_input.custom_minimum_size.y = 46
+	_style_input(group_name_input)
+	create_box.add_child(group_name_input)
+	group_description_input = LineEdit.new()
+	group_description_input.placeholder_text = "توضیح کوتاه گروه (اختیاری)"
+	group_description_input.custom_minimum_size.y = 46
+	_style_input(group_description_input)
+	create_box.add_child(group_description_input)
+	var create_button := _make_button("ساخت گروه · رایگان", Color("#287c68"), CREAM)
+	create_button.pressed.connect(_create_group_from_form)
+	create_box.add_child(create_button)
+
+	var list_title := Label.new()
+	list_title.text = "گروه‌های قابل عضویت"
+	list_title.add_theme_font_size_override("font_size", 19)
+	list_title.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(list_title)
+	var result: Dictionary = await CloudAccount.get_groups()
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "فهرست گروه‌ها بارگذاری نشد.")), RED)
+		return
+	for group in result.get("groups", []):
+		var card := _panel(TEAL)
+		content_box.add_child(card)
+		var body := VBoxContainer.new()
+		body.add_theme_constant_override("separation", 5)
+		card.add_child(body)
+		var title := Label.new()
+		title.text = str(group.get("name", "گروه"))
+		title.add_theme_font_size_override("font_size", 17)
+		title.add_theme_color_override("font_color", CREAM)
+		body.add_child(title)
+		var info := Label.new()
+		info.text = "رهبر: %s  ·  اعضا: %d / %d" % [str(group.get("leader_name", "بازیکن")), int(group.get("member_count", 0)), int(group.get("capacity", 20))]
+		info.add_theme_color_override("font_color", MUTED)
+		body.add_child(info)
+		if int(group.get("member_count", 0)) < int(group.get("capacity", 20)):
+			var join := _make_button("درخواست عضویت / ورود", Color("#287c68"), CREAM)
+			var group_id := str(group.get("id", ""))
+			join.pressed.connect(func(): _join_group_now(group_id))
+			body.add_child(join)
+		else:
+			var full := Label.new()
+			full.text = "ظرفیت تکمیل است"
+			full.add_theme_color_override("font_color", RED)
+			body.add_child(full)
+
+func _create_group_from_form() -> void:
+	if group_name_input == null or not is_instance_valid(group_name_input):
+		return
+	var result: Dictionary = await CloudAccount.create_group(group_name_input.text.strip_edges(), group_description_input.text.strip_edges() if group_description_input != null else "")
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "ساخت گروه انجام نشد.")), RED)
+		return
+	_show_groups()
+
+func _join_group_now(group_id: String) -> void:
+	var result: Dictionary = await CloudAccount.join_group(group_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "عضویت انجام نشد.")), RED)
+		return
+	_show_groups()
+
+func _render_my_group(group: Dictionary, members: Array) -> void:
+	var group_id := str(group.get("id", ""))
+	var role := str(group.get("my_role", "member"))
+	var card := _panel(GOLD)
+	content_box.add_child(card)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 6)
+	card.add_child(body)
+	var title := Label.new()
+	title.text = str(group.get("name", "گروه من"))
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", GOLD)
+	body.add_child(title)
+	var capacity := int(group.get("capacity", 20))
+	var count := members.size()
+	var summary := Label.new()
+	summary.text = "مقام تو: %s  ·  اعضا: %d / %d" % [_group_role_label(role), count, capacity]
+	summary.add_theme_color_override("font_color", CREAM)
+	body.add_child(summary)
+	var chat := _make_button("ورود به گفت‌وگوی گروه", Color("#287c68"), CREAM)
+	chat.pressed.connect(func(): _show_group_chat(group_id, str(group.get("name", "گروه"))))
+	body.add_child(chat)
+	if role == "leader":
+		var upgrade := _make_button("افزایش ظرفیت به %d نفر · ۵۰٬۰۰۰ سکه" % (capacity + 5), Color("#765a31"), CREAM)
+		upgrade.disabled = coins < 50000
+		upgrade.pressed.connect(func(): _upgrade_my_group(group_id, capacity + 5))
+		body.add_child(upgrade)
+	if role != "leader":
+		var leave := _make_button("ترک گروه", Color("#713e3b"), CREAM)
+		leave.pressed.connect(func(): _leave_my_group(group_id))
+		body.add_child(leave)
+
+	var members_title := Label.new()
+	members_title.text = "اعضای گروه"
+	members_title.add_theme_font_size_override("font_size", 18)
+	members_title.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(members_title)
+	for member in members:
+		var player: Dictionary = member.get("player", {})
+		var member_id := str(member.get("user_id", ""))
+		var member_role := str(member.get("role", "member"))
+		var row := _panel(TEAL if member_role == "leader" else PANEL_ALT)
+		content_box.add_child(row)
+		var row_box := VBoxContainer.new()
+		row_box.add_theme_constant_override("separation", 4)
+		row.add_child(row_box)
+		var name := Label.new()
+		name.text = "%s  ·  %s" % [str(player.get("display_name", "بازیکن")), _group_role_label(member_role)]
+		name.add_theme_color_override("font_color", CREAM)
+		row_box.add_child(name)
+		if member_id != CloudAccount.user_id and (role == "leader" or role == "deputy"):
+			if role == "leader" or member_role == "member":
+				var promote_role := "deputy" if role == "leader" and member_role == "member" else "veteran"
+				var promote := _make_button("تعیین مقام: %s" % _group_role_label(promote_role), Color("#385b75"), CREAM)
+				promote.pressed.connect(func(): _change_group_role(group_id, member_id, promote_role))
+				row_box.add_child(promote)
+			if role == "leader" or member_role in ["member", "veteran"]:
+				var remove := _make_button("حذف از گروه", Color("#713e3b"), CREAM)
+				remove.pressed.connect(func(): _remove_group_member_now(group_id, member_id))
+				row_box.add_child(remove)
+
+func _group_role_label(role: String) -> String:
+	match role:
+		"leader": return "رهبر"
+		"deputy": return "قائم‌مقام"
+		"veteran": return "پیشکسوت"
+		_: return "عضو"
+
+func _upgrade_my_group(group_id: String, capacity: int) -> void:
+	var result: Dictionary = await CloudAccount.upgrade_group_capacity(group_id, capacity)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "افزایش ظرفیت انجام نشد.")), RED)
+		return
+	_apply_cloud_profile(result.get("profile", {}))
+	_show_groups()
+
+func _change_group_role(group_id: String, target_id: String, role: String) -> void:
+	var result: Dictionary = await CloudAccount.set_group_role(group_id, target_id, role)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "تغییر مقام انجام نشد.")), RED)
+		return
+	_show_groups()
+
+func _remove_group_member_now(group_id: String, target_id: String) -> void:
+	var result: Dictionary = await CloudAccount.remove_group_member(group_id, target_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "حذف عضو انجام نشد.")), RED)
+		return
+	_show_groups()
+
+func _leave_my_group(group_id: String) -> void:
+	var result: Dictionary = await CloudAccount.leave_group(group_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "ترک گروه انجام نشد.")), RED)
+		return
+	_show_groups()
+
+func _show_group_chat(group_id: String, group_name: String) -> void:
+	active_group_chat_id = group_id
+	active_group_chat_name = group_name
+	_clear_content()
+	var heading := Label.new()
+	heading.text = "گفت‌وگوی گروه · " + group_name
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 22)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	var messages_scroll := ScrollContainer.new()
+	messages_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	messages_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content_box.add_child(messages_scroll)
+	chat_messages_box = VBoxContainer.new()
+	chat_messages_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chat_messages_box.add_theme_constant_override("separation", 7)
+	messages_scroll.add_child(chat_messages_box)
+	var composer := HBoxContainer.new()
+	composer.add_theme_constant_override("separation", 6)
+	content_box.add_child(composer)
+	chat_input = LineEdit.new()
+	chat_input.placeholder_text = "پیام گروه را بنویس..."
+	chat_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chat_input.custom_minimum_size.y = 48
+	_style_input(chat_input)
+	composer.add_child(chat_input)
+	var send := _make_button("ارسال", Color("#287c68"), CREAM)
+	send.custom_minimum_size = Vector2(76, 48)
+	send.pressed.connect(_send_global_chat_message)
+	composer.add_child(send)
+	var stickers := _make_button("استیکرها", Color("#765a31"), CREAM)
+	stickers.pressed.connect(_show_sticker_picker)
+	content_box.add_child(stickers)
+	chat_status_label = Label.new()
+	chat_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	chat_status_label.add_theme_color_override("font_color", MUTED)
+	content_box.add_child(chat_status_label)
+	await _refresh_global_chat()
+	if chat_poll_timer == null:
+		chat_poll_timer = Timer.new()
+		chat_poll_timer.wait_time = 5.0
+		chat_poll_timer.timeout.connect(_refresh_global_chat)
+		add_child(chat_poll_timer)
+	chat_poll_timer.start()
+	var back := _make_button("بازگشت به گروه", PANEL_ALT, CREAM)
+	back.pressed.connect(_show_groups)
+	content_box.add_child(back)
 
 func _show_cosmetic_shop() -> void:
 	_clear_content()
