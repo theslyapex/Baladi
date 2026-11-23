@@ -554,10 +554,12 @@ func _show_auth(message: String = "") -> void:
 	fields.add_child(auth_password_input)
 
 	auth_login_button = _make_button("ورود به حساب", Color("#287c68"), CREAM)
+	auth_login_button.disabled = startup_restore_in_progress
 	auth_login_button.pressed.connect(_on_login_pressed)
 	fields.add_child(auth_login_button)
 
 	auth_mode_toggle_button = _make_button("ساخت حساب جدید", Color("#a77a35"), Color("#172b25"))
+	auth_mode_toggle_button.disabled = startup_restore_in_progress
 	auth_mode_toggle_button.pressed.connect(_toggle_signup_mode)
 	fields.add_child(auth_mode_toggle_button)
 
