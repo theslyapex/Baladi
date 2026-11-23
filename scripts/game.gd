@@ -423,8 +423,8 @@ func _show_map() -> void:
 		var is_open := i == 0 or completed_levels.has(int(levels[i - 1].get("id", i)))
 		var is_current := i == cloud_current_level - 1
 		var stage_button := Button.new()
-		stage_button.custom_minimum_size = Vector2(0, 76)
-		stage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stage_button.custom_minimum_size = Vector2(220, 76)
+		stage_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		stage_button.alignment = HORIZONTAL_ALIGNMENT_FILL
 		stage_button.text = ("✓   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_done else (("◈   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_open else ("🔒   مرحله %02d     قفل است" % stage_id))
 		stage_button.disabled = not is_open or is_done or not is_current
@@ -446,7 +446,20 @@ func _show_map() -> void:
 		disabled_style.bg_color = style.bg_color
 		stage_button.add_theme_stylebox_override("disabled", disabled_style)
 		stage_button.pressed.connect(_open_level.bind(i))
-		stage_list.add_child(stage_button)
+		var route_row := HBoxContainer.new()
+		route_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stage_list.add_child(route_row)
+		var route_spacer := Control.new()
+		route_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if i % 2 == 0:
+			route_row.add_child(stage_button)
+			route_row.add_child(route_spacer)
+		else:
+			route_row.add_child(route_spacer)
+			route_row.add_child(stage_button)
+		stage_button.modulate.a = 0.0
+		var node_tween := create_tween()
+		node_tween.tween_property(stage_button, "modulate:a", 1.0, 0.24).set_delay(float(i) * 0.018)
 
 func _open_level(index: int) -> void:
 	if index < 0 or index >= levels.size():
@@ -546,6 +559,51 @@ func _show_game() -> void:
 	map_button.pressed.connect(_show_map)
 	content_box.add_child(map_button)
 	_update_controls()
+
+func _init_audio() -> void:
+	sfx_player = AudioStreamPlayer.new()
+	sfx_player.volume_db = -7.0
+	add_child(sfx_player)
+
+func _play_sfx(kind: String) -> void:
+	if sfx_player == null:
+		return
+	var notes: Array[float] = [520.0]
+	match kind:
+		"found":
+			notes = [587.0, 740.0, 880.0]
+		"bonus":
+			notes = [740.0, 932.0, 1175.0]
+		"complete":
+			notes = [523.0, 659.0, 784.0, 1046.0]
+		"select":
+			notes = [620.0]
+	sfx_player.stream = _make_chime(notes)
+	sfx_player.play()
+
+func _make_chime(notes: Array[float]) -> AudioStreamWAV:
+	var sample_rate := 22050
+	var note_seconds := 0.075
+	var samples_per_note := int(sample_rate * note_seconds)
+	var pcm := PackedByteArray()
+	pcm.resize(samples_per_note * notes.size() * 2)
+	for note_index in range(notes.size()):
+		for sample_index in range(samples_per_note):
+			var progress := float(sample_index) / float(samples_per_note)
+			var attack := minf(1.0, progress * 24.0)
+			var release := minf(1.0, (1.0 - progress) * 8.0)
+			var envelope := minf(attack, release)
+			var time := float(sample_index) / float(sample_rate)
+			var fundamental := sin(TAU * notes[note_index] * time)
+			var harmonic := sin(TAU * notes[note_index] * 2.0 * time) * 0.18
+			var sample := (fundamental + harmonic) * 0.22 * envelope
+			pcm.encode_s16((note_index * samples_per_note + sample_index) * 2, int(sample * 32767.0))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.stereo = false
+	stream.data = pcm
+	return stream
 
 func _panel(border_color: Color = Color("#557b6d")) -> PanelContainer:
 	var panel := PanelContainer.new()
@@ -667,11 +725,12 @@ func _continue_trace(point: Vector2) -> void:
 	var index := _letter_at(point)
 	if index >= 0 and (selected_indices.is_empty() or selected_indices[-1] != index):
 		_add_trace_letter(index)
-	trace_line.clear_points()
+	var curve := Curve2D.new()
 	for selected_index in selected_indices:
 		var rect := letter_buttons[selected_index].get_global_rect()
-		trace_line.add_point(rect.get_center())
-	trace_line.add_point(point)
+		curve.add_point(rect.get_center())
+	curve.add_point(point)
+	trace_line.points = curve.get_baked_points()
 
 func _add_trace_letter(index: int) -> void:
 	if index < 0 or index >= letter_buttons.size() or selected_indices.has(index):
@@ -681,9 +740,10 @@ func _add_trace_letter(index: int) -> void:
 	selected_word += str(letters[index])
 	var button := letter_buttons[index]
 	button.modulate = GOLD
+	_play_sfx("select")
 	var tween := create_tween()
-	tween.tween_property(button, "scale", Vector2(1.12, 1.12), 0.08)
-	tween.tween_property(button, "scale", Vector2.ONE, 0.10)
+	tween.tween_property(button, "scale", Vector2(1.16, 1.16), 0.10).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(button, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 	_update_selection_label()
 	_update_controls()
 
@@ -841,8 +901,6 @@ func _complete_guest_level() -> void:
 	var reward := int(levels[level_index].get("reward", 0))
 	coins += reward
 	cloud_current_level = stage_id + 1
-	_play_sfx("complete")
-	_animate_coin_reward(reward)
 	_save()
 	_show_stage_complete(reward)
 
@@ -883,6 +941,7 @@ func _animate_coin_reward(amount: int) -> void:
 
 func _show_stage_complete(reward: int) -> void:
 	_play_sfx("complete")
+	_animate_coin_reward(reward)
 	var overlay := ColorRect.new()
 	overlay.color = Color("#061512")
 	overlay.modulate.a = 0.0
@@ -961,25 +1020,40 @@ func _use_hint() -> void:
 	if target.is_empty():
 		return
 	var stage_id := int(levels[level_index].get("id", level_index + 1))
+	if guest_mode:
+		coins -= 20
+		var guest_words := _words_for_current_level()
+		guest_words.append(target)
+		level_solved[str(stage_id)] = guest_words
+		_play_sfx("select")
+		_animate_coin_reward(-20)
+		if _is_level_complete():
+			_complete_guest_level()
+		else:
+			_set_status("راهنما واژه «%s» را آشکار کرد." % target, GOLD)
+			_render_board()
+		_save()
+		_update_controls()
+		return
 	var spend_result: Dictionary = await CloudAccount.use_hint(target, stage_id)
 	if not spend_result.get("ok", false):
 		_set_status(str(spend_result.get("error", "مصرف سکه انجام نشد.")), RED)
 		return
 	_apply_cloud_profile(spend_result.get("profile", {}))
-	var key := str(stage_id)
 	var words := _words_for_current_level()
 	words.append(target)
-	level_solved[key] = words
+	level_solved[str(stage_id)] = words
+	_animate_coin_reward(-20)
 	if _is_level_complete():
 		var completion: Dictionary = await CloudAccount.complete_level(stage_id)
 		if completion.get("ok", false):
 			_apply_cloud_profile(completion.get("profile", {}))
-			_set_status("راهنما واژه «%s» را آشکار کرد. مرحله هم کامل شد!" % target, GOLD)
+			_show_stage_complete(int(levels[level_index].get("reward", 0)))
 		else:
 			_set_status(str(completion.get("error", "ثبت تکمیل مرحله انجام نشد.")), RED)
 	else:
 		_set_status("راهنما واژه «%s» را آشکار کرد." % target, GOLD)
-	_render_board()
+		_render_board()
 	_save()
 	_update_controls()
 
@@ -994,8 +1068,9 @@ func _update_controls() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		_save()
-		if CloudAccount.is_authenticated():
+		if not guest_mode and CloudAccount.is_authenticated():
 			await CloudAccount.end_session()
 	elif what == NOTIFICATION_APPLICATION_PAUSED:
-		if CloudAccount.is_authenticated():
+		_save()
+		if not guest_mode and CloudAccount.is_authenticated():
 			await CloudAccount.touch_session()
