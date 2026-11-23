@@ -61,6 +61,12 @@ var avatar_unlocked := false
 var equipped_frame_id := "frame_default"
 var wins := 0
 var losses := 0
+var chat_unlocked := false
+var chat_poll_timer: Timer
+var chat_messages_box: VBoxContainer
+var chat_input: LineEdit
+var chat_status_label: Label
+var chat_poll_busy := false
 var auth_signup_mode := false
 var auth_login_button: Button
 var auth_mode_toggle_button: Button
@@ -121,6 +127,7 @@ func _enter_game() -> void:
 	equipped_frame_id = str(profile.get("equipped_frame_id", "frame_default"))
 	wins = int(profile.get("wins", 0))
 	losses = int(profile.get("losses", 0))
+	chat_unlocked = not str(profile.get("chat_unlocked_at", "")).is_empty()
 	cloud_current_level = int(profile.get("current_level", 1))
 	level_index = clampi(cloud_current_level - 1, 0, max(0, levels.size() - 1))
 	var remote_completed = profile.get("completed_levels", [])
@@ -377,6 +384,11 @@ func _clear_content() -> void:
 	stage_touch_active = false
 	is_dragging = false
 	active_pointer = -1
+	if chat_poll_timer != null:
+		chat_poll_timer.stop()
+	chat_messages_box = null
+	chat_input = null
+	chat_status_label = null
 	trace_line.clear_points()
 	trace_line.visible = false
 	for child in content_box.get_children():
@@ -576,6 +588,7 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 	equipped_frame_id = str(profile.get("equipped_frame_id", equipped_frame_id))
 	wins = int(profile.get("wins", wins))
 	losses = int(profile.get("losses", losses))
+	chat_unlocked = not str(profile.get("chat_unlocked_at", "")).is_empty()
 	cloud_current_level = int(profile.get("current_level", cloud_current_level))
 	var remote_completed = profile.get("completed_levels", completed_levels)
 	if remote_completed is Array:
@@ -633,6 +646,22 @@ func _show_map() -> void:
 	progress.show_percentage = false
 	progress.custom_minimum_size.y = 12
 	progress_box.add_child(progress)
+
+	var social_row := HBoxContainer.new()
+	social_row.add_theme_constant_override("separation", 7)
+	content_box.add_child(social_row)
+	var chat_nav := _make_button("چت عمومی", Color("#765a31"), CREAM)
+	chat_nav.custom_minimum_size = Vector2(0, 44)
+	chat_nav.pressed.connect(_show_global_chat)
+	social_row.add_child(chat_nav)
+	var shop_nav := _make_button("فروشگاه", Color("#245448"), CREAM)
+	shop_nav.custom_minimum_size = Vector2(0, 44)
+	shop_nav.pressed.connect(_show_cosmetic_shop)
+	social_row.add_child(shop_nav)
+	var ranks_nav := _make_button("رتبه‌بندی", Color("#294c43"), GOLD)
+	ranks_nav.custom_minimum_size = Vector2(0, 44)
+	ranks_nav.pressed.connect(_show_leaderboard)
+	social_row.add_child(ranks_nav)
 
 	if cloud_current_level > levels.size():
 		var finished := Label.new()
@@ -820,6 +849,207 @@ func _show_profile() -> void:
 	var back := _make_button("بازگشت به نقشه مراحل", Color("#294c43"), CREAM)
 	back.pressed.connect(_show_map)
 	content_box.add_child(back)
+
+func _show_global_chat() -> void:
+	_clear_content()
+	var heading := Label.new()
+	heading.text = "گفت‌وگوی بازیکنان"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 25)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	if guest_mode:
+		var guest_note := Label.new()
+		guest_note.text = "برای حضور در گفت‌وگوی عمومی، با حساب کاربری وارد شو."
+		guest_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		guest_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		guest_note.add_theme_color_override("font_color", MUTED)
+		content_box.add_child(guest_note)
+		var guest_back := _make_button("بازگشت به نقشه", PANEL_ALT, CREAM)
+		guest_back.pressed.connect(_show_map)
+		content_box.add_child(guest_back)
+		return
+	if not chat_unlocked:
+		var lock_panel := _panel(GOLD)
+		content_box.add_child(lock_panel)
+		var lock_body := VBoxContainer.new()
+		lock_body.add_theme_constant_override("separation", 10)
+		lock_panel.add_child(lock_body)
+		var lock_title := Label.new()
+		lock_title.text = "دروازه گفت‌وگوی بلدی؟"
+		lock_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lock_title.add_theme_font_size_override("font_size", 20)
+		lock_title.add_theme_color_override("font_color", GOLD)
+		lock_body.add_child(lock_title)
+		var lock_text := Label.new()
+		lock_text.text = "با پرداخت یک‌بارهٔ ۱۸٬۰۰۰ سکه، چت عمومی برای همیشه برای حسابت فعال می‌شود."
+		lock_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lock_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lock_text.add_theme_color_override("font_color", CREAM)
+		lock_body.add_child(lock_text)
+		var unlock := _make_button("بازکردن دائمی چت · ۱۸٬۰۰۰ سکه", Color("#a77a35"), CREAM)
+		unlock.pressed.connect(_unlock_global_chat)
+		lock_body.add_child(unlock)
+		var sticker_shop := _make_button("فروشگاه استیکرها", PANEL_ALT, GOLD)
+		sticker_shop.pressed.connect(_show_sticker_picker)
+		lock_body.add_child(sticker_shop)
+	else:
+		var messages_scroll := ScrollContainer.new()
+		messages_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		messages_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		messages_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		content_box.add_child(messages_scroll)
+		chat_messages_box = VBoxContainer.new()
+		chat_messages_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		chat_messages_box.add_theme_constant_override("separation", 7)
+		messages_scroll.add_child(chat_messages_box)
+		var composer := HBoxContainer.new()
+		composer.add_theme_constant_override("separation", 6)
+		content_box.add_child(composer)
+		chat_input = LineEdit.new()
+		chat_input.placeholder_text = "پیامت را بنویس..."
+		chat_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		chat_input.custom_minimum_size.y = 48
+		_style_input(chat_input)
+		composer.add_child(chat_input)
+		var send := _make_button("ارسال", Color("#287c68"), CREAM)
+		send.custom_minimum_size = Vector2(76, 48)
+		send.size_flags_horizontal = Control.SIZE_SHRINK_END
+		send.pressed.connect(_send_global_chat_message)
+		composer.add_child(send)
+		var sticker_button := _make_button("استیکرها", Color("#765a31"), CREAM)
+		sticker_button.pressed.connect(_show_sticker_picker)
+		content_box.add_child(sticker_button)
+		chat_status_label = Label.new()
+		chat_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		chat_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		chat_status_label.add_theme_color_override("font_color", MUTED)
+		content_box.add_child(chat_status_label)
+		await _refresh_global_chat()
+		if chat_poll_timer == null:
+			chat_poll_timer = Timer.new()
+			chat_poll_timer.wait_time = 5.0
+			chat_poll_timer.timeout.connect(_refresh_global_chat)
+			add_child(chat_poll_timer)
+		chat_poll_timer.start()
+	var back := _make_button("بازگشت به نقشه مراحل", PANEL_ALT, CREAM)
+	back.pressed.connect(_show_map)
+	content_box.add_child(back)
+
+func _unlock_global_chat() -> void:
+	if coins < 18000:
+		_set_status("برای بازکردن چت، ۱۸٬۰۰۰ سکه لازم داری.", RED)
+		return
+	var result: Dictionary = await CloudAccount.unlock_global_chat()
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "بازکردن چت انجام نشد.")), RED)
+		return
+	_apply_cloud_profile(result.get("profile", {}))
+	_animate_coin_reward(-18000)
+	_show_global_chat()
+
+func _refresh_global_chat() -> void:
+	if chat_poll_busy or chat_messages_box == null or not is_instance_valid(chat_messages_box):
+		return
+	chat_poll_busy = true
+	var result: Dictionary = await CloudAccount.get_global_chat_messages()
+	if result.get("ok", false) and chat_messages_box != null and is_instance_valid(chat_messages_box):
+		for child in chat_messages_box.get_children():
+			child.queue_free()
+		for message in result.get("messages", []):
+			var card := _panel(TEAL if str(message.get("user_id", "")) == CloudAccount.user_id else Color("#456b5b"))
+			chat_messages_box.add_child(card)
+			var body := VBoxContainer.new()
+			body.add_theme_constant_override("separation", 3)
+			card.add_child(body)
+			var player: Dictionary = message.get("player", {})
+			var name_label := Label.new()
+			name_label.text = str(player.get("display_name", "بازیکن"))
+			name_label.add_theme_font_size_override("font_size", 12)
+			name_label.add_theme_color_override("font_color", GOLD)
+			body.add_child(name_label)
+			var message_label := Label.new()
+			if not str(message.get("sticker_id", "")).is_empty():
+				message_label.text = "✦  " + str(message.get("sticker_id", "استیکر"))
+				message_label.add_theme_font_size_override("font_size", 17)
+				message_label.add_theme_color_override("font_color", GOLD)
+			else:
+				message_label.text = str(message.get("body", ""))
+				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				message_label.add_theme_color_override("font_color", CREAM)
+			body.add_child(message_label)
+	elif not result.get("ok", false) and chat_status_label != null and is_instance_valid(chat_status_label):
+		chat_status_label.text = str(result.get("error", "دریافت پیام‌ها انجام نشد."))
+	chat_poll_busy = false
+
+func _send_global_chat_message() -> void:
+	if chat_input == null or not is_instance_valid(chat_input):
+		return
+	var message := chat_input.text.strip_edges()
+	if message.is_empty():
+		return
+	var result: Dictionary = await CloudAccount.send_global_chat_message(message)
+	if not result.get("ok", false):
+		if chat_status_label != null and is_instance_valid(chat_status_label):
+			chat_status_label.text = str(result.get("error", "ارسال پیام انجام نشد."))
+		return
+	chat_input.clear()
+	await _refresh_global_chat()
+
+func _show_sticker_picker() -> void:
+	_clear_content()
+	var heading := Label.new()
+	heading.text = "گالری استیکرهای بلدی؟"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 23)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	if guest_mode:
+		_set_status("برای خرید یا ارسال استیکر، وارد حساب کاربری شو.", GOLD)
+	else:
+		var result: Dictionary = await CloudAccount.get_cosmetics_catalog()
+		if result.get("ok", false):
+			var owned: Dictionary = {}
+			for entry in result.get("owned", []):
+				owned[str(entry.get("cosmetic_id", ""))] = true
+			for item in result.get("catalog", []):
+				if str(item.get("kind", "")) != "sticker":
+					continue
+				var sticker_id := str(item.get("id", ""))
+				var card := _panel(GOLD)
+				content_box.add_child(card)
+				var title := Label.new()
+				title.text = str(item.get("display_name", "استیکر"))
+				title.add_theme_color_override("font_color", CREAM)
+				card.add_child(title)
+				var action := _make_button("ارسال استیکر" if owned.has(sticker_id) else "خرید · %d سکه" % int(item.get("price_coins", 0)), Color("#765a31"), CREAM)
+				action.pressed.connect(func():
+					if owned.has(sticker_id):
+						_send_global_chat_sticker(sticker_id)
+					else:
+						_purchase_sticker(sticker_id)
+				)
+				card.add_child(action)
+		else:
+			_set_status(str(result.get("error", "فروشگاه استیکر بارگذاری نشد.")), RED)
+	var back := _make_button("بازگشت به چت", PANEL_ALT, CREAM)
+	back.pressed.connect(_show_global_chat)
+	content_box.add_child(back)
+
+func _purchase_sticker(sticker_id: String) -> void:
+	var result: Dictionary = await CloudAccount.purchase_cosmetic(sticker_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "خرید استیکر انجام نشد.")), RED)
+		return
+	_apply_cloud_profile(result.get("profile", {}))
+	_show_sticker_picker()
+
+func _send_global_chat_sticker(sticker_id: String) -> void:
+	var result: Dictionary = await CloudAccount.send_global_chat_sticker(sticker_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "ارسال استیکر انجام نشد.")), RED)
+		return
+	_show_global_chat()
 
 func _show_cosmetic_shop() -> void:
 	_clear_content()
