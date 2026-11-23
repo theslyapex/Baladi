@@ -219,8 +219,10 @@ func _save() -> void:
 func _build_base() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layout_direction = Control.LAYOUT_DIRECTION_RTL
-	var background := ColorRect.new()
-	background.color = BG
+	var background := TextureRect.new()
+	background.texture = load("res://assets/backgrounds/ambient.svg")
+	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	background.stretch_mode = TextureRect.STRETCH_SCALE
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
@@ -281,6 +283,13 @@ func _build_base() -> void:
 	profile_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	profile_button.pressed.connect(_show_profile)
 	header.add_child(profile_button)
+	profile_button = _make_button("پروفایل", Color("#294c43"), CREAM)
+	profile_button.icon = load("res://assets/icons/profile.svg")
+	profile_button.custom_minimum_size = Vector2(92, 48)
+	profile_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	profile_button.pressed.connect(_show_profile)
+	header.add_child(profile_button)
+
 	exit_button = _make_button("خروج", Color("#70413b"), CREAM)
 	exit_button.custom_minimum_size = Vector2(74, 48)
 	exit_button.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -357,28 +366,32 @@ func _show_auth(message: String = "") -> void:
 	form.add_child(fields)
 
 	auth_name_input = LineEdit.new()
-	auth_name_input.placeholder_text = "نام نمایشی، فقط هنگام ساخت حساب"
+	auth_name_input.placeholder_text = "نام نمایشی"
 	auth_name_input.custom_minimum_size.y = 48
+	auth_name_input.visible = false
+	_style_input(auth_name_input)
 	fields.add_child(auth_name_input)
 
 	auth_email_input = LineEdit.new()
 	auth_email_input.placeholder_text = "ایمیل حساب کاربری"
 	auth_email_input.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_EMAIL_ADDRESS
 	auth_email_input.custom_minimum_size.y = 48
+	_style_input(auth_email_input)
 	fields.add_child(auth_email_input)
 
 	auth_password_input = LineEdit.new()
 	auth_password_input.placeholder_text = "رمز عبور"
 	auth_password_input.secret = true
 	auth_password_input.custom_minimum_size.y = 48
+	_style_input(auth_password_input)
 	fields.add_child(auth_password_input)
 
-	var login_button := _make_button("ورود به حساب", Color("#287c68"), CREAM)
-	login_button.pressed.connect(_on_login_pressed)
-	fields.add_child(login_button)
+	auth_login_button = _make_button("ورود به حساب", Color("#287c68"), CREAM)
+	auth_login_button.pressed.connect(_on_login_pressed)
+	fields.add_child(auth_login_button)
 
-	var signup_button := _make_button("ساخت حساب کاربری", Color("#a77a35"), Color("#172b25"))
-	signup_button.pressed.connect(_on_signup_pressed)
+	var signup_button := _make_button("ساخت حساب جدید", Color("#a77a35"), Color("#172b25"))
+	signup_button.pressed.connect(_toggle_signup_mode)
 	fields.add_child(signup_button)
 
 	var guest_button := _make_button("ورود مهمان", Color("#294c43"), GOLD)
@@ -403,7 +416,17 @@ func _show_guest_warning() -> void:
 	warning.min_size = Vector2i(320, 220)
 	warning.popup_centered(Vector2i(320, 220))
 
+func _toggle_signup_mode() -> void:
+	auth_signup_mode = not auth_signup_mode
+	auth_name_input.visible = auth_signup_mode
+	auth_login_button.text = "ثبت‌نام و ساخت حساب" if auth_signup_mode else "ورود به حساب"
+	auth_status_label.text = "نام نمایشی را هم وارد کن." if auth_signup_mode else "ایمیل و رمز عبور حساب را وارد کن."
+	auth_status_label.add_theme_color_override("font_color", MUTED)
+
 func _on_login_pressed() -> void:
+	if auth_signup_mode:
+		await _on_signup_pressed()
+		return
 	if auth_email_input.text.strip_edges().is_empty() or auth_password_input.text.is_empty():
 		auth_status_label.text = "ایمیل و رمز عبور را وارد کن."
 		auth_status_label.add_theme_color_override("font_color", RED)
@@ -775,6 +798,24 @@ func _make_chime(notes: Array[float]) -> AudioStreamWAV:
 	stream.stereo = false
 	stream.data = pcm
 	return stream
+
+func _style_input(field: LineEdit) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color("#102e29")
+	normal.border_color = Color("#547b6d")
+	normal.set_border_width_all(1)
+	normal.set_corner_radius_all(12)
+	normal.content_margin_left = 12
+	normal.content_margin_right = 12
+	normal.content_margin_top = 8
+	normal.content_margin_bottom = 8
+	field.add_theme_stylebox_override("normal", normal)
+	var focus := normal.duplicate()
+	focus.border_color = GOLD
+	focus.set_border_width_all(2)
+	field.add_theme_stylebox_override("focus", focus)
+	field.add_theme_color_override("font_color", CREAM)
+	field.add_theme_color_override("font_placeholder_color", MUTED)
 
 func _panel(border_color: Color = Color("#557b6d")) -> PanelContainer:
 	var panel := PanelContainer.new()
@@ -1250,11 +1291,14 @@ func _show_hint_menu() -> void:
 	if hint_button == null or not is_instance_valid(hint_button):
 		return
 	var menu := PopupMenu.new()
-	menu.add_item("آشکار کردن کامل واژه  ·  ۲۰ سکه", 0)
-	menu.add_item("نمایش حرف اول  ·  ۸ سکه", 1)
-	menu.add_item("نمایش تعداد حروف  ·  ۵ سکه", 2)
-	menu.add_item("برجسته‌کردن یک حرف  ·  ۱۲ سکه", 3)
-	menu.id_pressed.connect(_on_hint_menu_selected)
+	menu.add_icon_item(load("res://assets/icons/hint-word.svg"), "آشکار کردن کامل واژه  ·  ۲۰ سکه", 0)
+	menu.add_icon_item(load("res://assets/icons/hint-first.svg"), "نمایش حرف اول  ·  ۸ سکه", 1)
+	menu.add_icon_item(load("res://assets/icons/hint-length.svg"), "نمایش تعداد حروف  ·  ۵ سکه", 2)
+	menu.add_icon_item(load("res://assets/icons/hint-highlight.svg"), "برجسته‌کردن یک حرف  ·  ۱۲ سکه", 3)
+	menu.id_pressed.connect(func(option: int):
+		menu.queue_free()
+		_on_hint_menu_selected(option)
+	)
 	add_child(menu)
 	var rect := hint_button.get_global_rect()
 	menu.popup(Rect2i(Vector2i(rect.position.x, rect.position.y - 150), Vector2i(1, 1)))
@@ -1294,13 +1338,13 @@ func _use_hint_clue(hint_type: String) -> void:
 	_animate_coin_reward(-cost)
 	match hint_type:
 		"first_letter":
-			_set_status("حرف اول یکی از پاسخ‌های باقی‌مانده «%s» است." % Array(target)[0], GOLD)
+			_set_status("حرف اول یکی از پاسخ‌های باقی‌مانده «%s» است." % target.substr(0, 1), GOLD)
 		"word_length":
-			_set_status("یکی از پاسخ‌های باقی‌مانده %d حرف دارد." % Array(target).size(), GOLD)
+			_set_status("یکی از پاسخ‌های باقی‌مانده %d حرف دارد." % target.length(), GOLD)
 		"highlight_letter":
 			var letters: Array = levels[level_index].get("letters", [])
 			for i in range(letters.size()):
-				if str(letters[i]) == str(Array(target)[0]):
+				if str(letters[i]) == target.substr(0, 1):
 					var button := letter_buttons[i]
 					button.modulate = GOLD
 					var pulse := create_tween()
