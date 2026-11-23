@@ -36,14 +36,21 @@ func _request_json(url: String, method: int, headers: PackedStringArray, payload
 		return {"ok": false, "error": "اتصال اینترنت برقرار نشد."}
 	var response: Array = await request.request_completed
 	request.queue_free()
+	var request_result := int(response[0])
 	var response_code := int(response[1])
 	var raw_body: PackedByteArray = response[3]
-	var parsed = JSON.parse_string(raw_body.get_string_from_utf8())
+	var response_text := raw_body.get_string_from_utf8()
+	var parsed = JSON.parse_string(response_text)
+	if request_result != HTTPRequest.RESULT_SUCCESS:
+		return {"ok": false, "error": "ارتباط با سرور برقرار نشد. اتصال اینترنت یا دسترسی شبکه را بررسی کن.", "request_result": request_result, "status": response_code}
 	if response_code < 200 or response_code >= 300:
-		var message := "درخواست ناموفق بود."
+		var message := "سرور درخواست را نپذیرفت (کد %d)." % response_code
 		if parsed is Dictionary:
-			message = str(parsed.get("msg", parsed.get("message", parsed.get("error_description", parsed.get("error", message)))))
-		return {"ok": false, "error": message, "status": response_code}
+			for key in ["msg", "message", "error_description", "error", "error_code", "code"]:
+				if parsed.has(key) and not str(parsed[key]).strip_edges().is_empty():
+					message = str(parsed[key])
+					break
+		return {"ok": false, "error": message, "status": response_code, "response": response_text}
 	if parsed is Dictionary:
 		return {"ok": true, "data": parsed}
 	return {"ok": false, "error": "پاسخ سرور قابل خواندن نیست."}
