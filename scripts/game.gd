@@ -131,7 +131,9 @@ func _enter_game() -> void:
 		_save()
 		if daily_reward > 0:
 			_animate_coin_reward(daily_reward)
-			_spawn_floating_text("پاداش ۷ روز متوالی: +%d سکه" % daily_reward, GOLD)
+			_spawn_floating_text("جایزهٔ روز %d: +%d سکه" % [int(checkin_result.get("cycle_day", 1)), daily_reward], GOLD)
+		elif int(checkin_result.get("cycle_day", 1)) > 0:
+			_spawn_floating_text("روز %d از زنجیرهٔ حضور" % int(checkin_result.get("cycle_day", 1)), TEAL)
 	if session_timer == null:
 		session_timer = Timer.new()
 		session_timer.wait_time = 45.0
@@ -165,11 +167,16 @@ func _guest_daily_checkin() -> void:
 		consecutive = current_stamp - previous_stamp >= 86300.0 and current_stamp - previous_stamp <= 86500.0
 	daily_streak = daily_streak + 1 if consecutive else 1
 	last_checkin_date = today
-	if daily_streak > 0 and daily_streak % 7 == 0:
-		coins += 50
+	var cycle_day := ((daily_streak - 1) % 20) + 1
+	var reward_by_day := {1: 20, 4: 80, 6: 180, 10: 250, 15: 500, 20: 1000}
+	var reward := int(reward_by_day.get(cycle_day, 0))
+	if reward > 0:
+		coins += reward
 		_play_sfx("complete")
-		_animate_coin_reward(50)
-		_spawn_floating_text("جایزهٔ ۷ روز متوالی: ۵۰ سکه", GOLD)
+		_animate_coin_reward(reward)
+		_spawn_floating_text("جایزهٔ روز %d: +%d سکه" % [cycle_day, reward], GOLD)
+	else:
+		_spawn_floating_text("روز %d از زنجیرهٔ حضور" % cycle_day, TEAL)
 	_save()
 
 func _heartbeat() -> void:
