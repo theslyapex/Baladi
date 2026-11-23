@@ -936,13 +936,13 @@ func _show_map() -> void:
 			var previous_stage_id := int(levels[stage_index - 1].get("id", stage_index)) if stage_index > 0 else 0
 			# Progress may arrive with the completed list or current_level updated first.
 			# Either authoritative signal must unlock the immediate next stage.
-			var is_open := stage_id <= cloud_current_level or (stage_index > 0 and completed_levels.has(previous_stage_id))
+			var is_open := stage_id <= cloud_current_level or completed_levels.has(stage_id) or (stage_index > 0 and completed_levels.has(previous_stage_id))
 			var is_current := stage_id == cloud_current_level
 			var stage_button := Button.new()
 			stage_button.custom_minimum_size = Vector2(0, 62)
 			stage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			stage_button.text = "✓" if is_done else "%02d" % stage_id
-			stage_button.disabled = not is_open or is_done
+			stage_button.disabled = not is_open
 			stage_button.add_theme_font_size_override("font_size", 18)
 			stage_button.add_theme_color_override("font_color", Color("#fff4d0") if is_current else (GOLD if is_done else (CREAM if is_open else MUTED)))
 			stage_button.add_theme_color_override("font_disabled_color", GOLD if is_done else Color("#71837d"))
@@ -2445,8 +2445,8 @@ func _open_level(index: int) -> void:
 		return
 	var stage_id := int(levels[index].get("id", index + 1))
 	var previous_stage_id := int(levels[index - 1].get("id", index)) if index > 0 else 0
-	var is_unlocked := stage_id <= cloud_current_level or (index > 0 and completed_levels.has(previous_stage_id))
-	if not is_unlocked or completed_levels.has(stage_id):
+	var is_unlocked := stage_id <= cloud_current_level or completed_levels.has(stage_id) or (index > 0 and completed_levels.has(previous_stage_id))
+	if not is_unlocked:
 		return
 	level_index = index
 	_save()
