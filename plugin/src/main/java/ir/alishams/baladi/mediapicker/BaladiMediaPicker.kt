@@ -32,7 +32,7 @@ class BaladiMediaPicker(godot: Godot) : GodotPlugin(godot) {
                 emitSignal("picker_error", "پنجره انتخاب تصویر در دسترس نیست.")
                 return@runOnHostThread
             }
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "image/*"
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
