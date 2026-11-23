@@ -2451,7 +2451,6 @@ func _open_level(index: int) -> void:
 	level_index = index
 	_save()
 	_show_game()
-	var stage_id := int(levels[level_index].get("id", level_index + 1))
 	if _is_level_complete() and not completed_levels.has(stage_id):
 		if guest_mode:
 			_complete_guest_level()
