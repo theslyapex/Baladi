@@ -1461,9 +1461,12 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 		var row_box := VBoxContainer.new()
 		row_box.add_theme_constant_override("separation", 4)
 		row.add_child(row_box)
-		var name := Label.new()
-		name.text = "%s  ·  %s" % [str(player.get("display_name", "بازیکن")), _group_role_label(member_role)]
-		name.add_theme_color_override("font_color", CREAM)
+		var name := _make_button("%s  ·  %s" % [str(player.get("display_name", "بازیکن")), _group_role_label(member_role)], Color("#294c43"), CREAM)
+		name.custom_minimum_size = Vector2(0, 36)
+		if member_id == CloudAccount.user_id:
+			name.disabled = true
+		else:
+			name.pressed.connect(func(): _show_public_profile(member_id))
 		row_box.add_child(name)
 		if member_id != CloudAccount.user_id and (role == "leader" or role == "deputy"):
 			if role == "leader" or member_role == "member":
