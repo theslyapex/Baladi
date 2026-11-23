@@ -1,7 +1,7 @@
 extends Control
 
 const LEVELS_PATH := "res://data/levels/levels.json"
-const SAVE_PATH := "user://baladi_save.cfg"
+const SAVE_PATH_PREFIX := "user://baladi_save_"
 const BG := Color("#0b211f")
 const PANEL := Color("#153a34")
 const PANEL_ALT := Color("#1d4b41")
@@ -35,12 +35,56 @@ var hint_button: Button
 var submit_button: Button
 var letter_buttons: Array[Button] = []
 var trace_line: Line2D
+var auth_email_input: LineEdit
+var auth_password_input: LineEdit
+var auth_name_input: LineEdit
+var auth_status_label: Label
+var session_timer: Timer
 
 func _ready() -> void:
 	_load_levels()
-	_load_save()
 	_build_base()
+	var restored: bool = await CloudAccount.restore_session()
+	if restored:
+		await _enter_game()
+	else:
+		_show_auth()
+
+func _save_path() -> String:
+	var account_id := str(CloudAccount.user_id)
+	if account_id.is_empty():
+		return "user://baladi_save_guest.cfg"
+	return SAVE_PATH_PREFIX + account_id + ".cfg"
+
+func _enter_game() -> void:
+	var response: Dictionary = await CloudAccount.start_game_session()
+	if not response.get("ok", false):
+		_show_auth(str(response.get("error", "ورود به بازی انجام نشد.")))
+		return
+	var profile: Dictionary = response.get("profile", {})
+	coins = int(profile.get("coins", 100))
+	level_index = clampi(int(profile.get("current_level", 1)) - 1, 0, max(0, levels.size() - 1))
+	var remote_completed = profile.get("completed_levels", [])
+	if remote_completed is Array:
+		completed_levels = remote_completed.duplicate()
+	_save()
+	if session_timer == null:
+		session_timer = Timer.new()
+		session_timer.wait_time = 45.0
+		session_timer.timeout.connect(_heartbeat)
+		add_child(session_timer)
+	session_timer.start()
 	_show_map()
+
+func _heartbeat() -> void:
+	await CloudAccount.touch_session()
+
+func _logout() -> void:
+	_save()
+	if session_timer != null:
+		session_timer.stop()
+	await CloudAccount.sign_out()
+	_show_auth("از حساب کاربری خارج شدی.")
 
 func _load_levels() -> void:
 	if not FileAccess.file_exists(LEVELS_PATH):
@@ -54,7 +98,7 @@ func _load_levels() -> void:
 
 func _load_save() -> void:
 	var cfg := ConfigFile.new()
-	if cfg.load(SAVE_PATH) != OK:
+	if cfg.load(_save_path()) != OK:
 		return
 	coins = int(cfg.get_value("player", "coins", 100))
 	level_index = clampi(int(cfg.get_value("player", "level_index", 0)), 0, max(0, levels.size() - 1))
@@ -76,7 +120,7 @@ func _save() -> void:
 	cfg.set_value("player", "level_index", level_index)
 	cfg.set_value("player", "level_solved", level_solved)
 	cfg.set_value("player", "completed_levels", completed_levels)
-	cfg.save(SAVE_PATH)
+	cfg.save(_save_path())
 
 func _build_base() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -127,6 +171,11 @@ func _build_base() -> void:
 	coin_label.add_theme_font_size_override("font_size", 18)
 	coin_label.add_theme_color_override("font_color", CREAM)
 	coin_panel.add_child(coin_label)
+	var logout_button := _make_button("خروج", Color("#70413b"), CREAM)
+	logout_button.custom_minimum_size = Vector2(64, 48)
+	logout_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	logout_button.pressed.connect(_logout)
+	header.add_child(logout_button)
 
 	var rule := ColorRect.new()
 	rule.custom_minimum_size.y = 2
@@ -164,6 +213,99 @@ func _clear_content() -> void:
 	trace_line.visible = false
 	for child in content_box.get_children():
 		child.queue_free()
+
+func _show_auth(message: String = "") -> void:
+	_clear_content()
+	coin_label.text = "حساب"
+	var heading := Label.new()
+	heading.text = "ورود به بازی"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 27)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+
+	var intro := Label.new()
+	intro.text = "برای بازی، با همان ایمیل و رمز عبور حساب کاربری alishams.ir وارد شو."
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	intro.add_theme_color_override("font_color", MUTED)
+	content_box.add_child(intro)
+
+	var form := _panel()
+	content_box.add_child(form)
+	var fields := VBoxContainer.new()
+	fields.add_theme_constant_override("separation", 10)
+	form.add_child(fields)
+
+	auth_name_input = LineEdit.new()
+	auth_name_input.placeholder_text = "نام نمایشی، فقط هنگام ساخت حساب"
+	auth_name_input.custom_minimum_size.y = 48
+	fields.add_child(auth_name_input)
+
+	auth_email_input = LineEdit.new()
+	auth_email_input.placeholder_text = "ایمیل حساب کاربری"
+	auth_email_input.keyboard_type = LineEdit.KEYBOARD_TYPE_EMAIL_ADDRESS
+	auth_email_input.custom_minimum_size.y = 48
+	fields.add_child(auth_email_input)
+
+	auth_password_input = LineEdit.new()
+	auth_password_input.placeholder_text = "رمز عبور"
+	auth_password_input.secret = true
+	auth_password_input.custom_minimum_size.y = 48
+	fields.add_child(auth_password_input)
+
+	var login_button := _make_button("ورود به حساب", Color("#287c68"), CREAM)
+	login_button.pressed.connect(_on_login_pressed)
+	fields.add_child(login_button)
+
+	var signup_button := _make_button("ساخت حساب کاربری", Color("#a77a35"), Color("#172b25"))
+	signup_button.pressed.connect(_on_signup_pressed)
+	fields.add_child(signup_button)
+
+	auth_status_label = Label.new()
+	auth_status_label.text = message
+	auth_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	auth_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	auth_status_label.add_theme_color_override("font_color", RED if not message.is_empty() else MUTED)
+	content_box.add_child(auth_status_label)
+
+func _on_login_pressed() -> void:
+	if auth_email_input.text.strip_edges().is_empty() or auth_password_input.text.is_empty():
+		auth_status_label.text = "ایمیل و رمز عبور را وارد کن."
+		auth_status_label.add_theme_color_override("font_color", RED)
+		return
+	auth_status_label.text = "در حال ورود به حساب…"
+	var result: Dictionary = await CloudAccount.sign_in(auth_email_input.text, auth_password_input.text)
+	if not result.get("ok", false):
+		auth_status_label.text = str(result.get("error", "ورود انجام نشد."))
+		auth_status_label.add_theme_color_override("font_color", RED)
+		return
+	await _enter_game()
+
+func _on_signup_pressed() -> void:
+	if auth_name_input.text.strip_edges().length() < 2 or auth_email_input.text.strip_edges().is_empty() or auth_password_input.text.length() < 8:
+		auth_status_label.text = "نام، ایمیل و رمز عبور حداقل ۸ نویسه‌ای را وارد کن."
+		auth_status_label.add_theme_color_override("font_color", RED)
+		return
+	auth_status_label.text = "در حال ساخت حساب…"
+	var result: Dictionary = await CloudAccount.sign_up(auth_email_input.text, auth_password_input.text, auth_name_input.text)
+	if not result.get("ok", false):
+		auth_status_label.text = str(result.get("error", "ساخت حساب انجام نشد."))
+		auth_status_label.add_theme_color_override("font_color", RED)
+		return
+	if result.get("confirmed", false):
+		await _enter_game()
+	else:
+		auth_status_label.text = "حساب ساخته شد. ایمیل تأیید را بررسی کن، سپس با همان حساب وارد شو."
+		auth_status_label.add_theme_color_override("font_color", GREEN)
+
+func _apply_cloud_profile(profile: Dictionary) -> void:
+	coins = int(profile.get("coins", coins))
+	var remote_completed = profile.get("completed_levels", completed_levels)
+	if remote_completed is Array:
+		completed_levels = remote_completed.duplicate()
+	_save()
+	_update_controls()
 
 func _show_map() -> void:
 	_clear_content()
@@ -528,17 +670,28 @@ func _submit_word() -> void:
 	elif _words_for_current_level().has(matched):
 		_set_status("این واژه را قبلاً پیدا کرده‌ای.", GOLD)
 	else:
-		var key := str(int(levels[level_index].get("id", level_index + 1)))
+		var stage_id := int(levels[level_index].get("id", level_index + 1))
+		var word_result: Dictionary = await CloudAccount.record_word_found(matched, stage_id)
+		if not word_result.get("ok", false):
+			_set_status(str(word_result.get("error", "ثبت واژه در حساب انجام نشد.")), RED)
+			_clear_selection()
+			return
+		var word_profile: Dictionary = word_result.get("profile", {})
+		if not word_profile.is_empty():
+			_apply_cloud_profile(word_profile)
+		var key := str(stage_id)
 		var words := _words_for_current_level()
 		words.append(matched)
 		level_solved[key] = words
-		coins += 3
 		if _is_level_complete():
-			var stage_id := int(levels[level_index].get("id", level_index + 1))
-			if not completed_levels.has(stage_id):
-				completed_levels.append(stage_id)
-				coins += int(levels[level_index].get("reward", 25))
-			_set_status("مرحله کامل شد! پاداش سکه گرفتی.", GREEN)
+			var completion: Dictionary = await CloudAccount.complete_level(stage_id)
+			if not completion.get("ok", false):
+				words.erase(matched)
+				level_solved[key] = words
+				_set_status(str(completion.get("error", "ثبت تکمیل مرحله انجام نشد.")), RED)
+			else:
+				_apply_cloud_profile(completion.get("profile", {}))
+				_set_status("مرحله کامل شد! پاداش سکه به حسابت اضافه شد.", GREEN)
 		else:
 			_set_status("آفرین! یک واژه دیگر پیدا کردی.", GREEN)
 		_render_board()
@@ -572,17 +725,25 @@ func _use_hint() -> void:
 			break
 	if target.is_empty():
 		return
-	coins -= 20
+	var spend_result: Dictionary = await CloudAccount.use_hint()
+	if not spend_result.get("ok", false):
+		_set_status(str(spend_result.get("error", "مصرف سکه انجام نشد.")), RED)
+		return
+	_apply_cloud_profile(spend_result.get("profile", {}))
 	var key := str(int(levels[level_index].get("id", level_index + 1)))
 	var words := _words_for_current_level()
 	words.append(target)
 	level_solved[key] = words
 	if _is_level_complete():
 		var stage_id := int(levels[level_index].get("id", level_index + 1))
-		if not completed_levels.has(stage_id):
-			completed_levels.append(stage_id)
-			coins += int(levels[level_index].get("reward", 25))
-	_set_status("راهنما واژه «%s» را آشکار کرد." % target, GOLD)
+		var completion: Dictionary = await CloudAccount.complete_level(stage_id)
+		if completion.get("ok", false):
+			_apply_cloud_profile(completion.get("profile", {}))
+			_set_status("راهنما واژه «%s» را آشکار کرد. مرحله هم کامل شد!" % target, GOLD)
+		else:
+			_set_status(str(completion.get("error", "ثبت تکمیل مرحله انجام نشد.")), RED)
+	else:
+		_set_status("راهنما واژه «%s» را آشکار کرد." % target, GOLD)
 	_render_board()
 	_save()
 	_update_controls()
@@ -598,3 +759,8 @@ func _update_controls() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		_save()
+		if CloudAccount.is_authenticated():
+			await CloudAccount.end_session()
+	elif what == NOTIFICATION_APPLICATION_PAUSED:
+		if CloudAccount.is_authenticated():
+			await CloudAccount.touch_session()
