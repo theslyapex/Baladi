@@ -53,6 +53,8 @@ var profile_status_label: Label
 var display_name := "بازیکن"
 var daily_streak := 0
 var last_checkin_date := ""
+var auth_signup_mode := false
+var auth_login_button: Button
 var stage_scroll: ScrollContainer
 var stage_touch_active := false
 var stage_touch_y := 0.0
@@ -279,11 +281,6 @@ func _build_base() -> void:
 	coin_row.add_child(coin_label)
 
 	profile_button = _make_button("پروفایل", Color("#294c43"), CREAM)
-	profile_button.custom_minimum_size = Vector2(82, 48)
-	profile_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	profile_button.pressed.connect(_show_profile)
-	header.add_child(profile_button)
-	profile_button = _make_button("پروفایل", Color("#294c43"), CREAM)
 	profile_button.icon = load("res://assets/icons/profile.svg")
 	profile_button.custom_minimum_size = Vector2(92, 48)
 	profile_button.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -340,25 +337,27 @@ func _clear_content() -> void:
 
 func _show_auth(message: String = "") -> void:
 	_clear_content()
+	auth_signup_mode = false
 	if exit_button != null:
 		exit_button.visible = false
 	if profile_button != null:
 		profile_button.visible = false
 	coin_label.text = "حساب"
 	var heading := Label.new()
-	heading.text = "ورود به بازی"
+	heading.text = "خوش آمدی!"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.add_theme_font_size_override("font_size", 27)
 	heading.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(heading)
 
+	var intro_panel := _panel(Color("#8e7544"))
+	content_box.add_child(intro_panel)
 	var intro := Label.new()
-	intro.text = "برای بازی، با همان ایمیل و رمز عبور حساب کاربری alishams.ir وارد شو."
+	intro.text = "برای ذخیره دائمی پیشرفت، با حساب alishams.ir وارد شو یا یک حساب تازه بساز.\nمی‌توانی بدون ثبت‌نام هم به‌صورت مهمان بازی کنی."
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	intro.add_theme_color_override("font_color", MUTED)
-	content_box.add_child(intro)
-
+	intro.add_theme_color_override("font_color", CREAM)
+	intro_panel.add_child(intro)
 	var form := _panel()
 	content_box.add_child(form)
 	var fields := VBoxContainer.new()
