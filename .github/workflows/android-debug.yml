@@ -20,12 +20,41 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install Java and system dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends openjdk-17-jdk-headless fontconfig unzip curl
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> "$GITHUB_ENV"
+          echo "/usr/lib/jvm/java-17-openjdk-amd64/bin" >> "$GITHUB_PATH"
+          java -version
+          javac -version
+
+      - name: Install matching Godot export templates
+        run: |
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.7.2.stable"
+          curl -fL --retry 3 --retry-delay 5 \
+            "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz" \
+            -o /tmp/godot-templates.tpz
+          mkdir -p /tmp/godot-templates
+          unzip -q /tmp/godot-templates.tpz -d /tmp/godot-templates
+          find /tmp/godot-templates -type f \( -name 'android_debug.apk' -o -name 'android_release.apk' \) -exec cp {} "$HOME/.local/share/godot/export_templates/4.7.2.stable/" \;
+          test -s "$HOME/.local/share/godot/export_templates/4.7.2.stable/android_debug.apk"
+          test -s "$HOME/.local/share/godot/export_templates/4.7.2.stable/android_release.apk"
+
       - name: Prepare build directory
         run: mkdir -p build
+
       - name: Import project
         run: godot --headless --editor --path . --quit
-      - name: Export Android debug APK
-        run: godot --headless --path . --export-debug "Android" build/baladi-debug.apk
+
+      - name: Verify Android export environment
+        run: |
+          test -n "$JAVA_HOME"
+          test -x "$JAVA_HOME/bin/java"
+          test -s "$HOME/.local/share/godot/export_templates/4.7.2.stable/android_debug.apk"
+          godot --headless --path . --export-debug "Android" build/baladi-debug.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
