@@ -93,7 +93,8 @@ func _enter_game() -> void:
 	var profile: Dictionary = response.get("profile", {})
 	_load_save()
 	coins = int(profile.get("coins", 100))
-	display_name = str(profile.get("display_name", ""))
+	var profile_name = profile.get("display_name", null)
+	display_name = str(profile_name) if profile_name != null else ""
 	if display_name.is_empty():
 		display_name = CloudAccount.display_name if not CloudAccount.display_name.is_empty() else "بازیکن"
 	daily_streak = int(profile.get("daily_streak", 0))
@@ -462,7 +463,11 @@ func _on_signup_pressed() -> void:
 
 func _apply_cloud_profile(profile: Dictionary) -> void:
 	coins = int(profile.get("coins", coins))
-	display_name = str(profile.get("display_name", display_name))
+	var profile_name = profile.get("display_name", null)
+	if profile_name != null and not str(profile_name).strip_edges().is_empty():
+		display_name = str(profile_name)
+	elif display_name.is_empty():
+		display_name = CloudAccount.display_name if not CloudAccount.display_name.is_empty() else "بازیکن"
 	daily_streak = int(profile.get("daily_streak", daily_streak))
 	last_checkin_date = str(profile.get("last_checkin_date", last_checkin_date))
 	cloud_current_level = int(profile.get("current_level", cloud_current_level))
