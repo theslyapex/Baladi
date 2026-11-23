@@ -309,6 +309,8 @@ func _build_base() -> void:
 	add_child(margin)
 
 	page_box = VBoxContainer.new()
+	page_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page_box.add_theme_constant_override("separation", 14)
 	margin.add_child(page_box)
 
@@ -379,6 +381,7 @@ func _build_base() -> void:
 
 	var content_scroll := ScrollContainer.new()
 	content_scroll.name = "ScreenContentScroll"
+	content_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -391,6 +394,7 @@ func _build_base() -> void:
 	content_box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	content_box.add_theme_constant_override("separation", 12)
 	content_scroll.add_child(content_box)
+	stage_scroll = content_scroll
 
 	var footer := Label.new()
 	footer.text = "ALISHAMS GAME STUDIO"
@@ -742,17 +746,11 @@ func _show_map() -> void:
 		content_box.add_child(finished)
 		return
 
-	var scroll := ScrollContainer.new()
-	stage_scroll = scroll
-	stage_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	stage_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	stage_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	stage_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
-	content_box.add_child(stage_scroll)
+	stage_scroll = get_node_or_null("MarginContainer/PageBox/ScreenContentScroll") as ScrollContainer
 	var stage_list := VBoxContainer.new()
 	stage_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage_list.add_theme_constant_override("separation", 10)
-	scroll.add_child(stage_list)
+	content_box.add_child(stage_list)
 
 	for i in range(levels.size()):
 		var data: Dictionary = levels[i]
@@ -810,6 +808,7 @@ func _show_map() -> void:
 
 func _show_profile() -> void:
 	_clear_content()
+	stage_scroll = get_node_or_null("MarginContainer/PageBox/ScreenContentScroll") as ScrollContainer
 	if profile_button != null:
 		profile_button.visible = true
 
