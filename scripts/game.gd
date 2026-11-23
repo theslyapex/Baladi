@@ -1758,7 +1758,7 @@ func _confirm_avatar_crop() -> void:
 func _show_cosmetic_shop() -> void:
 	_clear_content()
 	var heading := Label.new()
-	heading.text = "فروشگاه افتخارات"
+	heading.text = "فروشگاه قاب‌ها و تصویر پروفایل"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.add_theme_font_size_override("font_size", 25)
 	heading.add_theme_color_override("font_color", GOLD)
@@ -1779,6 +1779,8 @@ func _show_cosmetic_shop() -> void:
 	for item in result.get("catalog", []):
 		var item_id := str(item.get("id", ""))
 		var item_kind := str(item.get("kind", ""))
+		if item_kind == "sticker":
+			continue
 		var card := _panel(GOLD if item_kind == "avatar_unlock" else TEAL)
 		content_box.add_child(card)
 		var body := VBoxContainer.new()
