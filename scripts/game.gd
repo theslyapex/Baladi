@@ -19,6 +19,7 @@ var cloud_current_level := 1
 var coins := 100
 var level_solved: Dictionary = {}
 var completed_levels: Array = []
+var levels_completed_count := 0
 var bonus_word_set: Dictionary = {}
 var level_bonus_found: Dictionary = {}
 var hint_history: Dictionary = {}
@@ -182,6 +183,7 @@ func _enter_game() -> void:
 	var remote_completed = profile.get("completed_levels", [])
 	if remote_completed is Array:
 		completed_levels = remote_completed.duplicate()
+	levels_completed_count = maxi(levels_completed_count, int(profile.get("levels_completed", completed_levels.size())))
 	var found_words = response.get("found_words", [])
 	if found_words is Array:
 		var active_key := str(int(profile.get("current_level", 1)))
@@ -734,6 +736,7 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 	var remote_completed = profile.get("completed_levels", completed_levels)
 	if remote_completed is Array:
 		completed_levels = remote_completed.duplicate()
+	levels_completed_count = maxi(levels_completed_count, int(profile.get("levels_completed", completed_levels.size())))
 	_save()
 	_update_controls()
 
@@ -1098,6 +1101,7 @@ func _confirm_delete_game_account() -> void:
 			cloud_current_level = 1
 			display_name = "بازیکن"
 			completed_levels.clear()
+			levels_completed_count = 0
 			level_solved.clear()
 			_show_auth("اطلاعات مهمان این دستگاه حذف شد.")
 		else:
@@ -1111,6 +1115,7 @@ func _confirm_delete_game_account() -> void:
 				cloud_current_level = 1
 				display_name = "بازیکن"
 				completed_levels.clear()
+				levels_completed_count = 0
 				level_solved.clear()
 				_show_auth("اطلاعات بازی حذف شد. برای شروع دوباره وارد شو.")
 			else:
@@ -1192,7 +1197,7 @@ func _show_profile() -> void:
 	content_box.add_child(stats_grid)
 	# Two right-to-left columns create four compact rows for the seven profile metrics.
 	_add_profile_stat(stats_grid, "مرحله فعلی", "%d / %d" % [cloud_current_level, levels.size()], GOLD)
-	_add_profile_stat(stats_grid, "مراحل کامل‌شده", str(completed_levels.size()), GREEN)
+	_add_profile_stat(stats_grid, "مراحل کامل‌شده", str(maxi(levels_completed_count, completed_levels.size())), GREEN)
 	_add_profile_stat(stats_grid, "واژه‌های پیدا‌شده", str(words_total), TEAL)
 	_add_profile_stat(stats_grid, "موجودی سکه", str(coins), GOLD)
 	_add_profile_stat(stats_grid, "موجودی الماس", str(diamonds), TEAL)
@@ -3133,6 +3138,7 @@ func _complete_guest_level() -> void:
 	if completed_levels.has(stage_id):
 		return
 	completed_levels.append(stage_id)
+	levels_completed_count = maxi(levels_completed_count, completed_levels.size())
 	var reward := int(levels[level_index].get("reward", 0))
 	coins += reward
 	cloud_current_level = stage_id + 1
