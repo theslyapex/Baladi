@@ -303,7 +303,7 @@ func _build_base() -> void:
 	header.add_child(action_row)
 	profile_button = _make_button("پروفایل", Color("#294c43"), CREAM)
 	profile_button.icon = load("res://assets/icons/profile.svg")
-	profile_button.icon_max_width = 25
+	profile_button.add_theme_constant_override("icon_max_width", 25)
 	profile_button.custom_minimum_size = Vector2(112, 44)
 	profile_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	profile_button.pressed.connect(_show_profile)
@@ -585,7 +585,7 @@ func _show_map() -> void:
 		stage_button.text = ("مرحله %02d  ·  %s" % [stage_id, str(data.get("title", ""))]) if is_open else ("مرحله %02d  ·  قفل شده" % stage_id)
 		stage_button.icon = load("res://assets/icons/stage-done.svg") if is_done else (load("res://assets/icons/stage-open.svg") if is_open else load("res://assets/icons/stage-locked.svg"))
 		stage_button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		stage_button.icon_max_width = 32
+		stage_button.add_theme_constant_override("icon_max_width", 32)
 		stage_button.expand_icon = false
 		stage_button.disabled = not is_open or is_done or not is_current
 		stage_button.add_theme_font_size_override("font_size", 17)
