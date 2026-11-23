@@ -47,6 +47,12 @@ var auth_name_input: LineEdit
 var auth_status_label: Label
 var session_timer: Timer
 var exit_button: Button
+var profile_button: Button
+var profile_name_input: LineEdit
+var profile_status_label: Label
+var display_name := "بازیکن"
+var daily_streak := 0
+var last_checkin_date := ""
 var stage_scroll: ScrollContainer
 var stage_touch_active := false
 var stage_touch_y := 0.0
@@ -85,6 +91,9 @@ func _enter_game() -> void:
 	var profile: Dictionary = response.get("profile", {})
 	_load_save()
 	coins = int(profile.get("coins", 100))
+	display_name = str(profile.get("display_name", display_name))
+	daily_streak = int(profile.get("daily_streak", 0))
+	last_checkin_date = str(profile.get("last_checkin_date", ""))
 	cloud_current_level = int(profile.get("current_level", 1))
 	level_index = clampi(cloud_current_level - 1, 0, max(0, levels.size() - 1))
 	var remote_completed = profile.get("completed_levels", [])
@@ -98,7 +107,13 @@ func _enter_game() -> void:
 	if found_bonus_words is Array:
 		var active_bonus_key := str(int(profile.get("current_level", 1)))
 		level_bonus_found[active_bonus_key] = found_bonus_words.duplicate()
-	_save()
+	var checkin_result: Dictionary = await CloudAccount.daily_checkin()
+	if checkin_result.get("ok", false):
+		_apply_cloud_profile(checkin_result.get("profile", {}))
+		var daily_reward := int(checkin_result.get("reward", 0))
+		_save()
+		if daily_reward > 0:
+			_spawn_floating_text("پاداش ۷ روز متوالی: +%d سکه" % daily_reward, GOLD)
 	if session_timer == null:
 		session_timer = Timer.new()
 		session_timer.wait_time = 45.0
@@ -110,12 +125,33 @@ func _enter_game() -> void:
 func _enter_guest() -> void:
 	guest_mode = true
 	_load_save()
+	_guest_daily_checkin()
 	cloud_current_level = clampi(cloud_current_level, 1, levels.size() + 1)
 	level_index = clampi(cloud_current_level - 1, 0, max(0, levels.size() - 1))
 	if session_timer != null:
 		session_timer.stop()
 	_show_map()
 	_set_status("حالت مهمان فعال است؛ پیشرفت فقط روی همین دستگاه می‌ماند.", GOLD)
+
+func _guest_daily_checkin() -> void:
+	var today := Time.get_date_string_from_system()
+	if last_checkin_date == today:
+		return
+	var consecutive := false
+	if not last_checkin_date.is_empty():
+		var previous := Time.get_datetime_dict_from_datetime_string(last_checkin_date + "T00:00:00", false)
+		var current := Time.get_datetime_dict_from_datetime_string(today + "T00:00:00", false)
+		var previous_stamp := Time.get_unix_time_from_datetime_dict(previous)
+		var current_stamp := Time.get_unix_time_from_datetime_dict(current)
+		consecutive = current_stamp - previous_stamp >= 86300.0 and current_stamp - previous_stamp <= 86500.0
+	daily_streak = daily_streak + 1 if consecutive else 1
+	last_checkin_date = today
+	if daily_streak > 0 and daily_streak % 7 == 0:
+		coins += 50
+		_play_sfx("complete")
+		_animate_coin_reward(50)
+		_spawn_floating_text("جایزهٔ ۷ روز متوالی: ۵۰ سکه", GOLD)
+	_save()
 
 func _heartbeat() -> void:
 	if not guest_mode and CloudAccount.is_authenticated():
@@ -149,6 +185,9 @@ func _load_save() -> void:
 	coins = int(cfg.get_value("player", "coins", 100))
 	level_index = clampi(int(cfg.get_value("player", "level_index", 0)), 0, max(0, levels.size() - 1))
 	cloud_current_level = int(cfg.get_value("player", "current_level", level_index + 1))
+	display_name = str(cfg.get_value("player", "display_name", "بازیکن"))
+	daily_streak = int(cfg.get_value("player", "daily_streak", 0))
+	last_checkin_date = str(cfg.get_value("player", "last_checkin_date", ""))
 	var saved_levels = cfg.get_value("player", "level_solved", {})
 	if saved_levels is Dictionary:
 		level_solved = saved_levels
@@ -172,6 +211,9 @@ func _save() -> void:
 	cfg.set_value("player", "completed_levels", completed_levels)
 	cfg.set_value("player", "current_level", cloud_current_level)
 	cfg.set_value("player", "level_bonus_found", level_bonus_found)
+	cfg.set_value("player", "display_name", display_name)
+	cfg.set_value("player", "daily_streak", daily_streak)
+	cfg.set_value("player", "last_checkin_date", last_checkin_date)
 	cfg.save(_save_path())
 
 func _build_base() -> void:
@@ -215,14 +257,30 @@ func _build_base() -> void:
 	brand_box.add_child(tagline)
 
 	var coin_panel := _panel(Color("#604b2b"))
-	coin_panel.custom_minimum_size = Vector2(104, 48)
+	coin_panel.custom_minimum_size = Vector2(108, 48)
 	header.add_child(coin_panel)
+	var coin_row := HBoxContainer.new()
+	coin_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	coin_row.add_theme_constant_override("separation", 6)
+	coin_panel.add_child(coin_row)
+	var coin_icon := TextureRect.new()
+	coin_icon.texture = load("res://assets/icons/coin.svg")
+	coin_icon.custom_minimum_size = Vector2(27, 27)
+	coin_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	coin_row.add_child(coin_icon)
 	coin_label = Label.new()
 	coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	coin_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	coin_label.add_theme_font_size_override("font_size", 18)
 	coin_label.add_theme_color_override("font_color", CREAM)
-	coin_panel.add_child(coin_label)
+	coin_row.add_child(coin_label)
+
+	profile_button = _make_button("پروفایل", Color("#294c43"), CREAM)
+	profile_button.custom_minimum_size = Vector2(82, 48)
+	profile_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	profile_button.pressed.connect(_show_profile)
+	header.add_child(profile_button)
 	exit_button = _make_button("خروج", Color("#70413b"), CREAM)
 	exit_button.custom_minimum_size = Vector2(74, 48)
 	exit_button.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -275,6 +333,8 @@ func _show_auth(message: String = "") -> void:
 	_clear_content()
 	if exit_button != null:
 		exit_button.visible = false
+	if profile_button != null:
+		profile_button.visible = false
 	coin_label.text = "حساب"
 	var heading := Label.new()
 	heading.text = "ورود به بازی"
@@ -375,6 +435,9 @@ func _on_signup_pressed() -> void:
 
 func _apply_cloud_profile(profile: Dictionary) -> void:
 	coins = int(profile.get("coins", coins))
+	display_name = str(profile.get("display_name", display_name))
+	daily_streak = int(profile.get("daily_streak", daily_streak))
+	last_checkin_date = str(profile.get("last_checkin_date", last_checkin_date))
 	cloud_current_level = int(profile.get("current_level", cloud_current_level))
 	var remote_completed = profile.get("completed_levels", completed_levels)
 	if remote_completed is Array:
@@ -387,7 +450,9 @@ func _show_map() -> void:
 	if exit_button != null:
 		exit_button.visible = true
 		exit_button.text = "خروج مهمان" if guest_mode else "خروج از حساب"
-	coin_label.text = "◆ %d" % coins
+	if profile_button != null:
+		profile_button.visible = true
+	coin_label.text = "%d" % coins
 
 	var heading := Label.new()
 	heading.text = "نقشه مراحل"
@@ -482,6 +547,85 @@ func _show_map() -> void:
 		var node_tween := create_tween()
 		node_tween.tween_property(stage_button, "modulate:a", 1.0, 0.24).set_delay(float(i) * 0.018)
 
+func _show_profile() -> void:
+	_clear_content()
+	if profile_button != null:
+		profile_button.visible = true
+	var heading := Label.new()
+	heading.text = "پروفایل بازیکن"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 27)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+
+	var identity := _panel(GOLD)
+	content_box.add_child(identity)
+	var identity_box := VBoxContainer.new()
+	identity_box.add_theme_constant_override("separation", 8)
+	identity.add_child(identity_box)
+	var name_title := Label.new()
+	name_title.text = "نام نمایشی"
+	name_title.add_theme_color_override("font_color", MUTED)
+	identity_box.add_child(name_title)
+	profile_name_input = LineEdit.new()
+	profile_name_input.text = display_name
+	profile_name_input.placeholder_text = "نامی که در بازی نمایش داده می‌شود"
+	profile_name_input.custom_minimum_size.y = 48
+	identity_box.add_child(profile_name_input)
+	var save_name := _make_button("ذخیره نام پروفایل", Color("#287c68"), CREAM)
+	save_name.pressed.connect(_save_profile_name)
+	identity_box.add_child(save_name)
+
+	var stats := _panel()
+	content_box.add_child(stats)
+	var stats_box := VBoxContainer.new()
+	stats_box.add_theme_constant_override("separation", 10)
+	stats.add_child(stats_box)
+	var words_total := 0
+	for value in level_solved.values():
+		if value is Array:
+			words_total += value.size()
+	var stats_label := Label.new()
+	stats_label.text = "مرحله فعلی: %d از %d\nمراحل کامل‌شده: %d\nواژه‌های پیدا‌شده: %d\nموجودی سکه: %d" % [cloud_current_level, levels.size(), completed_levels.size(), words_total, coins]
+	stats_label.add_theme_color_override("font_color", CREAM)
+	stats_label.add_theme_font_size_override("font_size", 16)
+	stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stats_box.add_child(stats_label)
+	var streak_label := Label.new()
+	streak_label.text = "ورودهای پیاپی: %d روز از ۷ روز\nبا ۷ روز حضور متوالی، ۵۰ سکه جایزه می‌گیری." % (daily_streak % 7 if daily_streak % 7 != 0 else (7 if daily_streak > 0 else 0))
+	streak_label.add_theme_color_override("font_color", GOLD)
+	streak_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stats_box.add_child(streak_label)
+	profile_status_label = Label.new()
+	profile_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	profile_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	profile_status_label.add_theme_color_override("font_color", MUTED)
+	content_box.add_child(profile_status_label)
+	var back := _make_button("بازگشت به نقشه مراحل", Color("#294c43"), CREAM)
+	back.pressed.connect(_show_map)
+	content_box.add_child(back)
+
+func _save_profile_name() -> void:
+	var new_name := profile_name_input.text.strip_edges()
+	if new_name.length() < 2 or new_name.length() > 24:
+		profile_status_label.text = "نام نمایشی باید بین ۲ تا ۲۴ نویسه باشد."
+		profile_status_label.add_theme_color_override("font_color", RED)
+		return
+	if guest_mode:
+		display_name = new_name
+		_save()
+		profile_status_label.text = "نام پروفایل روی همین دستگاه ذخیره شد."
+		profile_status_label.add_theme_color_override("font_color", GREEN)
+		return
+	var result: Dictionary = await CloudAccount.update_profile_name(new_name)
+	if not result.get("ok", false):
+		profile_status_label.text = str(result.get("error", "ذخیره نام انجام نشد."))
+		profile_status_label.add_theme_color_override("font_color", RED)
+		return
+	_apply_cloud_profile(result.get("profile", {}))
+	profile_status_label.text = "نام پروفایل با موفقیت ذخیره شد."
+	profile_status_label.add_theme_color_override("font_color", GREEN)
+
 func _open_level(index: int) -> void:
 	if index < 0 or index >= levels.size():
 		return
@@ -509,6 +653,8 @@ func _show_game() -> void:
 	if exit_button != null:
 		exit_button.visible = true
 		exit_button.text = "خروج مهمان" if guest_mode else "خروج از حساب"
+	if profile_button != null:
+		profile_button.visible = true
 	if levels.is_empty():
 		var error_label := Label.new()
 		error_label.text = "داده مراحل بارگذاری نشد."
@@ -573,8 +719,8 @@ func _show_game() -> void:
 	var clear_button := _make_button("پاک‌کردن", PANEL_ALT, CREAM)
 	clear_button.pressed.connect(_clear_selection)
 	actions.add_child(clear_button)
-	hint_button = _make_button("راهنما · ۲۰", Color("#765a31"), CREAM)
-	hint_button.pressed.connect(_use_hint)
+	hint_button = _make_button("راهنماها", Color("#765a31"), CREAM)
+	hint_button.pressed.connect(_show_hint_menu)
 	actions.add_child(hint_button)
 	submit_button = _make_button("ثبت واژه", GOLD, BG)
 	submit_button.pressed.connect(_submit_word)
@@ -1100,6 +1246,71 @@ func _is_level_complete() -> bool:
 			return false
 	return true
 
+func _show_hint_menu() -> void:
+	if hint_button == null or not is_instance_valid(hint_button):
+		return
+	var menu := PopupMenu.new()
+	menu.add_item("آشکار کردن کامل واژه  ·  ۲۰ سکه", 0)
+	menu.add_item("نمایش حرف اول  ·  ۸ سکه", 1)
+	menu.add_item("نمایش تعداد حروف  ·  ۵ سکه", 2)
+	menu.add_item("برجسته‌کردن یک حرف  ·  ۱۲ سکه", 3)
+	menu.id_pressed.connect(_on_hint_menu_selected)
+	add_child(menu)
+	var rect := hint_button.get_global_rect()
+	menu.popup(Rect2i(Vector2i(rect.position.x, rect.position.y - 150), Vector2i(1, 1)))
+
+func _on_hint_menu_selected(option: int) -> void:
+	if option == 0:
+		await _use_hint()
+	elif option == 1:
+		await _use_hint_clue("first_letter")
+	elif option == 2:
+		await _use_hint_clue("word_length")
+	elif option == 3:
+		await _use_hint_clue("highlight_letter")
+
+func _use_hint_clue(hint_type: String) -> void:
+	var costs := {"first_letter": 8, "word_length": 5, "highlight_letter": 12}
+	var cost := int(costs.get(hint_type, 999))
+	if coins < cost:
+		_set_status("برای این راهنما سکه کافی نداری.", RED)
+		return
+	var target := ""
+	for answer in levels[level_index].get("answers", []):
+		if not _words_for_current_level().has(str(answer)):
+			target = str(answer)
+			break
+	if target.is_empty():
+		return
+	var stage_id := int(levels[level_index].get("id", level_index + 1))
+	if guest_mode:
+		coins -= cost
+	else:
+		var result: Dictionary = await CloudAccount.use_hint_clue(hint_type, stage_id)
+		if not result.get("ok", false):
+			_set_status(str(result.get("error", "استفاده از راهنما انجام نشد.")), RED)
+			return
+		_apply_cloud_profile(result.get("profile", {}))
+	_animate_coin_reward(-cost)
+	match hint_type:
+		"first_letter":
+			_set_status("حرف اول یکی از پاسخ‌های باقی‌مانده «%s» است." % Array(target)[0], GOLD)
+		"word_length":
+			_set_status("یکی از پاسخ‌های باقی‌مانده %d حرف دارد." % Array(target).size(), GOLD)
+		"highlight_letter":
+			var letters: Array = levels[level_index].get("letters", [])
+			for i in range(letters.size()):
+				if str(letters[i]) == str(Array(target)[0]):
+					var button := letter_buttons[i]
+					button.modulate = GOLD
+					var pulse := create_tween()
+					pulse.tween_property(button, "scale", Vector2(1.24, 1.24), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+					pulse.tween_property(button, "scale", Vector2.ONE, 0.22)
+					break
+			_set_status("حرف طلایی‌شده در یکی از پاسخ‌های باقی‌مانده استفاده می‌شود.", GOLD)
+	_save()
+	_update_controls()
+
 func _use_hint() -> void:
 	if coins < 20:
 		_set_status("سکه کافی نداری. با حل واژه‌ها سکه جمع کن.", RED)
@@ -1153,7 +1364,7 @@ func _update_controls() -> void:
 	if coin_label != null and is_instance_valid(coin_label):
 		coin_label.text = "◆ %d" % coins
 	if hint_button != null and is_instance_valid(hint_button):
-		hint_button.disabled = _is_level_complete() or coins < 20
+		hint_button.disabled = _is_level_complete() or coins < 5
 	if submit_button != null and is_instance_valid(submit_button):
 		submit_button.disabled = _is_level_complete() or selected_word.is_empty()
 
