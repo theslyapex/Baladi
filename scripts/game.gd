@@ -68,6 +68,10 @@ func _enter_game() -> void:
 	var remote_completed = profile.get("completed_levels", [])
 	if remote_completed is Array:
 		completed_levels = remote_completed.duplicate()
+	var found_words = response.get("found_words", [])
+	if found_words is Array:
+		var active_key := str(int(profile.get("current_level", 1)))
+		level_solved[active_key] = found_words.duplicate()
 	_save()
 	if session_timer == null:
 		session_timer = Timer.new()
@@ -386,6 +390,14 @@ func _open_level(index: int) -> void:
 	level_index = index
 	_save()
 	_show_game()
+	var stage_id := int(levels[level_index].get("id", level_index + 1))
+	if _is_level_complete() and not completed_levels.has(stage_id):
+		var completion: Dictionary = await CloudAccount.complete_level(stage_id)
+		if completion.get("ok", false):
+			_apply_cloud_profile(completion.get("profile", {}))
+			_set_status("پیشرفت ذخیره‌شده بازیابی شد و مرحله تکمیل شد.", GREEN)
+		else:
+			_set_status(str(completion.get("error", "ثبت مرحله انجام نشد.")), RED)
 
 func _show_game() -> void:
 	_clear_content()
