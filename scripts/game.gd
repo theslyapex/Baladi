@@ -1735,7 +1735,7 @@ func _render_group_discovery() -> void:
 		body.add_theme_constant_override("separation", 5)
 		card.add_child(body)
 		var title := Label.new()
-		title.text = str(group.get("name", "گروه"))
+		title.text = _safe_player_name(group.get("name", null), "گروه")
 		title.add_theme_font_size_override("font_size", 17)
 		title.add_theme_color_override("font_color", CREAM)
 		body.add_child(title)
@@ -1772,6 +1772,7 @@ func _join_group_now(group_id: String) -> void:
 
 func _render_my_group(group: Dictionary, members: Array) -> void:
 	var group_id := str(group.get("id", ""))
+	var safe_group_name := _safe_player_name(group.get("name", null), "گروه من")
 	var role := str(group.get("my_role", "member"))
 	active_group_role = role
 	var card := _panel(GOLD)
@@ -1780,7 +1781,7 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 	body.add_theme_constant_override("separation", 6)
 	card.add_child(body)
 	var title := Label.new()
-	title.text = str(group.get("name", "گروه من"))
+	title.text = safe_group_name
 	title.add_theme_font_size_override("font_size", 22)
 	title.add_theme_color_override("font_color", GOLD)
 	body.add_child(title)
@@ -1791,7 +1792,7 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 	summary.add_theme_color_override("font_color", CREAM)
 	body.add_child(summary)
 	var chat := _make_button("ورود به گفت‌وگوی گروه", Color("#287c68"), CREAM)
-	chat.pressed.connect(func(): _show_group_chat(group_id, str(group.get("name", "گروه"))))
+	chat.pressed.connect(func(): _show_group_chat(group_id, safe_group_name))
 	body.add_child(chat)
 	if role == "leader":
 		var upgrade := _make_button("افزایش ظرفیت به %d نفر · ۵۰٬۰۰۰ سکه" % (capacity + 5), Color("#765a31"), CREAM)
