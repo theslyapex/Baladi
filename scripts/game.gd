@@ -91,6 +91,10 @@ func _enter_game() -> void:
 	if found_words is Array:
 		var active_key := str(int(profile.get("current_level", 1)))
 		level_solved[active_key] = found_words.duplicate()
+	var found_bonus_words = response.get("found_bonus_words", [])
+	if found_bonus_words is Array:
+		var active_bonus_key := str(int(profile.get("current_level", 1)))
+		level_bonus_found[active_bonus_key] = found_bonus_words.duplicate()
 	_save()
 	if session_timer == null:
 		session_timer = Timer.new()
@@ -930,14 +934,15 @@ func _spawn_floating_text(message: String, color: Color) -> void:
 	tween.chain().tween_callback(popup.queue_free)
 
 func _animate_coin_reward(amount: int) -> void:
-	if amount <= 0:
+	if amount == 0:
 		return
 	if coin_label != null and is_instance_valid(coin_label):
 		var pulse := create_tween()
 		pulse.tween_property(coin_label, "scale", Vector2(1.24, 1.24), 0.13).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		pulse.tween_property(coin_label, "scale", Vector2.ONE, 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		coin_label.text = "◆ %d" % coins
-	_spawn_floating_text("+%d ◆" % amount, GOLD)
+	var display_text := "+%d ◆" % amount if amount > 0 else "−%d ◆" % abs(amount)
+	_spawn_floating_text(display_text, GOLD if amount > 0 else CREAM)
 
 func _show_stage_complete(reward: int) -> void:
 	_play_sfx("complete")
