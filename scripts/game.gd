@@ -95,8 +95,25 @@ var stage_touch_active := false
 var stage_touch_y := 0.0
 
 var startup_action_taken := false
+var current_page := "auth"
+var back_confirm: ConfirmationDialog
+var back_navigation := {
+	"profile": "map", "global_chat": "map", "groups": "map",
+	"group_chat": "groups", "sticker_picker": "global_chat",
+	"cosmetic_shop": "profile", "leaderboard": "map",
+	"duel_invites": "map", "duel_game": "duel_invites",
+	"duel_result": "duel_invites", "public_profile": "leaderboard",
+	"avatar_crop": "profile", "game": "map", "map": "exit"
+}
 
 func _ready() -> void:
+	back_confirm = ConfirmationDialog.new()
+	back_confirm.title = "خروج از بازی"
+	back_confirm.dialog_text = "می‌خواهی از برنامه خارج شوی؟"
+	back_confirm.ok_button_text = "خروج از برنامه"
+	back_confirm.cancel_button_text = "ادامه بازی"
+	back_confirm.confirmed.connect(_confirm_app_exit)
+	add_child(back_confirm)
 	_load_levels()
 	_load_bonus_dictionary()
 	_build_base()
@@ -436,6 +453,7 @@ func _clear_content() -> void:
 		child.queue_free()
 
 func _show_auth(message: String = "") -> void:
+	current_page = "auth"
 	_clear_content()
 	auth_signup_mode = false
 	if exit_button != null:
@@ -647,6 +665,7 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 	_update_controls()
 
 func _show_map() -> void:
+	current_page = "map"
 	if duel_poll_timer != null:
 		duel_poll_timer.stop()
 	duel_mode = false
@@ -843,6 +862,7 @@ func _show_map() -> void:
 			stage_grid.add_child(stage_button)
 
 func _show_profile() -> void:
+	current_page = "profile"
 	_clear_content()
 	stage_scroll = get_node_or_null("MainMargin/PageBox/ScreenContentScroll") as ScrollContainer
 	if profile_button != null:
@@ -966,6 +986,7 @@ func _current_letters() -> Array:
 	return levels[level_index].get("letters", [])
 
 func _show_duel_game(match_id: String) -> void:
+	current_page = "duel_game"
 	duel_mode = true
 	duel_match_id = match_id
 	await _refresh_duel_round()
@@ -1016,6 +1037,7 @@ func _poll_duel_status() -> void:
 	duel_poll_busy = false
 
 func _show_duel_result(winner_id: String, elapsed_ms: int) -> void:
+	current_page = "duel_result"
 	if duel_poll_timer != null:
 		duel_poll_timer.stop()
 	duel_mode = false
@@ -1077,6 +1099,7 @@ func _resume_active_duel() -> void:
 	_show_duel_game(match_id)
 
 func _show_duel_invites() -> void:
+	current_page = "duel_invites"
 	_clear_content()
 	var heading := Label.new()
 	heading.text = "درخواست‌های مسابقه"
@@ -1133,6 +1156,7 @@ func _decline_duel_invite(invite_id: String) -> void:
 	_show_duel_invites()
 
 func _show_global_chat() -> void:
+	current_page = "global_chat"
 	active_group_chat_id = ""
 	active_group_chat_name = ""
 	_clear_content()
@@ -1316,6 +1340,7 @@ func _send_global_chat_message() -> void:
 	await _refresh_global_chat()
 
 func _show_sticker_picker() -> void:
+	current_page = "sticker_picker"
 	_clear_content()
 	var heading := Label.new()
 	heading.text = "گالری استیکرهای بلدی؟"
@@ -1390,6 +1415,7 @@ func _send_global_chat_sticker(sticker_id: String) -> void:
 		_show_group_chat(active_group_chat_id, active_group_chat_name)
 
 func _show_groups() -> void:
+	current_page = "groups"
 	active_group_chat_id = ""
 	active_group_chat_name = ""
 	active_group_role = ""
@@ -1617,6 +1643,7 @@ func _leave_my_group(group_id: String) -> void:
 	_show_groups()
 
 func _show_group_chat(group_id: String, group_name: String) -> void:
+	current_page = "group_chat"
 	active_group_chat_id = group_id
 	active_group_chat_name = group_name
 	_clear_content()
@@ -1745,6 +1772,7 @@ func _on_avatar_picker_error(message: String) -> void:
 	_set_status(message, RED)
 
 func _show_avatar_crop() -> void:
+	current_page = "avatar_crop"
 	_clear_content()
 	var heading := Label.new()
 	heading.text = "تنظیم عکس پروفایل"
@@ -1847,6 +1875,7 @@ func _confirm_avatar_crop() -> void:
 	_show_profile()
 
 func _show_cosmetic_shop() -> void:
+	current_page = "cosmetic_shop"
 	_clear_content()
 	var heading := Label.new()
 	heading.text = "فروشگاه قاب‌ها و تصویر پروفایل"
@@ -1953,6 +1982,7 @@ func _equip_cosmetic_frame(frame_id: String) -> void:
 	_show_cosmetic_shop()
 
 func _show_leaderboard() -> void:
+	current_page = "leaderboard"
 	_clear_content()
 	var heading := Label.new()
 	heading.text = "جدول قهرمانان"
@@ -1978,6 +2008,7 @@ func _show_leaderboard() -> void:
 	content_box.add_child(back)
 
 func _show_public_profile(target_user_id: String) -> void:
+	current_page = "public_profile"
 	if guest_mode:
 		return
 	_clear_content()
@@ -2151,6 +2182,7 @@ func _build_chapter_banner(level_number: int) -> Control:
 	return banner
 
 func _show_game() -> void:
+	current_page = "game"
 	_clear_content()
 	if exit_button != null:
 		exit_button.visible = true
@@ -2562,6 +2594,10 @@ func _finish_trace() -> void:
 		_submit_word()
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ESCAPE or event.keycode == KEY_BACK):
+		_handle_back_request()
+		get_viewport().set_input_as_handled()
+		return
 	if stage_scroll != null and is_instance_valid(stage_scroll) and stage_scroll.is_visible_in_tree():
 		if event is InputEventScreenTouch:
 			if event.pressed and stage_scroll.get_global_rect().has_point(event.position):
@@ -3180,8 +3216,54 @@ func _update_controls() -> void:
 	if submit_button != null and is_instance_valid(submit_button):
 		submit_button.disabled = _is_level_complete() or selected_word.is_empty()
 
+func _handle_back_request() -> void:
+	if back_confirm != null and back_confirm.visible:
+		return
+	if current_page == "map" or current_page == "auth":
+		if back_confirm != null:
+			back_confirm.popup_centered()
+		return
+	match current_page:
+		"game":
+			_show_map()
+		"duel_game":
+			_show_duel_invites()
+		"duel_result":
+			_show_duel_invites()
+		"public_profile":
+			_show_leaderboard()
+		"sticker_picker":
+			if not active_group_chat_id.is_empty():
+				_show_group_chat(active_group_chat_id, active_group_chat_name)
+			else:
+				_show_global_chat()
+		"avatar_crop":
+			_show_profile()
+		_:
+			var parent_page := str(back_navigation.get(current_page, "map"))
+			_navigate_back_to(parent_page)
+
+func _navigate_back_to(page: String) -> void:
+	match page:
+		"profile": _show_profile()
+		"global_chat": _show_global_chat()
+		"groups": _show_groups()
+		"leaderboard": _show_leaderboard()
+		"duel_invites": _show_duel_invites()
+		"map": _show_map()
+		_: _show_map()
+
+func _confirm_app_exit() -> void:
+	_save()
+	if not guest_mode and CloudAccount.is_authenticated():
+		await CloudAccount.end_session()
+	get_tree().quit()
+
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_handle_back_request()
+	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_handle_back_request()
 		_save()
 		if not guest_mode and CloudAccount.is_authenticated():
 			await CloudAccount.end_session()
