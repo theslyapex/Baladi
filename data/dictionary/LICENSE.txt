@@ -3,7 +3,7 @@ Persian bonus-word dictionary
 The word list in bonus_words.json is derived from MehdiRaash/persian-words:
 https://github.com/MehdiRaash/persian-words
 
-That repository states that its word collection is based on Persian dictionaries, currently Moein, and is distributed under the MIT License. The source JSON was normalized to Persian Yeh/Kaf forms and filtered to 2–6 characters in the Persian alphabet for this game.
+That repository states that its word collection is based on Persian dictionaries, currently Moein, and is distributed under the MIT License. The source JSON was normalized to Persian Yeh/Kaf forms and filtered to 2–6 characters in the Persian alphabet for this game. Current official stage answers missing from the source list are added as manually reviewed entries.
 
 MIT License
 
