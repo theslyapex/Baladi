@@ -485,12 +485,15 @@ func _open_level(index: int) -> void:
 	_show_game()
 	var stage_id := int(levels[level_index].get("id", level_index + 1))
 	if _is_level_complete() and not completed_levels.has(stage_id):
-		var completion: Dictionary = await CloudAccount.complete_level(stage_id)
-		if completion.get("ok", false):
-			_apply_cloud_profile(completion.get("profile", {}))
-			_set_status("پیشرفت ذخیره‌شده بازیابی شد و مرحله تکمیل شد.", GREEN)
+		if guest_mode:
+			_complete_guest_level()
 		else:
-			_set_status(str(completion.get("error", "ثبت مرحله انجام نشد.")), RED)
+			var completion: Dictionary = await CloudAccount.complete_level(stage_id)
+			if completion.get("ok", false):
+				_apply_cloud_profile(completion.get("profile", {}))
+				_show_stage_complete(int(levels[level_index].get("reward", 0)))
+			else:
+				_set_status(str(completion.get("error", "ثبت مرحله انجام نشد.")), RED)
 
 func _show_game() -> void:
 	_clear_content()
@@ -962,7 +965,7 @@ func _animate_coin_reward(amount: int) -> void:
 	popup.add_theme_constant_override("shadow_offset_x", 2)
 	popup.add_theme_constant_override("shadow_offset_y", 2)
 	popup.size = Vector2(110, 42)
-	popup.z_index = 130
+	popup.z_index = 230
 	add_child(popup)
 	var center_position := Vector2(size.x * 0.5 - 55, size.y * 0.56)
 	var coin_position := center_position
