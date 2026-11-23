@@ -301,6 +301,7 @@ func _build_base() -> void:
 	add_child(background)
 
 	var margin := MarginContainer.new()
+	margin.name = "MainMargin"
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 18)
 	margin.add_theme_constant_override("margin_right", 18)
@@ -309,6 +310,7 @@ func _build_base() -> void:
 	add_child(margin)
 
 	page_box = VBoxContainer.new()
+	page_box.name = "PageBox"
 	page_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page_box.add_theme_constant_override("separation", 14)
@@ -746,7 +748,7 @@ func _show_map() -> void:
 		content_box.add_child(finished)
 		return
 
-	stage_scroll = get_node_or_null("MarginContainer/PageBox/ScreenContentScroll") as ScrollContainer
+	stage_scroll = get_node_or_null("MainMargin/PageBox/ScreenContentScroll") as ScrollContainer
 	var stage_list := VBoxContainer.new()
 	stage_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage_list.add_theme_constant_override("separation", 10)
@@ -808,7 +810,7 @@ func _show_map() -> void:
 
 func _show_profile() -> void:
 	_clear_content()
-	stage_scroll = get_node_or_null("MarginContainer/PageBox/ScreenContentScroll") as ScrollContainer
+	stage_scroll = get_node_or_null("MainMargin/PageBox/ScreenContentScroll") as ScrollContainer
 	if profile_button != null:
 		profile_button.visible = true
 
