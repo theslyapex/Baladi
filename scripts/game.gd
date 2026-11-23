@@ -880,10 +880,10 @@ func _show_game() -> void:
 	content_box.add_child(subtitle_label)
 
 	var board_panel := _panel()
-	board_panel.custom_minimum_size.y = 175
+	board_panel.custom_minimum_size.y = 145
 	content_box.add_child(board_panel)
 	board_box = GridContainer.new()
-	board_box.columns = 2
+	board_box.columns = 1
 	board_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	board_box.add_theme_constant_override("h_separation", 9)
 	board_box.add_theme_constant_override("v_separation", 9)
@@ -1579,7 +1579,7 @@ func _show_hint_menu() -> void:
 		option_button.custom_minimum_size.y = 64
 		option_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		option_button.alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		option_button.text = "%s\n%s" % [str(item.title), str(item.detail)]
+		option_button.text = "%s  ·  %s" % [str(item.title), str(item.detail)]
 		option_button.icon = load(str(item.icon))
 		option_button.expand_icon = false
 		option_button.add_theme_constant_override("icon_max_width", 34)
