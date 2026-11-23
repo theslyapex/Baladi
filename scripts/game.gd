@@ -557,6 +557,10 @@ func _show_auth(message: String = "") -> void:
 	auth_mode_toggle_button.pressed.connect(_toggle_signup_mode)
 	fields.add_child(auth_mode_toggle_button)
 
+	if CloudAccount.has_saved_session():
+		var retry_button := _make_button("تلاش دوباره برای ورود خودکار", Color("#385b75"), CREAM)
+		retry_button.pressed.connect(_retry_saved_login)
+		fields.add_child(retry_button)
 	var guest_button := _make_button("ورود مهمان", Color("#294c43"), GOLD)
 	guest_button.pressed.connect(_show_guest_warning)
 	fields.add_child(guest_button)
@@ -567,6 +571,20 @@ func _show_auth(message: String = "") -> void:
 	auth_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	auth_status_label.add_theme_color_override("font_color", RED if not message.is_empty() else MUTED)
 	content_box.add_child(auth_status_label)
+
+func _retry_saved_login() -> void:
+	if auth_status_label != null:
+		auth_status_label.text = "در حال بازیابی نشست ذخیره‌شده…"
+		auth_status_label.add_theme_color_override("font_color", GOLD)
+	var restored: bool = await CloudAccount.restore_session()
+	if restored:
+		await _enter_game()
+	else:
+		if not CloudAccount.has_saved_session():
+			_show_auth("نشست ذخیره‌شده معتبر نیست. لطفاً دوباره وارد شو.")
+		elif auth_status_label != null:
+			auth_status_label.text = "ورود خودکار انجام نشد. اتصال اینترنت را بررسی کن یا دوباره تلاش کن."
+			auth_status_label.add_theme_color_override("font_color", RED)
 
 func _show_guest_warning() -> void:
 	var overlay := ColorRect.new()
