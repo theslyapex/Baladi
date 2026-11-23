@@ -52,6 +52,7 @@ var session_timer: Timer
 var exit_button: Button
 var profile_button: Button
 var profile_name_input: LineEdit
+var profile_rename_button: Button
 var profile_status_label: Label
 var display_name := "بازیکن"
 var diamonds := 0
@@ -1144,9 +1145,9 @@ func _show_profile() -> void:
 	_style_input(profile_name_input)
 	content_box.add_child(profile_name_input)
 	var rename_label := "ذخیره نام پروفایل · رایگان" if name_change_count == 0 else "تغییر نام · ۱ الماس"
-	var save_name := _make_button(rename_label, Color("#287c68"), CREAM)
-	save_name.pressed.connect(_save_profile_name)
-	content_box.add_child(save_name)
+	profile_rename_button = _make_button(rename_label, Color("#287c68"), CREAM)
+	profile_rename_button.pressed.connect(_save_profile_name)
+	content_box.add_child(profile_rename_button)
 
 	var words_total := 0
 	for value in level_solved.values():
@@ -2335,6 +2336,8 @@ func _save_profile_name() -> void:
 				return
 			diamonds -= 1
 		name_change_count += 1
+		if profile_rename_button != null:
+			profile_rename_button.text = "تغییر نام · ۱ الماس"
 		display_name = new_name
 		_save()
 		profile_status_label.text = "نام پروفایل ذخیره شد." if name_change_count == 1 else "نام تغییر کرد؛ یک الماس مصرف شد."
@@ -2346,6 +2349,8 @@ func _save_profile_name() -> void:
 		profile_status_label.add_theme_color_override("font_color", RED)
 		return
 	_apply_cloud_profile(result.get("profile", {}))
+	if profile_rename_button != null:
+		profile_rename_button.text = "تغییر نام · ۱ الماس"
 	profile_status_label.text = "نام پروفایل با موفقیت ذخیره شد." if int(result.get("diamonds_spent", 0)) == 0 else "نام تغییر کرد؛ یک الماس مصرف شد."
 	profile_status_label.add_theme_color_override("font_color", GREEN)
 
