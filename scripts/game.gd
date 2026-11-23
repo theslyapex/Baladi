@@ -868,6 +868,9 @@ func _show_profile() -> void:
 	var duel_invites_button := _make_button("درخواست‌های بازی دونفره", Color("#385b75"), CREAM)
 	duel_invites_button.pressed.connect(_show_duel_invites)
 	content_box.add_child(duel_invites_button)
+	var resume_duel_button := _make_button("ادامه مسابقه فعال", Color("#287c68"), CREAM)
+	resume_duel_button.pressed.connect(_resume_active_duel)
+	content_box.add_child(resume_duel_button)
 
 	profile_status_label = Label.new()
 	profile_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -974,6 +977,17 @@ func _send_duel_invite_to(target_user_id: String) -> void:
 		_set_status(str(result.get("error", "ارسال دعوت مسابقه انجام نشد.")), RED)
 		return
 	_set_status("دعوت مسابقهٔ ۱۰مرحله‌ای ارسال شد.", GREEN)
+
+func _resume_active_duel() -> void:
+	var result: Dictionary = await CloudAccount.get_active_duel()
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "مسابقه فعال پیدا نشد.")), RED)
+		return
+	var match_id := str(result.get("match_id", ""))
+	if match_id.is_empty():
+		_set_status("در حال حاضر مسابقه فعالی نداری.", MUTED)
+		return
+	_show_duel_game(match_id)
 
 func _show_duel_invites() -> void:
 	_clear_content()
