@@ -10,6 +10,7 @@ var access_token := ""
 var refresh_token := ""
 var user_id := ""
 var user_email := ""
+var display_name := ""
 var expires_at := 0
 var game_session_id := ""
 
@@ -54,6 +55,8 @@ func _accept_session(data: Dictionary) -> void:
 	var user: Dictionary = data.get("user", {})
 	user_id = str(user.get("id", ""))
 	user_email = str(user.get("email", ""))
+	var metadata: Dictionary = user.get("user_metadata", {})
+	display_name = str(metadata.get("full_name", metadata.get("name", "")))
 	_save_auth()
 
 func _save_auth() -> void:
@@ -70,6 +73,7 @@ func _clear_auth() -> void:
 	refresh_token = ""
 	user_id = ""
 	user_email = ""
+	display_name = ""
 	expires_at = 0
 	game_session_id = ""
 	var cfg := ConfigFile.new()
@@ -170,8 +174,11 @@ func complete_level(level: int) -> Dictionary:
 func use_hint(word: String, level: int) -> Dictionary:
 	return await api("use_hint", {"word": word, "level": level, "session_id": game_session_id})
 
-func update_profile_name(display_name: String) -> Dictionary:
-	return await api("update_profile", {"display_name": display_name.strip_edges()})
+func update_profile_name(new_name: String) -> Dictionary:
+	var result: Dictionary = await api("update_profile", {"display_name": new_name.strip_edges()})
+	if result.get("ok", false):
+		display_name = new_name.strip_edges()
+	return result
 
 func daily_checkin() -> Dictionary:
 	return await api("daily_checkin")
