@@ -2613,13 +2613,18 @@ func _use_hint_clue(hint_type: String) -> void:
 			_set_status("همه حروف قابل استفاده قبلاً برجسته شده‌اند.", GOLD)
 			return
 
+	var clue_key := target.substr(0, 1) if hint_type == "first_letter" else ""
+	if hint_type == "highlight_letter":
+		var hint_letters: Array = levels[level_index].get("letters", [])
+		if target_letter_index >= 0 and target_letter_index < hint_letters.size():
+			clue_key = str(hint_letters[target_letter_index])
 	if coins < cost:
 		_set_status("برای این راهنما سکه کافی نداری.", RED)
 		return
 	if guest_mode:
 		coins -= cost
 	else:
-		var result: Dictionary = await CloudAccount.use_hint_clue(hint_type, stage_id)
+		var result: Dictionary = await CloudAccount.use_hint_clue(hint_type, stage_id, clue_key)
 		if not result.get("ok", false):
 			_set_status(str(result.get("error", "استفاده از راهنما انجام نشد.")), RED)
 			return
