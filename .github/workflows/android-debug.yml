@@ -109,7 +109,14 @@ jobs:
         run: godot --headless --path . --script res://scripts/validate_game.gd
 
       - name: Run startup smoke test
-        run: godot --headless --path . --quit-after 5
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --quit-after 5 2>&1 | tee /tmp/baladi-startup.log
+          if grep -E 'SCRIPT ERROR:|Parse Error:|Failed to load script|ERROR: Failed to load' /tmp/baladi-startup.log; then
+            echo "Startup smoke test detected a script/resource error."
+            exit 1
+          fi
 
       - name: Validate Persian level vocabulary
         run: godot --headless --path . --script res://scripts/validate_levels.gd
