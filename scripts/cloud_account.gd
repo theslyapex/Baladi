@@ -95,9 +95,19 @@ func _refresh_saved_session() -> Dictionary:
 		return last_refresh_result
 	refresh_in_progress = true
 	var token_used := refresh_token
-	var result: Dictionary = await _request_json(AUTH_PATH + "/token?grant_type=refresh_token", HTTPClient.METHOD_POST, _headers(), {
-		"refresh_token": token_used
-	})
+	var result: Dictionary = {}
+	for attempt in range(2):
+		result = await _request_json(AUTH_PATH + "/token?grant_type=refresh_token", HTTPClient.METHOD_POST, _headers(), {
+			"refresh_token": token_used
+		})
+		if result.get("ok", false):
+			break
+		var retry_status := int(result.get("status", 0))
+		var retryable := retry_status == 0 or retry_status in [408, 425, 429] or retry_status >= 500
+		if attempt == 0 and retryable:
+			await get_tree().create_timer(1.5).timeout
+			continue
+		break
 	if result.get("ok", false):
 		var session_data: Dictionary = result.data.duplicate(true)
 		# Keep the existing refresh credential if the provider omits it in a partial response.
