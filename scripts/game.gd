@@ -427,6 +427,14 @@ func _show_auth(message: String = "") -> void:
 	if profile_button != null:
 		profile_button.visible = false
 	coin_panel.visible = false
+	var auth_mascot := TextureRect.new()
+	auth_mascot.texture = load("res://assets/characters/mascot.svg")
+	auth_mascot.custom_minimum_size = Vector2(104, 104)
+	auth_mascot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	auth_mascot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	auth_mascot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	auth_mascot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content_box.add_child(auth_mascot)
 	var heading := Label.new()
 	heading.text = "خوش آمدی!"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -648,6 +656,23 @@ func _show_map() -> void:
 	greeting.add_theme_font_size_override("font_size", 16)
 	greeting.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(greeting)
+	var guide_row := HBoxContainer.new()
+	guide_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	guide_row.add_theme_constant_override("separation", 10)
+	content_box.add_child(guide_row)
+	var guide_mascot := TextureRect.new()
+	guide_mascot.texture = load("res://assets/characters/mascot.svg")
+	guide_mascot.custom_minimum_size = Vector2(68, 68)
+	guide_mascot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	guide_mascot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	guide_mascot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	guide_row.add_child(guide_mascot)
+	var guide_text := Label.new()
+	guide_text.text = "من راهنمای توام! هر ۲۰ مرحله یک سرزمین تازه منتظرته."
+	guide_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	guide_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	guide_text.add_theme_color_override("font_color", CREAM)
+	guide_row.add_child(guide_text)
 
 	var map_art := TextureRect.new()
 	map_art.texture = load("res://assets/backgrounds/wordlands.svg")
@@ -951,6 +976,14 @@ func _show_duel_result(winner_id: String, elapsed_ms: int) -> void:
 	duel_mode = false
 	_clear_content()
 	var won := winner_id == CloudAccount.user_id
+	var result_art := TextureRect.new()
+	result_art.texture = load("res://assets/rewards/treasure-chest.svg") if won else load("res://assets/characters/mascot.svg")
+	result_art.custom_minimum_size = Vector2(128, 92)
+	result_art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	result_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	result_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	result_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content_box.add_child(result_art)
 	var heading := Label.new()
 	heading.text = "پیروزی در رقابت!" if won else "این بار حریف برنده شد"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1973,6 +2006,73 @@ func _open_level(index: int) -> void:
 			else:
 				_set_status(str(completion.get("error", "ثبت مرحله انجام نشد.")), RED)
 
+func _chapter_title(level_number: int) -> String:
+	if level_number <= 20:
+		return "باغ واژه‌ها"
+	if level_number <= 40:
+		return "بازار رازآلود"
+	if level_number <= 60:
+		return "کاروانسرای کلمات"
+	if level_number <= 80:
+		return "قله‌های دانایی"
+	return "کاخ گنج واژه‌ها"
+
+func _chapter_background_path(level_number: int) -> String:
+	if level_number <= 20:
+		return "res://assets/backgrounds/chapter-garden.svg"
+	if level_number <= 40:
+		return "res://assets/backgrounds/chapter-bazaar.svg"
+	if level_number <= 60:
+		return "res://assets/backgrounds/chapter-caravanserai.svg"
+	if level_number <= 80:
+		return "res://assets/backgrounds/chapter-mountains.svg"
+	return "res://assets/backgrounds/chapter-palace.svg"
+
+func _build_chapter_banner(level_number: int) -> Control:
+	var banner := Control.new()
+	banner.custom_minimum_size = Vector2(0, 116)
+	banner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	banner.clip_contents = true
+	var background := TextureRect.new()
+	background.texture = load(_chapter_background_path(level_number))
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	banner.add_child(background)
+	var shade := ColorRect.new()
+	shade.color = Color(0.02, 0.08, 0.07, 0.34)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	banner.add_child(shade)
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	banner.add_child(row)
+	var mascot := TextureRect.new()
+	mascot.texture = load("res://assets/characters/mascot.svg")
+	mascot.custom_minimum_size = Vector2(96, 96)
+	mascot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mascot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	mascot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(mascot)
+	var text_box := VBoxContainer.new()
+	text_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(text_box)
+	var chapter := Label.new()
+	chapter.text = _chapter_title(level_number)
+	chapter.add_theme_font_size_override("font_size", 20)
+	chapter.add_theme_color_override("font_color", GOLD)
+	text_box.add_child(chapter)
+	var line := Label.new()
+	line.text = "هر واژه، یک قدم نزدیک‌تر به گنج"
+	line.add_theme_font_size_override("font_size", 12)
+	line.add_theme_color_override("font_color", CREAM)
+	text_box.add_child(line)
+	return banner
+
 func _show_game() -> void:
 	_clear_content()
 	if exit_button != null:
@@ -2003,6 +2103,8 @@ func _show_game() -> void:
 	subtitle_label.add_theme_font_size_override("font_size", 13)
 	subtitle_label.add_theme_color_override("font_color", MUTED)
 	content_box.add_child(subtitle_label)
+	var chapter_level := duel_round_number * 10 if duel_mode else int(data.get("id", level_index + 1))
+	content_box.add_child(_build_chapter_banner(chapter_level))
 
 	var board_panel := _panel()
 	board_panel.custom_minimum_size.y = 145
@@ -2647,6 +2749,14 @@ func _show_stage_complete(reward: int) -> void:
 	body.alignment = BoxContainer.ALIGNMENT_CENTER
 	body.add_theme_constant_override("separation", 14)
 	card.add_child(body)
+	var chest_art := TextureRect.new()
+	chest_art.texture = load("res://assets/rewards/treasure-chest.svg")
+	chest_art.custom_minimum_size = Vector2(118, 78)
+	chest_art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	chest_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	chest_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	chest_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(chest_art)
 	var title := Label.new()
 	title.text = "مرحله با موفقیت کامل شد!"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

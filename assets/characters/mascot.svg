@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+<defs>
+ <linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#35c9ae"/><stop offset="1" stop-color="#126b62"/></linearGradient>
+ <linearGradient id="gold" x1="0" y1="0" x2="0.8" y2="1"><stop stop-color="#ffe59a"/><stop offset="1" stop-color="#c88a35"/></linearGradient>
+ <linearGradient id="wing" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f6d48b"/><stop offset="1" stop-color="#d79a48"/></linearGradient>
+</defs>
+<ellipse cx="120" cy="220" rx="70" ry="12" fill="#071d19" opacity=".25"/>
+<path d="M54 108Q42 66 68 43Q83 27 101 49Q120 22 139 48Q166 28 181 57Q198 90 184 132L174 185Q120 220 66 185Z" fill="url(#body)" stroke="#0b4e49" stroke-width="5"/>
+<path d="M62 120Q23 103 30 151Q36 180 77 177L91 147Z" fill="url(#wing)" stroke="#8a642f" stroke-width="4"/>
+<path d="M178 120Q217 103 210 151Q204 180 163 177L149 147Z" fill="url(#wing)" stroke="#8a642f" stroke-width="4"/>
+<path d="M75 90Q80 55 108 65Q120 70 120 95Q120 67 146 65Q173 67 167 99Q161 132 120 139Q79 130 75 90Z" fill="#f7ecd0"/>
+<ellipse cx="99" cy="103" rx="19" ry="22" fill="#fff"/>
+<ellipse cx="141" cy="103" rx="19" ry="22" fill="#fff"/>
+<circle cx="103" cy="106" r="9" fill="#173d39"/>
+<circle cx="137" cy="106" r="9" fill="#173d39"/>
+<circle cx="106" cy="102" r="3" fill="#fff"/>
+<circle cx="140" cy="102" r="3" fill="#fff"/>
+<path d="M111 126L120 141L129 126Z" fill="#e69a35" stroke="#9c5d20" stroke-width="2"/>
+<path d="M80 150Q120 169 160 150L169 178Q120 205 71 178Z" fill="#d99c42" stroke="#8a5b25" stroke-width="4"/>
+<path d="M88 157Q120 171 152 157" fill="none" stroke="#ffe5a0" stroke-width="5" stroke-linecap="round"/>
+<path d="M78 51L84 25Q101 33 120 17Q139 33 156 25L162 51Q120 66 78 51Z" fill="url(#gold)" stroke="#9a672d" stroke-width="4"/>
+<circle cx="120" cy="27" r="7" fill="#fff0bd"/>
+<path d="M73 187L67 205L103 201L120 212L137 201L173 205L167 187" fill="#e7b65f" stroke="#8b612c" stroke-width="4" stroke-linejoin="round"/>
+<rect x="94" y="174" width="52" height="38" rx="8" fill="#f4d78c" stroke="#8c622b" stroke-width="4"/>
+<path d="M120 180V206" stroke="#b47b30" stroke-width="3"/>
+<path d="M110 190Q120 180 130 190Q120 200 110 190Z" fill="#177b70"/>
+</svg>
