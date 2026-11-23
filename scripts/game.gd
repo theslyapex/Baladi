@@ -56,6 +56,11 @@ var profile_status_label: Label
 var display_name := "بازیکن"
 var daily_streak := 0
 var last_checkin_date := ""
+var avatar_path := ""
+var avatar_unlocked := false
+var equipped_frame_id := "frame_default"
+var wins := 0
+var losses := 0
 var auth_signup_mode := false
 var auth_login_button: Button
 var auth_mode_toggle_button: Button
@@ -111,6 +116,11 @@ func _enter_game() -> void:
 		display_name = CloudAccount.display_name if not CloudAccount.display_name.is_empty() else "بازیکن"
 	daily_streak = int(profile.get("daily_streak", 0))
 	last_checkin_date = str(profile.get("last_checkin_date", ""))
+	avatar_path = str(profile.get("avatar_path", ""))
+	avatar_unlocked = bool(profile.get("avatar_unlocked", false))
+	equipped_frame_id = str(profile.get("equipped_frame_id", "frame_default"))
+	wins = int(profile.get("wins", 0))
+	losses = int(profile.get("losses", 0))
 	cloud_current_level = int(profile.get("current_level", 1))
 	level_index = clampi(cloud_current_level - 1, 0, max(0, levels.size() - 1))
 	var remote_completed = profile.get("completed_levels", [])
@@ -561,6 +571,11 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 		display_name = CloudAccount.display_name if not CloudAccount.display_name.is_empty() else "بازیکن"
 	daily_streak = int(profile.get("daily_streak", daily_streak))
 	last_checkin_date = str(profile.get("last_checkin_date", last_checkin_date))
+	avatar_path = str(profile.get("avatar_path", avatar_path))
+	avatar_unlocked = bool(profile.get("avatar_unlocked", avatar_unlocked))
+	equipped_frame_id = str(profile.get("equipped_frame_id", equipped_frame_id))
+	wins = int(profile.get("wins", wins))
+	losses = int(profile.get("losses", losses))
 	cloud_current_level = int(profile.get("current_level", cloud_current_level))
 	var remote_completed = profile.get("completed_levels", completed_levels)
 	if remote_completed is Array:
@@ -762,6 +777,8 @@ func _show_profile() -> void:
 	_add_profile_stat(stats_grid, "مراحل کامل‌شده", str(completed_levels.size()), GREEN)
 	_add_profile_stat(stats_grid, "واژه‌های پیدا‌شده", str(words_total), TEAL)
 	_add_profile_stat(stats_grid, "موجودی سکه", str(coins), GOLD)
+	_add_profile_stat(stats_grid, "برد دونفره", str(wins), GREEN)
+	_add_profile_stat(stats_grid, "باخت دونفره", str(losses), RED)
 
 	var streak_panel := _panel(Color("#a77a35"))
 	content_box.add_child(streak_panel)
@@ -773,16 +790,27 @@ func _show_profile() -> void:
 	streak_title.add_theme_font_size_override("font_size", 17)
 	streak_title.add_theme_color_override("font_color", GOLD)
 	streak_box.add_child(streak_title)
+	var cycle_day := ((daily_streak - 1) % 20) + 1 if daily_streak > 0 else 0
 	var streak_value := Label.new()
-	streak_value.text = "%d روز از ۷ روز" % (daily_streak % 7 if daily_streak % 7 != 0 else (7 if daily_streak > 0 else 0))
+	streak_value.text = "%d / 20 روز متوالی" % cycle_day
 	streak_value.add_theme_font_size_override("font_size", 20)
 	streak_value.add_theme_color_override("font_color", CREAM)
 	streak_box.add_child(streak_value)
+	var reward_by_day := {1: 20, 4: 80, 6: 180, 10: 250, 15: 500, 20: 1000}
+	var next_day := (cycle_day % 20) + 1
+	var next_reward := int(reward_by_day.get(next_day, 0))
 	var streak_hint := Label.new()
-	streak_hint.text = "با ۷ روز حضور متوالی، ۵۰ سکه جایزه می‌گیری."
+	streak_hint.text = "پاداش روز %d: %d سکه" % [next_day, next_reward] if next_reward > 0 else "فقط با ورود هر روز، زنجیره را حفظ کن."
 	streak_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	streak_hint.add_theme_color_override("font_color", MUTED)
 	streak_box.add_child(streak_hint)
+
+	var shop_button := _make_button("فروشگاه قاب‌ها و تصویر پروفایل", Color("#765a31"), CREAM)
+	shop_button.pressed.connect(_show_cosmetic_shop)
+	content_box.add_child(shop_button)
+	var leaderboard_button := _make_button("جدول رتبه‌بندی بازیکنان", Color("#245448"), GOLD)
+	leaderboard_button.pressed.connect(_show_leaderboard)
+	content_box.add_child(leaderboard_button)
 
 	profile_status_label = Label.new()
 	profile_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -791,6 +819,138 @@ func _show_profile() -> void:
 	content_box.add_child(profile_status_label)
 	var back := _make_button("بازگشت به نقشه مراحل", Color("#294c43"), CREAM)
 	back.pressed.connect(_show_map)
+	content_box.add_child(back)
+
+func _show_cosmetic_shop() -> void:
+	_clear_content()
+	var heading := Label.new()
+	heading.text = "فروشگاه افتخارات"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 25)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	if guest_mode:
+		_set_status("خریدهای فروشگاه برای حساب‌های ثبت‌شده فعال است.", GOLD)
+		var guest_back := _make_button("بازگشت", PANEL_ALT, CREAM)
+		guest_back.pressed.connect(_show_profile)
+		content_box.add_child(guest_back)
+		return
+	var result: Dictionary = await CloudAccount.get_cosmetics_catalog()
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "فروشگاه بارگذاری نشد.")), RED)
+		return
+	var owned_ids: Dictionary = {}
+	for owned in result.get("owned", []):
+		owned_ids[str(owned.get("cosmetic_id", ""))] = true
+	for item in result.get("catalog", []):
+		var item_id := str(item.get("id", ""))
+		var item_kind := str(item.get("kind", ""))
+		var card := _panel(GOLD if item_kind == "avatar_unlock" else TEAL)
+		content_box.add_child(card)
+		var body := VBoxContainer.new()
+		body.add_theme_constant_override("separation", 6)
+		card.add_child(body)
+		var title := Label.new()
+		title.text = str(item.get("display_name", ""))
+		title.add_theme_font_size_override("font_size", 17)
+		title.add_theme_color_override("font_color", CREAM)
+		body.add_child(title)
+		var price := Label.new()
+		price.text = "رایگان" if int(item.get("price_coins", 0)) == 0 else "%s سکه" % str(item.get("price_coins", 0))
+		price.add_theme_color_override("font_color", GOLD)
+		body.add_child(price)
+		if owned_ids.has(item_id):
+			if item_kind == "frame":
+				var equip := _make_button("استفاده از این قاب" if equipped_frame_id != item_id else "قاب فعال", Color("#287c68"), CREAM)
+				equip.disabled = equipped_frame_id == item_id
+				equip.pressed.connect(func(): _equip_cosmetic_frame(item_id))
+				body.add_child(equip)
+			else:
+				var bought := Label.new()
+				bought.text = "خریداری شده"
+				bought.add_theme_color_override("font_color", GREEN)
+				body.add_child(bought)
+		else:
+			var buy := _make_button("خرید", Color("#765a31"), CREAM)
+			buy.pressed.connect(func(): _purchase_cosmetic(item_id))
+			body.add_child(buy)
+	var back := _make_button("بازگشت به پروفایل", PANEL_ALT, CREAM)
+	back.pressed.connect(_show_profile)
+	content_box.add_child(back)
+
+func _purchase_cosmetic(cosmetic_id: String) -> void:
+	var result: Dictionary = await CloudAccount.purchase_cosmetic(cosmetic_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "خرید انجام نشد.")), RED)
+		return
+	_apply_cloud_profile(result.get("profile", {}))
+	_animate_coin_reward(-int(result.get("item", {}).get("price_coins", 0)))
+	_show_cosmetic_shop()
+
+func _equip_cosmetic_frame(frame_id: String) -> void:
+	var result: Dictionary = await CloudAccount.equip_frame(frame_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "تغییر قاب انجام نشد.")), RED)
+		return
+	_apply_cloud_profile(result.get("profile", {}))
+	equipped_frame_id = frame_id
+	_show_cosmetic_shop()
+
+func _show_leaderboard() -> void:
+	_clear_content()
+	var heading := Label.new()
+	heading.text = "جدول قهرمانان"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 25)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	if guest_mode:
+		_set_status("جدول رتبه‌بندی برای بازیکنان دارای حساب نمایش داده می‌شود.", GOLD)
+	else:
+		var result: Dictionary = await CloudAccount.get_leaderboard()
+		if not result.get("ok", false):
+			_set_status(str(result.get("error", "جدول رتبه‌بندی بارگذاری نشد.")), RED)
+		else:
+			for player in result.get("leaderboard", []):
+				var player_id := str(player.get("user_id", ""))
+				var rank := int(player.get("rank", 0))
+				var row := _make_button("#%d   %s   ·   مرحله %d   ·   %d سکه" % [rank, str(player.get("display_name", "بازیکن")), int(player.get("current_level", 1)), int(player.get("coins", 0))], PANEL_ALT, CREAM)
+				row.pressed.connect(func(): _show_public_profile(player_id))
+				content_box.add_child(row)
+	var back := _make_button("بازگشت", PANEL, CREAM)
+	back.pressed.connect(_show_profile)
+	content_box.add_child(back)
+
+func _show_public_profile(target_user_id: String) -> void:
+	if guest_mode:
+		return
+	_clear_content()
+	var result: Dictionary = await CloudAccount.get_public_profile(target_user_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "پروفایل بازیکن بارگذاری نشد.")), RED)
+		var back_error := _make_button("بازگشت به رتبه‌بندی", PANEL_ALT, CREAM)
+		back_error.pressed.connect(_show_leaderboard)
+		content_box.add_child(back_error)
+		return
+	var player: Dictionary = result.get("profile", {})
+	var heading := Label.new()
+	heading.text = str(player.get("display_name", "بازیکن"))
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 25)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	var stats := GridContainer.new()
+	stats.columns = 2
+	stats.add_theme_constant_override("h_separation", 8)
+	stats.add_theme_constant_override("v_separation", 8)
+	content_box.add_child(stats)
+	_add_profile_stat(stats, "مرحله فعلی", str(player.get("current_level", 1)), GOLD)
+	_add_profile_stat(stats, "مراحل کامل‌شده", str(player.get("levels_completed", 0)), GREEN)
+	_add_profile_stat(stats, "واژه‌های پیدا‌شده", str(player.get("words_found", 0)), TEAL)
+	_add_profile_stat(stats, "برد دونفره", str(player.get("wins", 0)), GREEN)
+	_add_profile_stat(stats, "باخت دونفره", str(player.get("losses", 0)), RED)
+	var back := _make_button("بازگشت به رتبه‌بندی", PANEL_ALT, CREAM)
+	back.pressed.connect(_show_leaderboard)
 	content_box.add_child(back)
 
 func _add_profile_stat(parent: GridContainer, caption: String, value: String, accent: Color) -> void:
