@@ -2,43 +2,45 @@ extends Control
 
 const LEVELS_PATH := "res://data/levels/levels.json"
 const SAVE_PATH := "user://baladi_save.cfg"
-const BG := Color("#102f2a")
-const PANEL := Color("#19443b")
-const PANEL_LIGHT := Color("#23574b")
-const GOLD := Color("#e8bd68")
-const CREAM := Color("#fff3d7")
-const MUTED := Color("#b8c9bb")
-const RED := Color("#e58b79")
-const GREEN := Color("#9bd3a5")
+const BG := Color("#0b211f")
+const PANEL := Color("#153a34")
+const PANEL_ALT := Color("#1d4b41")
+const GOLD := Color("#edc879")
+const CREAM := Color("#fff4df")
+const MUTED := Color("#a9c3b8")
+const GREEN := Color("#8ed6a5")
+const RED := Color("#f08c80")
+const TEAL := Color("#55c6b5")
 
 var levels: Array = []
 var level_index := 0
 var coins := 100
-var solved: Array[String] = []
+var level_solved: Dictionary = {}
+var completed_levels: Array = []
 var selected_indices: Array[int] = []
 var selected_word := ""
-var completed := false
-var level_reward_claimed := false
+var is_dragging := false
+var active_pointer := -1
 
-var root_box: VBoxContainer
-var header_label: Label
+var page_box: VBoxContainer
+var content_box: VBoxContainer
 var coin_label: Label
 var level_label: Label
 var subtitle_label: Label
-var board_box: VBoxContainer
+var board_box: GridContainer
 var selection_label: Label
 var letters_grid: GridContainer
 var status_label: Label
 var hint_button: Button
 var submit_button: Button
-var next_button: Button
 var letter_buttons: Array[Button] = []
+var trace_line: Line2D
 
 func _ready() -> void:
 	_load_levels()
 	_load_save()
-	_build_interface()
-	_render_level()
+	_build_base()
+	_show_map()
 
 func _load_levels() -> void:
 	if not FileAccess.file_exists(LEVELS_PATH):
@@ -47,136 +49,288 @@ func _load_levels() -> void:
 	var parsed = JSON.parse_string(FileAccess.get_file_as_string(LEVELS_PATH))
 	if parsed is Dictionary and parsed.get("levels") is Array:
 		levels = parsed["levels"]
+	if levels.is_empty():
+		push_error("No valid levels found.")
 
 func _load_save() -> void:
 	var cfg := ConfigFile.new()
-	if cfg.load(SAVE_PATH) == OK:
-		coins = int(cfg.get_value("player", "coins", 100))
-		level_index = clampi(int(cfg.get_value("player", "level_index", 0)), 0, max(0, levels.size() - 1))
-		var saved = cfg.get_value("player", "solved", [])
-		if saved is Array:
-			for word in saved:
-				solved.append(str(word))
+	if cfg.load(SAVE_PATH) != OK:
+		return
+	coins = int(cfg.get_value("player", "coins", 100))
+	level_index = clampi(int(cfg.get_value("player", "level_index", 0)), 0, max(0, levels.size() - 1))
+	var saved_levels = cfg.get_value("player", "level_solved", {})
+	if saved_levels is Dictionary:
+		level_solved = saved_levels
+	var saved_completed = cfg.get_value("player", "completed_levels", [])
+	if saved_completed is Array:
+		completed_levels = saved_completed
+	# Migrate saves from the first prototype.
+	if level_solved.is_empty():
+		var legacy = cfg.get_value("player", "solved", [])
+		if legacy is Array and not legacy.is_empty() and not levels.is_empty():
+			level_solved[str(levels[level_index].get("id", level_index + 1))] = legacy
 
 func _save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("player", "coins", coins)
 	cfg.set_value("player", "level_index", level_index)
-	cfg.set_value("player", "solved", solved)
+	cfg.set_value("player", "level_solved", level_solved)
+	cfg.set_value("player", "completed_levels", completed_levels)
 	cfg.save(SAVE_PATH)
 
-func _build_interface() -> void:
+func _build_base() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layout_direction = Control.LAYOUT_DIRECTION_RTL
 	var background := ColorRect.new()
 	background.color = BG
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 
-	root_box = VBoxContainer.new()
-	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root_box.add_theme_constant_override("separation", 12)
-	root_box.add_theme_constant_override("margin_left", 20)
-	root_box.add_theme_constant_override("margin_right", 20)
-	root_box.add_theme_constant_override("margin_top", 22)
-	root_box.add_theme_constant_override("margin_bottom", 18)
-	add_child(root_box)
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	add_child(margin)
 
-	var top := HBoxContainer.new()
-	top.alignment = BoxContainer.ALIGNMENT_CENTER
-	root_box.add_child(top)
+	page_box = VBoxContainer.new()
+	page_box.add_theme_constant_override("separation", 14)
+	margin.add_child(page_box)
+
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 10)
+	page_box.add_child(header)
+
+	var brand_box := VBoxContainer.new()
+	brand_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	brand_box.add_theme_constant_override("separation", 0)
+	header.add_child(brand_box)
 	var brand := Label.new()
 	brand.text = "بلدی؟"
-	brand.add_theme_font_size_override("font_size", 30)
+	brand.add_theme_font_size_override("font_size", 31)
 	brand.add_theme_color_override("font_color", GOLD)
-	brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(brand)
+	brand_box.add_child(brand)
+	var tagline := Label.new()
+	tagline.text = "ببین چند کلمه بلدی!"
+	tagline.add_theme_font_size_override("font_size", 12)
+	tagline.add_theme_color_override("font_color", MUTED)
+	brand_box.add_child(tagline)
+
+	var coin_panel := _panel(Color("#604b2b"))
+	coin_panel.custom_minimum_size = Vector2(104, 48)
+	header.add_child(coin_panel)
 	coin_label = Label.new()
-	coin_label.add_theme_font_size_override("font_size", 19)
+	coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	coin_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	coin_label.add_theme_font_size_override("font_size", 18)
 	coin_label.add_theme_color_override("font_color", CREAM)
-	top.add_child(coin_label)
+	coin_panel.add_child(coin_label)
 
-	var separator := HSeparator.new()
-	separator.modulate = GOLD
-	root_box.add_child(separator)
+	var rule := ColorRect.new()
+	rule.custom_minimum_size.y = 2
+	rule.color = Color("#8d7548")
+	page_box.add_child(rule)
 
+	content_box = VBoxContainer.new()
+	content_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content_box.add_theme_constant_override("separation", 12)
+	page_box.add_child(content_box)
+
+	var footer := Label.new()
+	footer.text = "ALISHAMS GAME STUDIO"
+	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	footer.add_theme_font_size_override("font_size", 10)
+	footer.add_theme_color_override("font_color", Color("#78968b"))
+	page_box.add_child(footer)
+
+	trace_line = Line2D.new()
+	trace_line.width = 7.0
+	trace_line.default_color = GOLD
+	trace_line.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	trace_line.end_cap_mode = Line2D.LINE_CAP_ROUND
+	trace_line.joint_mode = Line2D.LINE_JOINT_ROUND
+	trace_line.z_index = 50
+	trace_line.antialiased = true
+	trace_line.visible = false
+	add_child(trace_line)
+	coin_label.text = "◆ %d" % coins
+
+func _clear_content() -> void:
+	is_dragging = false
+	active_pointer = -1
+	trace_line.clear_points()
+	trace_line.visible = false
+	for child in content_box.get_children():
+		child.queue_free()
+
+func _show_map() -> void:
+	_clear_content()
+	coin_label.text = "◆ %d" % coins
+
+	var heading := Label.new()
+	heading.text = "نقشه مراحل"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 27)
+	heading.add_theme_color_override("font_color", CREAM)
+	content_box.add_child(heading)
+
+	var completed_count := completed_levels.size()
+	var progress_panel := _panel()
+	content_box.add_child(progress_panel)
+	var progress_box := VBoxContainer.new()
+	progress_box.add_theme_constant_override("separation", 7)
+	progress_panel.add_child(progress_box)
+	var progress_text := Label.new()
+	progress_text.text = "پیشرفت تو  ·  %d از %d مرحله" % [completed_count, levels.size()]
+	progress_text.add_theme_color_override("font_color", GOLD)
+	progress_text.add_theme_font_size_override("font_size", 15)
+	progress_box.add_child(progress_text)
+	var progress := ProgressBar.new()
+	progress.min_value = 0
+	progress.max_value = max(1, levels.size())
+	progress.value = completed_count
+	progress.show_percentage = false
+	progress.custom_minimum_size.y = 12
+	progress_box.add_child(progress)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content_box.add_child(scroll)
+	var stage_list := VBoxContainer.new()
+	stage_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stage_list.add_theme_constant_override("separation", 10)
+	scroll.add_child(stage_list)
+
+	for i in range(levels.size()):
+		var data: Dictionary = levels[i]
+		var stage_id := int(data.get("id", i + 1))
+		var is_done := completed_levels.has(stage_id)
+		var is_open := i == 0 or completed_levels.has(int(levels[i - 1].get("id", i)))
+		var stage_button := Button.new()
+		stage_button.custom_minimum_size = Vector2(0, 76)
+		stage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stage_button.alignment = HORIZONTAL_ALIGNMENT_FILL
+		stage_button.text = ("✓   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_done else (("◈   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_open else ("🔒   مرحله %02d     قفل است" % stage_id))
+		stage_button.disabled = not is_open
+		stage_button.add_theme_font_size_override("font_size", 17)
+		stage_button.add_theme_color_override("font_color", GOLD if is_done else (CREAM if is_open else MUTED))
+		stage_button.add_theme_color_override("font_disabled_color", Color("#70877e"))
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color("#245448") if is_done else (PANEL_ALT if is_open else Color("#122d29"))
+		style.border_color = GOLD if is_done else (TEAL if is_open else Color("#29433c"))
+		style.set_border_width_all(1)
+		style.set_corner_radius_all(16)
+		style.content_margin_left = 14
+		style.content_margin_right = 14
+		stage_button.add_theme_stylebox_override("normal", style)
+		var hover := style.duplicate()
+		hover.bg_color = style.bg_color.lightened(0.10)
+		stage_button.add_theme_stylebox_override("hover", hover)
+		var disabled_style := style.duplicate()
+		disabled_style.bg_color = Color("#122d29")
+		stage_button.add_theme_stylebox_override("disabled", disabled_style)
+		stage_button.pressed.connect(_open_level.bind(i))
+		stage_list.add_child(stage_button)
+
+func _open_level(index: int) -> void:
+	if index < 0 or index >= levels.size():
+		return
+	if index > 0 and not completed_levels.has(int(levels[index - 1].get("id", index))):
+		return
+	level_index = index
+	_save()
+	_show_game()
+
+func _show_game() -> void:
+	_clear_content()
+	if levels.is_empty():
+		var error_label := Label.new()
+		error_label.text = "داده مراحل بارگذاری نشد."
+		content_box.add_child(error_label)
+		return
+
+	var data: Dictionary = levels[level_index]
 	level_label = Label.new()
+	level_label.text = "مرحله %02d" % int(data.get("id", level_index + 1))
 	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	level_label.add_theme_font_size_override("font_size", 23)
-	level_label.add_theme_color_override("font_color", CREAM)
-	root_box.add_child(level_label)
+	level_label.add_theme_font_size_override("font_size", 25)
+	level_label.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(level_label)
 
 	subtitle_label = Label.new()
+	subtitle_label.text = str(data.get("title", ""))
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle_label.add_theme_font_size_override("font_size", 14)
+	subtitle_label.add_theme_font_size_override("font_size", 13)
 	subtitle_label.add_theme_color_override("font_color", MUTED)
-	root_box.add_child(subtitle_label)
+	content_box.add_child(subtitle_label)
 
 	var board_panel := _panel()
 	board_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	board_panel.custom_minimum_size.y = 240
-	root_box.add_child(board_panel)
-	board_box = VBoxContainer.new()
-	board_box.add_theme_constant_override("separation", 8)
+	board_panel.custom_minimum_size.y = 210
+	content_box.add_child(board_panel)
+	board_box = GridContainer.new()
+	board_box.columns = 2
+	board_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	board_box.add_theme_constant_override("h_separation", 9)
+	board_box.add_theme_constant_override("v_separation", 9)
 	board_panel.add_child(board_box)
+	_render_board()
 
-	var selection_panel := _panel()
-	selection_panel.custom_minimum_size.y = 62
-	root_box.add_child(selection_panel)
+	var selection_panel := _panel(Color("#4c432e"))
+	selection_panel.custom_minimum_size.y = 60
+	content_box.add_child(selection_panel)
 	selection_label = Label.new()
-	selection_label.text = "حروف انتخاب‌شده"
+	selection_label.text = "حروف را با کشیدن انگشت به هم وصل کن"
 	selection_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	selection_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	selection_label.add_theme_font_size_override("font_size", 25)
+	selection_label.add_theme_font_size_override("font_size", 22)
 	selection_label.add_theme_color_override("font_color", GOLD)
 	selection_panel.add_child(selection_label)
 
 	letters_grid = GridContainer.new()
-	letters_grid.columns = 5
+	letters_grid.columns = 4
 	letters_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	letters_grid.add_theme_constant_override("h_separation", 9)
 	letters_grid.add_theme_constant_override("v_separation", 9)
-	root_box.add_child(letters_grid)
+	content_box.add_child(letters_grid)
+	_render_letters()
 
 	status_label = Label.new()
+	status_label.text = "از روی حروف بکش و یک واژه بساز."
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status_label.add_theme_font_size_override("font_size", 15)
+	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status_label.add_theme_font_size_override("font_size", 14)
 	status_label.add_theme_color_override("font_color", MUTED)
-	status_label.text = "حروف را انتخاب کن و واژه بساز."
-	root_box.add_child(status_label)
+	content_box.add_child(status_label)
 
 	var actions := HBoxContainer.new()
-	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	actions.add_theme_constant_override("separation", 8)
-	root_box.add_child(actions)
-	var clear_button := _make_button("پاک‌کردن", PANEL_LIGHT, CREAM)
+	content_box.add_child(actions)
+	var clear_button := _make_button("پاک‌کردن", PANEL_ALT, CREAM)
 	clear_button.pressed.connect(_clear_selection)
 	actions.add_child(clear_button)
-	hint_button = _make_button("راهنما · ۲۰", Color("#80602e"), CREAM)
+	hint_button = _make_button("راهنما · ۲۰", Color("#765a31"), CREAM)
 	hint_button.pressed.connect(_use_hint)
 	actions.add_child(hint_button)
 	submit_button = _make_button("ثبت واژه", GOLD, BG)
 	submit_button.pressed.connect(_submit_word)
 	actions.add_child(submit_button)
 
-	next_button = _make_button("مرحله بعد", GREEN, BG)
-	next_button.pressed.connect(_next_level)
-	root_box.add_child(next_button)
+	var map_button := _make_button("بازگشت به نقشه مراحل", Color("#203e38"), CREAM)
+	map_button.pressed.connect(_show_map)
+	content_box.add_child(map_button)
+	_update_controls()
 
-	var footer := Label.new()
-	footer.text = "ALISHAMS GAME STUDIO"
-	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	footer.add_theme_font_size_override("font_size", 10)
-	footer.add_theme_color_override("font_color", MUTED)
-	root_box.add_child(footer)
-
-func _panel() -> PanelContainer:
+func _panel(border_color: Color = Color("#557b6d")) -> PanelContainer:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = PANEL
-	style.border_color = Color("#547c66")
+	style.border_color = border_color
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(16)
+	style.set_corner_radius_all(17)
 	style.content_margin_left = 12
 	style.content_margin_right = 12
 	style.content_margin_top = 10
@@ -184,19 +338,19 @@ func _panel() -> PanelContainer:
 	panel.add_theme_stylebox_override("panel", style)
 	return panel
 
-func _make_button(text_value: String, color: Color, text_color: Color) -> Button:
+func _make_button(label_text: String, color: Color, text_color: Color) -> Button:
 	var button := Button.new()
-	button.text = text_value
+	button.text = label_text
 	button.custom_minimum_size = Vector2(0, 48)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.add_theme_font_size_override("font_size", 16)
+	button.add_theme_font_size_override("font_size", 15)
 	button.add_theme_color_override("font_color", text_color)
 	button.add_theme_color_override("font_hover_color", text_color)
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = color
-	normal.set_corner_radius_all(12)
-	normal.content_margin_left = 10
-	normal.content_margin_right = 10
+	normal.set_corner_radius_all(13)
+	normal.content_margin_left = 9
+	normal.content_margin_right = 9
 	button.add_theme_stylebox_override("normal", normal)
 	var hover := normal.duplicate()
 	hover.bg_color = color.lightened(0.12)
@@ -206,54 +360,37 @@ func _make_button(text_value: String, color: Color, text_color: Color) -> Button
 	button.add_theme_stylebox_override("pressed", pressed)
 	return button
 
-func _render_level() -> void:
-	if levels.is_empty():
-		status_label.text = "داده مراحل بارگذاری نشد."
-		return
-	level_index = clampi(level_index, 0, levels.size() - 1)
-	var data: Dictionary = levels[level_index]
-	level_label.text = "مرحله %d" % int(data["id"])
-	subtitle_label.text = str(data.get("title", ""))
-	coin_label.text = "◆ %d" % coins
-	completed = _is_level_complete()
-	level_reward_claimed = completed
-	_render_board()
-	_render_letters()
-	_update_controls()
-	if completed:
-		status_label.text = "آفرین! این مرحله را کامل کردی."
-	else:
-		status_label.text = "حروف را انتخاب کن و واژه بساز."
-	_save()
-
 func _render_board() -> void:
 	for child in board_box.get_children():
 		child.queue_free()
-	var answers: Array = levels[level_index]["answers"]
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 8)
-	board_box.add_child(row)
-	for i in range(answers.size()):
-		var word := str(answers[i])
+	var data: Dictionary = levels[level_index]
+	var answers: Array = data.get("answers", [])
+	var words: Array = _words_for_current_level()
+	for word_value in answers:
+		var word := str(word_value)
 		var tile := PanelContainer.new()
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color("#315e4d") if solved.has(word) else Color("#12372f")
-		style.border_color = GOLD if solved.has(word) else Color("#537766")
+		style.bg_color = Color("#285b49") if words.has(word) else Color("#102e29")
+		style.border_color = GOLD if words.has(word) else Color("#41685a")
 		style.set_border_width_all(1)
-		style.set_corner_radius_all(10)
-		style.content_margin_left = 9
-		style.content_margin_right = 9
+		style.set_corner_radius_all(11)
+		style.content_margin_left = 5
+		style.content_margin_right = 5
 		style.content_margin_top = 9
 		style.content_margin_bottom = 9
 		tile.add_theme_stylebox_override("panel", style)
 		var label := Label.new()
-		label.text = word if solved.has(word) else "·".repeat(word.length())
+		label.text = word if words.has(word) else "•  " + "ـ".repeat(max(2, word.length())) + "  •"
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.add_theme_font_size_override("font_size", 19)
-		label.add_theme_color_override("font_color", CREAM if solved.has(word) else MUTED)
+		label.add_theme_font_size_override("font_size", 17)
+		label.add_theme_color_override("font_color", CREAM if words.has(word) else MUTED)
 		tile.add_child(label)
-		row.add_child(tile)
+		board_box.add_child(tile)
+		if words.has(word):
+			tile.scale = Vector2(0.92, 0.92)
+			tile.pivot_offset = tile.size / 2.0
+			var tween := create_tween()
+			tween.tween_property(tile, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _render_letters() -> void:
 	for child in letters_grid.get_children():
@@ -261,36 +398,111 @@ func _render_letters() -> void:
 	letter_buttons.clear()
 	selected_indices.clear()
 	selected_word = ""
-	_update_selection_label()
-	var letters: Array = levels[level_index]["letters"]
-	letters_grid.columns = mini(5, letters.size())
+	var letters: Array = levels[level_index].get("letters", [])
+	letters_grid.columns = 4 if letters.size() > 4 else max(2, letters.size())
 	for i in range(letters.size()):
-		var button := _make_button(str(letters[i]), PANEL_LIGHT, CREAM)
-		button.custom_minimum_size = Vector2(0, 62)
+		var button := _make_button(str(letters[i]), PANEL_ALT, CREAM)
+		button.custom_minimum_size = Vector2(0, 64)
 		button.add_theme_font_size_override("font_size", 27)
-		button.pressed.connect(_on_letter_pressed.bind(i))
+		button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.pivot_offset = Vector2(40, 32)
 		letters_grid.add_child(button)
 		letter_buttons.append(button)
+	_update_selection_label()
 
-func _on_letter_pressed(index: int) -> void:
-	if completed or selected_indices.has(index):
+func _words_for_current_level() -> Array:
+	var key := str(int(levels[level_index].get("id", level_index + 1)))
+	var value = level_solved.get(key, [])
+	return value if value is Array else []
+
+func _letter_at(point: Vector2) -> int:
+	for i in range(letter_buttons.size()):
+		var button := letter_buttons[i]
+		if is_instance_valid(button) and button.get_global_rect().has_point(point):
+			return i
+	return -1
+
+func _begin_trace(point: Vector2, pointer_id: int = -1) -> void:
+	var index := _letter_at(point)
+	if index < 0:
 		return
-	var letters: Array = levels[level_index]["letters"]
+	is_dragging = true
+	active_pointer = pointer_id
+	trace_line.clear_points()
+	trace_line.visible = true
+	_add_trace_letter(index)
+	trace_line.add_point(point)
+
+func _continue_trace(point: Vector2) -> void:
+	if not is_dragging:
+		return
+	var index := _letter_at(point)
+	if index >= 0 and (selected_indices.is_empty() or selected_indices[-1] != index):
+		_add_trace_letter(index)
+	trace_line.clear_points()
+	for selected_index in selected_indices:
+		var rect := letter_buttons[selected_index].get_global_rect()
+		trace_line.add_point(rect.get_center())
+	trace_line.add_point(point)
+
+func _add_trace_letter(index: int) -> void:
+	if index < 0 or index >= letter_buttons.size() or selected_indices.has(index):
+		return
 	selected_indices.append(index)
+	var letters: Array = levels[level_index].get("letters", [])
 	selected_word += str(letters[index])
-	letter_buttons[index].disabled = true
-	letter_buttons[index].modulate = Color("#82958a")
+	var button := letter_buttons[index]
+	button.modulate = GOLD
+	var tween := create_tween()
+	tween.tween_property(button, "scale", Vector2(1.12, 1.12), 0.08)
+	tween.tween_property(button, "scale", Vector2.ONE, 0.10)
 	_update_selection_label()
 	_update_controls()
 
+func _finish_trace() -> void:
+	if not is_dragging:
+		return
+	is_dragging = false
+	active_pointer = -1
+	trace_line.visible = false
+	trace_line.clear_points()
+	if not selected_word.is_empty():
+		_submit_word()
+
+func _input(event: InputEvent) -> void:
+	if letters_grid == null or not is_instance_valid(letters_grid):
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_begin_trace(event.position)
+		else:
+			_finish_trace()
+	elif event is InputEventMouseMotion and is_dragging:
+		if event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+			_continue_trace(event.position)
+	elif event is InputEventScreenTouch:
+		if event.pressed:
+			_begin_trace(event.position, event.index)
+		elif is_dragging and (active_pointer == -1 or active_pointer == event.index):
+			_finish_trace()
+	elif event is InputEventScreenDrag and is_dragging:
+		if active_pointer == -1 or active_pointer == event.index:
+			_continue_trace(event.position)
+
 func _update_selection_label() -> void:
-	selection_label.text = selected_word if not selected_word.is_empty() else "حروف انتخاب‌شده"
+	if selection_label == null or not is_instance_valid(selection_label):
+		return
+	selection_label.text = selected_word if not selected_word.is_empty() else "حروف را با کشیدن انگشت به هم وصل کن"
 
 func _clear_selection() -> void:
+	is_dragging = false
+	active_pointer = -1
+	trace_line.visible = false
+	trace_line.clear_points()
 	for index in selected_indices:
 		if index < letter_buttons.size():
-			letter_buttons[index].disabled = false
 			letter_buttons[index].modulate = Color.WHITE
+			letter_buttons[index].scale = Vector2.ONE
 	selected_indices.clear()
 	selected_word = ""
 	_update_selection_label()
@@ -302,81 +514,86 @@ func _normalize_word(value: String) -> String:
 	return result
 
 func _submit_word() -> void:
-	if selected_word.is_empty() or completed:
+	if selected_word.is_empty():
 		return
 	var candidate := _normalize_word(selected_word)
-	var answers: Array = levels[level_index]["answers"]
+	var answers: Array = levels[level_index].get("answers", [])
 	var matched := ""
 	for answer in answers:
 		if _normalize_word(str(answer)) == candidate:
 			matched = str(answer)
 			break
 	if matched.is_empty():
-		status_label.text = "این واژه در جدول این مرحله نیست. دوباره امتحان کن."
-		status_label.add_theme_color_override("font_color", RED)
-	elif solved.has(matched):
-		status_label.text = "این واژه را قبلاً پیدا کرده‌ای."
+		_set_status("این واژه در این مرحله نیست. دوباره تلاش کن.", RED)
+	elif _words_for_current_level().has(matched):
+		_set_status("این واژه را قبلاً پیدا کرده‌ای.", GOLD)
 	else:
-		solved.append(matched)
-		status_label.text = "درست بود! یک واژه دیگر پیدا کن."
-		status_label.add_theme_color_override("font_color", GREEN)
+		var key := str(int(levels[level_index].get("id", level_index + 1)))
+		var words := _words_for_current_level()
+		words.append(matched)
+		level_solved[key] = words
 		coins += 3
 		if _is_level_complete():
-			completed = true
-			coins += int(levels[level_index].get("reward", 25))
-			status_label.text = "مرحله کامل شد! پاداش سکه به حسابت اضافه شد."
+			var stage_id := int(levels[level_index].get("id", level_index + 1))
+			if not completed_levels.has(stage_id):
+				completed_levels.append(stage_id)
+				coins += int(levels[level_index].get("reward", 25))
+			_set_status("مرحله کامل شد! پاداش سکه گرفتی.", GREEN)
+		else:
+			_set_status("آفرین! یک واژه دیگر پیدا کردی.", GREEN)
 		_render_board()
 		_save()
-	_update_controls()
 	_clear_selection()
+	_update_controls()
+
+func _set_status(message: String, color: Color) -> void:
+	if status_label != null and is_instance_valid(status_label):
+		status_label.text = message
+		status_label.add_theme_color_override("font_color", color)
 
 func _is_level_complete() -> bool:
 	if levels.is_empty():
 		return false
-	for answer in levels[level_index]["answers"]:
-		if not solved.has(str(answer)):
+	var answers: Array = levels[level_index].get("answers", [])
+	var words := _words_for_current_level()
+	for answer in answers:
+		if not words.has(str(answer)):
 			return false
 	return true
 
 func _use_hint() -> void:
-	if completed:
-		return
 	if coins < 20:
-		status_label.text = "سکه کافی نداری. با حل واژه‌ها سکه جمع کن."
-		status_label.add_theme_color_override("font_color", RED)
+		_set_status("سکه کافی نداری. با حل واژه‌ها سکه جمع کن.", RED)
 		return
 	var target := ""
-	for answer in levels[level_index]["answers"]:
-		if not solved.has(str(answer)):
+	for answer in levels[level_index].get("answers", []):
+		if not _words_for_current_level().has(str(answer)):
 			target = str(answer)
 			break
 	if target.is_empty():
 		return
 	coins -= 20
-	solved.append(target)
-	status_label.text = "راهنما یک واژه را آشکار کرد: " + target
-	status_label.add_theme_color_override("font_color", GOLD)
+	var key := str(int(levels[level_index].get("id", level_index + 1)))
+	var words := _words_for_current_level()
+	words.append(target)
+	level_solved[key] = words
 	if _is_level_complete():
-		completed = true
-		coins += int(levels[level_index].get("reward", 25))
-		status_label.text += "  مرحله کامل شد!"
+		var stage_id := int(levels[level_index].get("id", level_index + 1))
+		if not completed_levels.has(stage_id):
+			completed_levels.append(stage_id)
+			coins += int(levels[level_index].get("reward", 25))
+	_set_status("راهنما واژه «%s» را آشکار کرد." % target, GOLD)
 	_render_board()
-	_update_controls()
 	_save()
+	_update_controls()
 
 func _update_controls() -> void:
-	coin_label.text = "◆ %d" % coins
-	hint_button.disabled = completed or coins < 20
-	submit_button.disabled = completed or selected_word.is_empty()
-	next_button.visible = completed
-	next_button.disabled = level_index >= levels.size() - 1
-
-func _next_level() -> void:
-	if not completed or level_index >= levels.size() - 1:
-		return
-	level_index += 1
-	solved.clear()
-	_render_level()
+	if coin_label != null and is_instance_valid(coin_label):
+		coin_label.text = "◆ %d" % coins
+	if hint_button != null and is_instance_valid(hint_button):
+		hint_button.disabled = _is_level_complete() or coins < 20
+	if submit_button != null and is_instance_valid(submit_button):
+		submit_button.disabled = _is_level_complete() or selected_word.is_empty()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
