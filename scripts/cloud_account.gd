@@ -121,7 +121,11 @@ func restore_session() -> bool:
 		"refresh_token": refresh_token
 	})
 	if not result.ok:
-		_clear_auth()
+		# Keep credentials on transient network failures; clear only rejected refresh credentials.
+		var status := int(result.get("status", 0))
+		var message := str(result.get("error", "")).to_lower()
+		if status in [400, 401, 403] and (message.contains("refresh") or message.contains("token") or message.contains("invalid")):
+			_clear_auth()
 		return false
 	_accept_session(result.data)
 	return is_authenticated()
@@ -185,6 +189,12 @@ func update_profile_name(new_name: String) -> Dictionary:
 	var result: Dictionary = await api("update_profile", {"display_name": new_name.strip_edges()})
 	if result.get("ok", false):
 		display_name = new_name.strip_edges()
+	return result
+
+func delete_account() -> Dictionary:
+	var result: Dictionary = await api("delete_account", {"confirm": true})
+	if result.get("ok", false):
+		_clear_auth()
 	return result
 
 func daily_checkin() -> Dictionary:
