@@ -35,7 +35,7 @@ var level_label: Label
 var subtitle_label: Label
 var board_box: GridContainer
 var selection_label: Label
-var letters_grid: GridContainer
+var letters_grid: Control
 var status_label: Label
 var hint_button: Button
 var submit_button: Button
@@ -47,6 +47,9 @@ var auth_name_input: LineEdit
 var auth_status_label: Label
 var session_timer: Timer
 var exit_button: Button
+var stage_scroll: ScrollContainer
+var stage_touch_active := false
+var stage_touch_y := 0.0
 
 func _ready() -> void:
 	_load_levels()
@@ -256,9 +259,11 @@ func _build_base() -> void:
 	trace_line.antialiased = true
 	trace_line.visible = false
 	add_child(trace_line)
-	coin_label.text = "◆ %d" % coins
+	coin_label.text = "%d" % coins
 
 func _clear_content() -> void:
+	stage_scroll = null
+	stage_touch_active = false
 	is_dragging = false
 	active_pointer = -1
 	trace_line.clear_points()
@@ -329,13 +334,14 @@ func _show_auth(message: String = "") -> void:
 
 func _show_guest_warning() -> void:
 	var warning := ConfirmationDialog.new()
-	warning.title = "ورود به‌صورت مهمان"
-	warning.dialog_text = "در حالت مهمان، پیشرفت، سکه‌ها و زمان بازی در حساب کاربری alishams.ir ثبت یا همگام‌سازی نمی‌شوند. اطلاعات فقط روی همین دستگاه ذخیره می‌شود و با حذف داده‌های بازی ممکن است از بین برود. برای ثبت دائمی پیشرفت، با حساب کاربری وارد شو."
+	warning.title = "ورود مهمان"
+	warning.dialog_text = "پیشرفت و سکه‌ها فقط روی همین دستگاه ذخیره می‌شوند و با حذف داده‌های بازی ممکن است از بین بروند. برای نگهداری دائمی، با حساب alishams.ir وارد شو."
 	warning.ok_button_text = "ادامه به‌عنوان مهمان"
 	warning.cancel_button_text = "بازگشت"
 	warning.confirmed.connect(_enter_guest)
 	add_child(warning)
-	warning.popup_centered(Vector2i(420, 260))
+	warning.min_size = Vector2i(320, 220)
+	warning.popup_centered(Vector2i(320, 220))
 
 func _on_login_pressed() -> void:
 	if auth_email_input.text.strip_edges().is_empty() or auth_password_input.text.is_empty():
@@ -420,9 +426,12 @@ func _show_map() -> void:
 		return
 
 	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	content_box.add_child(scroll)
+	stage_scroll = scroll
+	stage_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stage_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	stage_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	stage_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	content_box.add_child(stage_scroll)
 	var stage_list := VBoxContainer.new()
 	stage_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage_list.add_theme_constant_override("separation", 10)
@@ -435,10 +444,10 @@ func _show_map() -> void:
 		var is_open := i == 0 or completed_levels.has(int(levels[i - 1].get("id", i)))
 		var is_current := i == cloud_current_level - 1
 		var stage_button := Button.new()
-		stage_button.custom_minimum_size = Vector2(220, 76)
-		stage_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		stage_button.custom_minimum_size = Vector2(0, 76)
+		stage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		stage_button.alignment = HORIZONTAL_ALIGNMENT_FILL
-		stage_button.text = ("✓   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_done else (("◈   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_open else ("🔒   مرحله %02d     قفل است" % stage_id))
+		stage_button.text = ("✓   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_done else (("◆   مرحله %02d     %s" % [stage_id, str(data.get("title", ""))]) if is_open else ("قفل   ·   مرحله %02d" % stage_id))
 		stage_button.disabled = not is_open or is_done or not is_current
 		stage_button.add_theme_font_size_override("font_size", 17)
 		stage_button.add_theme_color_override("font_color", GOLD if is_done else (CREAM if is_open else MUTED))
@@ -522,8 +531,7 @@ func _show_game() -> void:
 	content_box.add_child(subtitle_label)
 
 	var board_panel := _panel()
-	board_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	board_panel.custom_minimum_size.y = 210
+	board_panel.custom_minimum_size.y = 175
 	content_box.add_child(board_panel)
 	board_box = GridContainer.new()
 	board_box.columns = 2
@@ -544,12 +552,11 @@ func _show_game() -> void:
 	selection_label.add_theme_color_override("font_color", GOLD)
 	selection_panel.add_child(selection_label)
 
-	letters_grid = GridContainer.new()
-	letters_grid.columns = 4
+	letters_grid = Control.new()
+	letters_grid.custom_minimum_size = Vector2(0, 260)
 	letters_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	letters_grid.add_theme_constant_override("h_separation", 9)
-	letters_grid.add_theme_constant_override("v_separation", 9)
 	content_box.add_child(letters_grid)
+	letters_grid.resized.connect(_layout_letters)
 	_render_letters()
 
 	status_label = Label.new()
@@ -698,16 +705,42 @@ func _render_letters() -> void:
 	selected_indices.clear()
 	selected_word = ""
 	var letters: Array = levels[level_index].get("letters", [])
-	letters_grid.columns = 4 if letters.size() > 4 else max(2, letters.size())
 	for i in range(letters.size()):
 		var button := _make_button(str(letters[i]), PANEL_ALT, CREAM)
-		button.custom_minimum_size = Vector2(0, 64)
-		button.add_theme_font_size_override("font_size", 27)
+		button.custom_minimum_size = Vector2(68, 68)
+		button.size = Vector2(68, 68)
+		button.add_theme_font_size_override("font_size", 28)
 		button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		button.pivot_offset = Vector2(40, 32)
+		button.pivot_offset = Vector2(34, 34)
+		var circle_style := StyleBoxFlat.new()
+		circle_style.bg_color = Color("#205247")
+		circle_style.border_color = Color("#d4b46f")
+		circle_style.set_border_width_all(2)
+		circle_style.set_corner_radius_all(34)
+		circle_style.shadow_color = Color(0, 0, 0, 0.28)
+		circle_style.shadow_size = 5
+		circle_style.shadow_offset = Vector2(0, 3)
+		button.add_theme_stylebox_override("normal", circle_style)
+		var hover_style := circle_style.duplicate()
+		hover_style.bg_color = Color("#2c6b5b")
+		button.add_theme_stylebox_override("hover", hover_style)
 		letters_grid.add_child(button)
 		letter_buttons.append(button)
+	call_deferred("_layout_letters")
 	_update_selection_label()
+
+func _layout_letters() -> void:
+	if letters_grid == null or not is_instance_valid(letters_grid) or letter_buttons.is_empty():
+		return
+	var center := letters_grid.size * 0.5
+	var radius := minf(letters_grid.size.x * 0.36, letters_grid.size.y * 0.37)
+	radius = maxf(70.0, radius)
+	var count := letter_buttons.size()
+	for i in range(count):
+		var angle := -PI * 0.5 + TAU * float(i) / float(count)
+		var target := center + Vector2(cos(angle), sin(angle)) * radius
+		var button := letter_buttons[i]
+		button.position = target - button.size * 0.5
 
 func _words_for_current_level() -> Array:
 	var key := str(int(levels[level_index].get("id", level_index + 1)))
@@ -782,6 +815,18 @@ func _finish_trace() -> void:
 		_submit_word()
 
 func _input(event: InputEvent) -> void:
+	if stage_scroll != null and is_instance_valid(stage_scroll) and stage_scroll.is_visible_in_tree():
+		if event is InputEventScreenTouch:
+			if event.pressed and stage_scroll.get_global_rect().has_point(event.position):
+				stage_touch_active = true
+				stage_touch_y = event.position.y
+			elif not event.pressed:
+				stage_touch_active = false
+		elif event is InputEventScreenDrag and stage_touch_active:
+			var delta_y := stage_touch_y - event.position.y
+			stage_scroll.scroll_vertical = clampi(stage_scroll.scroll_vertical + int(delta_y), 0, maxi(0, int(stage_scroll.get_v_scroll_bar().max_value)))
+			stage_touch_y = event.position.y
+			return
 	if letters_grid == null or not is_instance_valid(letters_grid):
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -955,7 +1000,7 @@ func _spawn_floating_text(message: String, color: Color) -> void:
 func _animate_coin_reward(amount: int) -> void:
 	if amount == 0:
 		return
-	var display_text := "+%d ◆" % amount if amount > 0 else "−%d ◆" % abs(amount)
+	var display_text := "+%d سکه" % amount if amount > 0 else "−%d سکه" % abs(amount)
 	var popup := Label.new()
 	popup.text = display_text
 	popup.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1014,7 +1059,7 @@ func _show_stage_complete(reward: int) -> void:
 	title.add_theme_color_override("font_color", GOLD)
 	body.add_child(title)
 	var reward_label := Label.new()
-	reward_label.text = "◆  +%d سکه پاداش" % reward
+	reward_label.text = "+%d سکه پاداش" % reward
 	reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	reward_label.add_theme_font_size_override("font_size", 21)
 	reward_label.add_theme_color_override("font_color", CREAM)
