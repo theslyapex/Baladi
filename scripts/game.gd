@@ -2306,6 +2306,10 @@ func _save_profile_name() -> void:
 		profile_status_label.add_theme_color_override("font_color", RED)
 		return
 	if guest_mode:
+		if new_name == display_name:
+			profile_status_label.text = "این نام از قبل روی پروفایل ثبت شده است."
+			profile_status_label.add_theme_color_override("font_color", MUTED)
+			return
 		if name_change_count >= 1:
 			if diamonds < 1:
 				profile_status_label.text = "برای تغییر دوباره نام، یک الماس لازم داری."
