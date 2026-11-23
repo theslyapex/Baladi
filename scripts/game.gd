@@ -274,6 +274,7 @@ func _load_save() -> void:
 		return
 	coins = int(cfg.get_value("player", "coins", 100))
 	diamonds = int(cfg.get_value("player", "diamonds", 0))
+	name_change_count = int(cfg.get_value("player", "name_change_count", 0))
 	sound_enabled = bool(cfg.get_value("player", "sound_enabled", true))
 	level_index = clampi(int(cfg.get_value("player", "level_index", 0)), 0, max(0, levels.size() - 1))
 	cloud_current_level = int(cfg.get_value("player", "current_level", level_index + 1))
@@ -308,6 +309,7 @@ func _save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("player", "coins", coins)
 	cfg.set_value("player", "diamonds", diamonds)
+	cfg.set_value("player", "name_change_count", name_change_count)
 	cfg.set_value("player", "sound_enabled", sound_enabled)
 	cfg.set_value("player", "level_index", level_index)
 	cfg.set_value("player", "level_solved", level_solved)
@@ -729,6 +731,21 @@ func _show_map() -> void:
 	greeting.add_theme_font_size_override("font_size", 16)
 	greeting.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(greeting)
+	var diamond_row := HBoxContainer.new()
+	diamond_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	diamond_row.add_theme_constant_override("separation", 7)
+	var diamond_icon := TextureRect.new()
+	diamond_icon.texture = load("res://assets/icons/diamond.svg")
+	diamond_icon.custom_minimum_size = Vector2(25, 25)
+	diamond_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	diamond_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	diamond_row.add_child(diamond_icon)
+	var diamond_label := Label.new()
+	diamond_label.text = "%d الماس" % diamonds
+	diamond_label.add_theme_color_override("font_color", TEAL)
+	diamond_label.add_theme_font_size_override("font_size", 15)
+	diamond_row.add_child(diamond_label)
+	content_box.add_child(diamond_row)
 	var guide_panel := _panel(Color("#287c68"))
 	guide_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content_box.add_child(guide_panel)
@@ -1100,7 +1117,8 @@ func _show_profile() -> void:
 	profile_name_input.custom_minimum_size.y = 50
 	_style_input(profile_name_input)
 	content_box.add_child(profile_name_input)
-	var save_name := _make_button("ذخیره نام پروفایل", Color("#287c68"), CREAM)
+	var rename_label := "ذخیره نام پروفایل · رایگان" if name_change_count == 0 else "تغییر نام · ۱ الماس"
+	var save_name := _make_button(rename_label, Color("#287c68"), CREAM)
 	save_name.pressed.connect(_save_profile_name)
 	content_box.add_child(save_name)
 
@@ -2280,9 +2298,16 @@ func _save_profile_name() -> void:
 		profile_status_label.add_theme_color_override("font_color", RED)
 		return
 	if guest_mode:
+		if name_change_count >= 1:
+			if diamonds < 1:
+				profile_status_label.text = "برای تغییر دوباره نام، یک الماس لازم داری."
+				profile_status_label.add_theme_color_override("font_color", RED)
+				return
+			diamonds -= 1
+		name_change_count += 1
 		display_name = new_name
 		_save()
-		profile_status_label.text = "نام پروفایل روی همین دستگاه ذخیره شد."
+		profile_status_label.text = "نام پروفایل ذخیره شد." if name_change_count == 1 else "نام تغییر کرد؛ یک الماس مصرف شد."
 		profile_status_label.add_theme_color_override("font_color", GREEN)
 		return
 	var result: Dictionary = await CloudAccount.update_profile_name(new_name)
@@ -2337,7 +2362,17 @@ func _chapter_background_path(level_number: int) -> String:
 		return "res://assets/backgrounds/chapter-caravanserai.svg"
 	if level_number <= 80:
 		return "res://assets/backgrounds/chapter-mountains.svg"
-	return "res://assets/backgrounds/chapter-palace.svg"
+	if level_number <= 100:
+		return "res://assets/backgrounds/chapter-palace.svg"
+	if level_number <= 120:
+		return "res://assets/backgrounds/chapter-dasht.svg"
+	if level_number <= 140:
+		return "res://assets/backgrounds/chapter-bandar.svg"
+	if level_number <= 160:
+		return "res://assets/backgrounds/chapter-jangal.svg"
+	if level_number <= 180:
+		return "res://assets/backgrounds/chapter-aseman.svg"
+	return "res://assets/backgrounds/chapter-ghale.svg"
 
 func _build_chapter_banner(level_number: int) -> Control:
 	var banner := Control.new()
