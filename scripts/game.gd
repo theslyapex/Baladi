@@ -2488,10 +2488,13 @@ func _show_hint_menu() -> void:
 	note.add_theme_font_size_override("font_size", 12)
 	note.add_theme_color_override("font_color", MUTED)
 	stack.add_child(note)
+	var reveal_cost := 60 if duel_mode else 20
+	var first_cost := 24 if duel_mode else 8
+	var highlight_cost := 36 if duel_mode else 12
 	var options := [
-		{"id": 0, "icon": "res://assets/icons/hint-word.svg", "title": "آشکار کردن یک واژه", "detail": "۲۰ سکه · پاسخ کامل ثبت می‌شود", "color": Color("#765a31")},
-		{"id": 1, "icon": "res://assets/icons/hint-first.svg", "title": "نمایش حرف اول", "detail": "۸ سکه · برای یک پاسخ حل‌نشده", "color": Color("#287c68")},
-		{"id": 3, "icon": "res://assets/icons/hint-highlight.svg", "title": "برجسته‌سازی یک حرف", "detail": "۱۲ سکه · روی صفحه حروف", "color": Color("#245448")}
+		{"id": 0, "icon": "res://assets/icons/hint-word.svg", "title": "آشکار کردن یک واژه", "detail": "%d سکه · پاسخ کامل ثبت می‌شود" % reveal_cost, "color": Color("#765a31")},
+		{"id": 1, "icon": "res://assets/icons/hint-first.svg", "title": "نمایش حرف اول", "detail": "%d سکه · برای یک پاسخ حل‌نشده" % first_cost, "color": Color("#287c68")},
+		{"id": 3, "icon": "res://assets/icons/hint-highlight.svg", "title": "برجسته‌سازی یک حرف", "detail": "%d سکه · روی صفحه حروف" % highlight_cost, "color": Color("#245448")}
 	]
 	for item in options:
 		var option_button := Button.new()
@@ -2719,7 +2722,7 @@ func _update_controls() -> void:
 	if coin_label != null and is_instance_valid(coin_label):
 		coin_label.text = "%d" % coins
 	if hint_button != null and is_instance_valid(hint_button):
-		hint_button.disabled = _is_level_complete() or coins < 5
+		hint_button.disabled = _is_level_complete() or coins < (24 if duel_mode else 5)
 	if submit_button != null and is_instance_valid(submit_button):
 		submit_button.disabled = _is_level_complete() or selected_word.is_empty()
 
