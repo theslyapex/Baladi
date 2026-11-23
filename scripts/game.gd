@@ -345,6 +345,16 @@ func _show_map() -> void:
 	progress.custom_minimum_size.y = 12
 	progress_box.add_child(progress)
 
+	if cloud_current_level > levels.size():
+		var finished := Label.new()
+		finished.text = "همه مراحل فعلی را با موفقیت به پایان رساندی!\nمراحل تازه به‌زودی اضافه می‌شوند."
+		finished.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		finished.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		finished.add_theme_font_size_override("font_size", 18)
+		finished.add_theme_color_override("font_color", GOLD)
+		content_box.add_child(finished)
+		return
+
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
