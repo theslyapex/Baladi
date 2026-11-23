@@ -21,6 +21,7 @@ var level_solved: Dictionary = {}
 var completed_levels: Array = []
 var bonus_word_set: Dictionary = {}
 var level_bonus_found: Dictionary = {}
+var hint_history: Dictionary = {}
 var guest_mode := false
 var sfx_player: AudioStreamPlayer
 var selected_indices: Array[int] = []
@@ -31,6 +32,8 @@ var active_pointer := -1
 var page_box: VBoxContainer
 var content_box: VBoxContainer
 var coin_label: Label
+var coin_panel: PanelContainer
+var coin_icon_control: TextureRect
 var level_label: Label
 var subtitle_label: Label
 var board_box: GridContainer
@@ -213,6 +216,9 @@ func _load_save() -> void:
 	var saved_bonus = cfg.get_value("player", "level_bonus_found", {})
 	if saved_bonus is Dictionary:
 		level_bonus_found = saved_bonus
+	var saved_hints = cfg.get_value("player", "hint_history", {})
+	if saved_hints is Dictionary:
+		hint_history = saved_hints
 	# Migrate saves from the first prototype.
 	if level_solved.is_empty():
 		var legacy = cfg.get_value("player", "solved", [])
@@ -227,6 +233,7 @@ func _save() -> void:
 	cfg.set_value("player", "completed_levels", completed_levels)
 	cfg.set_value("player", "current_level", cloud_current_level)
 	cfg.set_value("player", "level_bonus_found", level_bonus_found)
+	cfg.set_value("player", "hint_history", hint_history)
 	cfg.set_value("player", "display_name", display_name)
 	cfg.set_value("player", "daily_streak", daily_streak)
 	cfg.set_value("player", "last_checkin_date", last_checkin_date)
@@ -235,6 +242,7 @@ func _save() -> void:
 func _build_base() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layout_direction = Control.LAYOUT_DIRECTION_RTL
+	theme = preload("res://assets/theme/baladi_theme.tres")
 	var background := TextureRect.new()
 	background.texture = load("res://assets/backgrounds/ambient.svg")
 	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -277,19 +285,19 @@ func _build_base() -> void:
 	tagline.add_theme_color_override("font_color", MUTED)
 	brand_box.add_child(tagline)
 
-	var coin_panel := _panel(Color("#b98a35"))
-	coin_panel.custom_minimum_size = Vector2(112, 52)
+	coin_panel = _panel(Color("#b98a35"))
+	coin_panel.custom_minimum_size = Vector2(96, 46)
 	brand_row.add_child(coin_panel)
 	var coin_row := HBoxContainer.new()
 	coin_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	coin_row.add_theme_constant_override("separation", 6)
 	coin_panel.add_child(coin_row)
-	var coin_icon := TextureRect.new()
-	coin_icon.texture = load("res://assets/icons/coin.svg")
-	coin_icon.custom_minimum_size = Vector2(36, 36)
-	coin_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-	coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	coin_row.add_child(coin_icon)
+	coin_icon_control = TextureRect.new()
+	coin_icon_control.texture = load("res://assets/icons/coin.svg")
+	coin_icon_control.custom_minimum_size = Vector2(27, 27)
+	coin_icon_control.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	coin_icon_control.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	coin_row.add_child(coin_icon_control)
 	coin_label = Label.new()
 	coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	coin_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -364,7 +372,7 @@ func _show_auth(message: String = "") -> void:
 		exit_button.visible = false
 	if profile_button != null:
 		profile_button.visible = false
-	coin_label.text = "حساب"
+	coin_panel.visible = false
 	var heading := Label.new()
 	heading.text = "خوش آمدی!"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -427,15 +435,69 @@ func _show_auth(message: String = "") -> void:
 	content_box.add_child(auth_status_label)
 
 func _show_guest_warning() -> void:
-	var warning := ConfirmationDialog.new()
-	warning.title = "ورود مهمان"
-	warning.dialog_text = "پیشرفت و سکه‌ها فقط روی همین دستگاه ذخیره می‌شوند و با حذف داده‌های بازی ممکن است از بین بروند. برای نگهداری دائمی، با حساب alishams.ir وارد شو."
-	warning.ok_button_text = "ادامه به‌عنوان مهمان"
-	warning.cancel_button_text = "بازگشت"
-	warning.confirmed.connect(_enter_guest)
-	add_child(warning)
-	warning.min_size = Vector2i(320, 220)
-	warning.popup_centered(Vector2i(320, 220))
+	var overlay := ColorRect.new()
+	overlay.color = Color(0.015, 0.055, 0.048, 0.78)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.z_index = 180
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.offset_left = 18
+	center.offset_right = -18
+	overlay.add_child(center)
+
+	var card := _panel(GOLD)
+	card.custom_minimum_size = Vector2(300, 0)
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	center.add_child(card)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 13)
+	card.add_child(body)
+
+	var emblem := TextureRect.new()
+	emblem.texture = load("res://assets/icons/profile.svg")
+	emblem.custom_minimum_size = Vector2(52, 52)
+	emblem.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	emblem.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	emblem.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	body.add_child(emblem)
+
+	var title := Label.new()
+	title.text = "ورود به‌صورت مهمان"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 21)
+	title.add_theme_color_override("font_color", GOLD)
+	body.add_child(title)
+
+	var description := Label.new()
+	description.text = "پیشرفت و سکه‌ها فقط روی همین دستگاه ذخیره می‌شوند. با حذف داده‌های بازی ممکن است از بین بروند. برای نگهداری دائمی، با حساب alishams.ir وارد شو."
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	description.add_theme_font_size_override("font_size", 15)
+	description.add_theme_color_override("font_color", CREAM)
+	body.add_child(description)
+
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 8)
+	body.add_child(actions)
+	var back := _make_button("بازگشت", PANEL_ALT, CREAM)
+	back.pressed.connect(overlay.queue_free)
+	actions.add_child(back)
+	var proceed := _make_button("ادامه مهمان", Color("#287c68"), CREAM)
+	proceed.pressed.connect(func():
+		overlay.queue_free()
+		_enter_guest()
+	)
+	actions.add_child(proceed)
+
+	card.modulate.a = 0.0
+	card.scale = Vector2(0.94, 0.94)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(card, "modulate:a", 1.0, 0.18)
+	tween.tween_property(card, "scale", Vector2.ONE, 0.24).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _toggle_signup_mode() -> void:
 	auth_signup_mode = not auth_signup_mode
@@ -506,6 +568,7 @@ func _show_map() -> void:
 		exit_button.text = "خروج مهمان" if guest_mode else "خروج از حساب"
 	if profile_button != null:
 		profile_button.visible = true
+	coin_panel.visible = true
 	coin_label.text = "%d" % coins
 
 	var heading := Label.new()
@@ -794,6 +857,7 @@ func _show_game() -> void:
 		exit_button.text = "خروج مهمان" if guest_mode else "خروج از حساب"
 	if profile_button != null:
 		profile_button.visible = true
+	coin_panel.visible = true
 	if levels.is_empty():
 		var error_label := Label.new()
 		error_label.text = "داده مراحل بارگذاری نشد."
@@ -978,34 +1042,79 @@ func _make_button(label_text: String, color: Color, text_color: Color) -> Button
 func _render_board() -> void:
 	for child in board_box.get_children():
 		child.queue_free()
-	var data: Dictionary = levels[level_index]
-	var answers: Array = data.get("answers", [])
+	var answers: Array = levels[level_index].get("answers", [])
 	var words: Array = _words_for_current_level()
-	for word_value in answers:
-		var word := str(word_value)
-		var tile := PanelContainer.new()
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color("#285b49") if words.has(word) else Color("#102e29")
-		style.border_color = GOLD if words.has(word) else Color("#41685a")
-		style.set_border_width_all(1)
-		style.set_corner_radius_all(11)
-		style.content_margin_left = 5
-		style.content_margin_right = 5
-		style.content_margin_top = 9
-		style.content_margin_bottom = 9
-		tile.add_theme_stylebox_override("panel", style)
-		var label := Label.new()
-		label.text = word if words.has(word) else "•  " + "ـ".repeat(max(2, word.length())) + "  •"
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.add_theme_font_size_override("font_size", 17)
-		label.add_theme_color_override("font_color", CREAM if words.has(word) else MUTED)
-		tile.add_child(label)
-		board_box.add_child(tile)
-		if words.has(word):
-			tile.scale = Vector2(0.92, 0.92)
-			tile.pivot_offset = tile.size / 2.0
-			var tween := create_tween()
-			tween.tween_property(tile, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+	var journal := VBoxContainer.new()
+	journal.add_theme_constant_override("separation", 9)
+	board_box.add_child(journal)
+
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	journal.add_child(header)
+	var title := Label.new()
+	title.text = "دفتر واژه‌ها"
+	title.add_theme_font_size_override("font_size", 17)
+	title.add_theme_color_override("font_color", GOLD)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	var progress := Label.new()
+	progress.text = "%d از %d واژه" % [words.size(), answers.size()]
+	progress.add_theme_font_size_override("font_size", 13)
+	progress.add_theme_color_override("font_color", MUTED)
+	header.add_child(progress)
+
+	var progress_bar := ProgressBar.new()
+	progress_bar.min_value = 0
+	progress_bar.max_value = max(1, answers.size())
+	progress_bar.value = words.size()
+	progress_bar.show_percentage = false
+	progress_bar.custom_minimum_size.y = 7
+	journal.add_child(progress_bar)
+
+	if words.is_empty():
+		var empty_state := VBoxContainer.new()
+		empty_state.alignment = BoxContainer.ALIGNMENT_CENTER
+		empty_state.add_theme_constant_override("separation", 4)
+		journal.add_child(empty_state)
+		var mark := Label.new()
+		mark.text = "✦"
+		mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		mark.add_theme_font_size_override("font_size", 28)
+		mark.add_theme_color_override("font_color", GOLD)
+		empty_state.add_child(mark)
+		var empty_text := Label.new()
+		empty_text.text = "اولین واژه‌ات را کشف کن"
+		empty_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_text.add_theme_font_size_override("font_size", 14)
+		empty_text.add_theme_color_override("font_color", MUTED)
+		empty_state.add_child(empty_text)
+		return
+
+	var found_grid := GridContainer.new()
+	found_grid.columns = 2
+	found_grid.add_theme_constant_override("h_separation", 7)
+	found_grid.add_theme_constant_override("v_separation", 7)
+	journal.add_child(found_grid)
+	for word_value in words:
+		var chip := PanelContainer.new()
+		var chip_style := StyleBoxFlat.new()
+		chip_style.bg_color = Color("#245448")
+		chip_style.border_color = GOLD
+		chip_style.set_border_width_all(1)
+		chip_style.set_corner_radius_all(12)
+		chip_style.content_margin_left = 8
+		chip_style.content_margin_right = 8
+		chip_style.content_margin_top = 7
+		chip_style.content_margin_bottom = 7
+		chip.add_theme_stylebox_override("panel", chip_style)
+		var word_label := Label.new()
+		word_label.text = "✦  " + str(word_value)
+		word_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		word_label.add_theme_font_size_override("font_size", 17)
+		word_label.add_theme_color_override("font_color", CREAM)
+		chip.add_child(word_label)
+		found_grid.add_child(chip)
 
 func _render_letters() -> void:
 	for child in letters_grid.get_children():
@@ -1430,43 +1539,129 @@ func _is_level_complete() -> bool:
 func _show_hint_menu() -> void:
 	if hint_button == null or not is_instance_valid(hint_button):
 		return
-	var menu := PopupMenu.new()
-	menu.add_icon_item(load("res://assets/icons/hint-word.svg"), "آشکار کردن کامل واژه  ·  ۲۰ سکه", 0)
-	menu.add_icon_item(load("res://assets/icons/hint-first.svg"), "نمایش حرف اول  ·  ۸ سکه", 1)
-	menu.add_icon_item(load("res://assets/icons/hint-length.svg"), "نمایش تعداد حروف  ·  ۵ سکه", 2)
-	menu.add_icon_item(load("res://assets/icons/hint-highlight.svg"), "برجسته‌کردن یک حرف  ·  ۱۲ سکه", 3)
-	menu.id_pressed.connect(func(option: int):
-		menu.queue_free()
-		_on_hint_menu_selected(option)
-	)
-	add_child(menu)
-	var rect := hint_button.get_global_rect()
-	menu.popup(Rect2i(Vector2i(rect.position.x, rect.position.y - 150), Vector2i(1, 1)))
+	var overlay := ColorRect.new()
+	overlay.color = Color(0.01, 0.04, 0.035, 0.78)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.z_index = 180
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.offset_left = 18
+	center.offset_right = -18
+	overlay.add_child(center)
+	var card := _panel(GOLD)
+	card.custom_minimum_size = Vector2(300, 0)
+	center.add_child(card)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 10)
+	card.add_child(stack)
+	var heading := Label.new()
+	heading.text = "راهنمای ماجراجویی"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 21)
+	heading.add_theme_color_override("font_color", GOLD)
+	stack.add_child(heading)
+	var note := Label.new()
+	note.text = "راهنمایی را انتخاب کن؛ فقط در صورت امکان اجرا، سکه کم می‌شود."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.add_theme_font_size_override("font_size", 12)
+	note.add_theme_color_override("font_color", MUTED)
+	stack.add_child(note)
+	var options := [
+		{"id": 0, "icon": "res://assets/icons/hint-word.svg", "title": "آشکار کردن یک واژه", "detail": "۲۰ سکه · پاسخ کامل ثبت می‌شود", "color": Color("#765a31")},
+		{"id": 1, "icon": "res://assets/icons/hint-first.svg", "title": "نمایش حرف اول", "detail": "۸ سکه · برای یک پاسخ حل‌نشده", "color": Color("#287c68")},
+		{"id": 3, "icon": "res://assets/icons/hint-highlight.svg", "title": "برجسته‌سازی یک حرف", "detail": "۱۲ سکه · روی صفحه حروف", "color": Color("#245448")}
+	]
+	for item in options:
+		var option_button := Button.new()
+		option_button.custom_minimum_size.y = 64
+		option_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		option_button.alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		option_button.text = "%s   %s\n%s" % [str(item.title), str(item.detail), ""]
+		option_button.icon = load(str(item.icon))
+		option_button.expand_icon = false
+		option_button.add_theme_constant_override("icon_max_width", 34)
+		option_button.add_theme_font_size_override("font_size", 15)
+		option_button.add_theme_color_override("font_color", CREAM)
+		var option_style := StyleBoxFlat.new()
+		option_style.bg_color = item.color
+		option_style.set_corner_radius_all(13)
+		option_style.content_margin_left = 12
+		option_style.content_margin_right = 12
+		option_button.add_theme_stylebox_override("normal", option_style)
+		var option_hover := option_style.duplicate()
+		option_hover.bg_color = item.color.lightened(0.1)
+		option_button.add_theme_stylebox_override("hover", option_hover)
+		var option_id: int = int(item.id)
+		option_button.pressed.connect(func():
+			overlay.queue_free()
+			_on_hint_menu_selected(option_id)
+		)
+		stack.add_child(option_button)
+	var close := _make_button("بستن", PANEL_ALT, CREAM)
+	close.pressed.connect(overlay.queue_free)
+	stack.add_child(close)
 
 func _on_hint_menu_selected(option: int) -> void:
 	if option == 0:
 		await _use_hint()
 	elif option == 1:
 		await _use_hint_clue("first_letter")
-	elif option == 2:
-		await _use_hint_clue("word_length")
 	elif option == 3:
 		await _use_hint_clue("highlight_letter")
 
 func _use_hint_clue(hint_type: String) -> void:
-	var costs := {"first_letter": 8, "word_length": 5, "highlight_letter": 12}
-	var cost := int(costs.get(hint_type, 999))
+	var costs := {"first_letter": 8, "highlight_letter": 12}
+	var cost := int(costs.get(hint_type, 0))
+	if cost <= 0:
+		return
+	var stage_id := int(levels[level_index].get("id", level_index + 1))
+	var solved := _words_for_current_level()
+	var remaining: Array[String] = []
+	for answer in levels[level_index].get("answers", []):
+		var word := str(answer)
+		if not solved.has(word):
+			remaining.append(word)
+	if remaining.is_empty():
+		_set_status("همه واژه‌های این مرحله کشف شده‌اند.", GOLD)
+		return
+
+	var target := ""
+	var target_letter_index := -1
+	if hint_type == "first_letter":
+		var save_key := "first_letter_%d" % stage_id
+		var used_words: Array = hint_history.get(save_key, [])
+		for candidate in remaining:
+			if not used_words.has(candidate):
+				target = candidate
+				break
+		if target.is_empty():
+			_set_status("حرف اول همه پاسخ‌های باقی‌مانده را قبلاً دیده‌ای.", GOLD)
+			return
+	else:
+		var letters: Array = levels[level_index].get("letters", [])
+		var save_key := "highlight_%d" % stage_id
+		var used_indices: Array = hint_history.get(save_key, [])
+		for candidate in remaining:
+			for character in candidate:
+				for i in range(letters.size()):
+					if str(letters[i]) == str(character) and not used_indices.has(i):
+						target = candidate
+						target_letter_index = i
+						break
+				if target_letter_index >= 0:
+					break
+			if target_letter_index >= 0:
+				break
+		if target_letter_index < 0:
+			_set_status("همه حروف قابل استفاده قبلاً برجسته شده‌اند.", GOLD)
+			return
+
 	if coins < cost:
 		_set_status("برای این راهنما سکه کافی نداری.", RED)
 		return
-	var target := ""
-	for answer in levels[level_index].get("answers", []):
-		if not _words_for_current_level().has(str(answer)):
-			target = str(answer)
-			break
-	if target.is_empty():
-		return
-	var stage_id := int(levels[level_index].get("id", level_index + 1))
 	if guest_mode:
 		coins -= cost
 	else:
@@ -1475,23 +1670,27 @@ func _use_hint_clue(hint_type: String) -> void:
 			_set_status(str(result.get("error", "استفاده از راهنما انجام نشد.")), RED)
 			return
 		_apply_cloud_profile(result.get("profile", {}))
+
+	if hint_type == "first_letter":
+		var first_key := "first_letter_%d" % stage_id
+		var first_used: Array = hint_history.get(first_key, [])
+		first_used.append(target)
+		hint_history[first_key] = first_used
+		_set_status("حرف اول واژه‌ای که هنوز پیدا نکرده‌ای: «%s»" % target.substr(0, 1), GOLD)
+	else:
+		var highlight_key := "highlight_%d" % stage_id
+		var highlighted: Array = hint_history.get(highlight_key, [])
+		highlighted.append(target_letter_index)
+		hint_history[highlight_key] = highlighted
+		if target_letter_index >= 0 and target_letter_index < letter_buttons.size():
+			var button: Button = letter_buttons[target_letter_index]
+			button.modulate = Color("#ffe08a")
+			var pulse := create_tween()
+			pulse.tween_property(button, "scale", Vector2(1.28, 1.28), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			pulse.tween_property(button, "scale", Vector2.ONE, 0.24)
+			pulse.tween_property(button, "modulate", Color.WHITE, 0.35)
+		_set_status("این حرف در یکی از واژه‌های کشف‌نشده وجود دارد.", GOLD)
 	_animate_coin_reward(-cost)
-	match hint_type:
-		"first_letter":
-			_set_status("حرف اول یکی از پاسخ‌های باقی‌مانده «%s» است." % target.substr(0, 1), GOLD)
-		"word_length":
-			_set_status("یکی از پاسخ‌های باقی‌مانده %d حرف دارد." % target.length(), GOLD)
-		"highlight_letter":
-			var letters: Array = levels[level_index].get("letters", [])
-			for i in range(letters.size()):
-				if str(letters[i]) == target.substr(0, 1):
-					var button := letter_buttons[i]
-					button.modulate = GOLD
-					var pulse := create_tween()
-					pulse.tween_property(button, "scale", Vector2(1.24, 1.24), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-					pulse.tween_property(button, "scale", Vector2.ONE, 0.22)
-					break
-			_set_status("حرف طلایی‌شده در یکی از پاسخ‌های باقی‌مانده استفاده می‌شود.", GOLD)
 	_save()
 	_update_controls()
 
