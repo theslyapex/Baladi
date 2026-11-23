@@ -184,8 +184,12 @@ func _enter_guest() -> void:
 	_show_map()
 	_set_status("حالت مهمان فعال است؛ پیشرفت فقط روی همین دستگاه می‌ماند.", GOLD)
 
+func _tehran_date_string() -> String:
+	var tehran_time := Time.get_datetime_dict_from_unix_time(int(Time.get_unix_time_from_system()) + 12600)
+	return "%04d-%02d-%02d" % [tehran_time.year, tehran_time.month, tehran_time.day]
+
 func _guest_daily_checkin() -> void:
-	var today := Time.get_date_string_from_system()
+	var today := _tehran_date_string()
 	if last_checkin_date == today:
 		return
 	var consecutive := false
