@@ -20,7 +20,7 @@ android {
         minSdk = 24
         manifestPlaceholders["godotPluginName"] = pluginName
         manifestPlaceholders["godotPluginPackageName"] = pluginPackageName
-                buildConfigField("String", "GODOT_PLUGIN_NAME", "\"BaladiMediaPicker\"")
+        buildConfigField("String", "GODOT_PLUGIN_NAME", "\"BaladiMediaPicker\"")
         setProperty("archivesBaseName", pluginName)
     }
 
@@ -29,10 +29,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
