@@ -193,6 +193,18 @@ func use_hint_clue(hint_type: String, level: int) -> Dictionary:
 func record_word_found(word: String, level: int) -> Dictionary:
 	return await api("word_found", {"word": word, "level": level, "session_id": game_session_id})
 
+func unlock_global_chat() -> Dictionary:
+	return await api("unlock_global_chat")
+
+func get_global_chat_messages() -> Dictionary:
+	return await api("global_chat_list")
+
+func send_global_chat_message(message_body: String) -> Dictionary:
+	return await api("global_chat_send", {"body": message_body})
+
+func send_global_chat_sticker(sticker_id: String) -> Dictionary:
+	return await api("global_chat_send", {"sticker_id": sticker_id})
+
 func get_cosmetics_catalog() -> Dictionary:
 	return await api("cosmetics_catalog")
 
