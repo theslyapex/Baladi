@@ -3148,6 +3148,24 @@ func _show_stage_complete(reward: int) -> void:
 	reward_label.add_theme_color_override("font_color", CREAM)
 	reward_row.add_child(reward_label)
 	body.add_child(reward_row)
+	var completed_stage_id := int(levels[level_index].get("id", level_index + 1)) if not duel_mode else 0
+	if not duel_mode and completed_stage_id > 0 and completed_stage_id % 20 == 0:
+		var diamond_reward_row := HBoxContainer.new()
+		diamond_reward_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		diamond_reward_row.add_theme_constant_override("separation", 7)
+		var diamond_art := TextureRect.new()
+		diamond_art.texture = load("res://assets/icons/diamond.svg")
+		diamond_art.custom_minimum_size = Vector2(30, 30)
+		diamond_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+		diamond_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		diamond_reward_row.add_child(diamond_art)
+		var diamond_reward_label := Label.new()
+		diamond_reward_label.text = "+۱ الماس · پاداش تکمیل فصل"
+		diamond_reward_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		diamond_reward_label.add_theme_font_size_override("font_size", 17)
+		diamond_reward_label.add_theme_color_override("font_color", TEAL)
+		diamond_reward_row.add_child(diamond_reward_label)
+		body.add_child(diamond_reward_row)
 	var next_button := _make_button("رفتن به مرحله بعد", Color("#287c68"), CREAM)
 	next_button.disabled = cloud_current_level > levels.size()
 	next_button.pressed.connect(func():
