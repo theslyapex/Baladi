@@ -280,6 +280,51 @@ func equip_frame(frame_id: String) -> Dictionary:
 func set_avatar_path(avatar_path: String) -> Dictionary:
 	return await api("set_avatar_path", {"avatar_path": avatar_path})
 
+func avatar_public_url(avatar_path: String) -> String:
+	return SUPABASE_URL + "/storage/v1/object/public/baladi-avatars/" + avatar_path
+
+func upload_avatar(image: Image) -> Dictionary:
+	if not is_authenticated():
+		return {"ok": false, "error": "برای بارگذاری تصویر باید وارد حساب شوی."}
+	var bytes := image.save_jpg_to_buffer(0.9)
+	if bytes.is_empty():
+		return {"ok": false, "error": "تبدیل تصویر پروفایل ناموفق بود."}
+	var file_name := "avatar_%d_%d.jpg" % [int(Time.get_unix_time_from_system()), randi()]
+	var avatar_path := user_id + "/" + file_name
+	var request := HTTPRequest.new()
+	request.timeout = 30.0
+	add_child(request)
+	var headers := PackedStringArray([
+		"Authorization: Bearer " + access_token,
+		"apikey: " + SUPABASE_KEY,
+		"Content-Type: image/jpeg",
+		"x-upsert: false"
+	])
+	var request_error := request.request(
+		SUPABASE_URL + "/storage/v1/object/baladi-avatars/" + avatar_path,
+		headers,
+		HTTPClient.METHOD_POST,
+		bytes
+	)
+	if request_error != OK:
+		request.queue_free()
+		return {"ok": false, "error": "بارگذاری تصویر شروع نشد."}
+	var response: Array = await request.request_completed
+	request.queue_free()
+	var response_code := int(response[1])
+	if response_code < 200 or response_code >= 300:
+		var raw: PackedByteArray = response[3]
+		var parsed = JSON.parse_string(raw.get_string_from_utf8())
+		var message := "بارگذاری تصویر ناموفق بود."
+		if parsed is Dictionary:
+			message = str(parsed.get("message", parsed.get("error", message)))
+		return {"ok": false, "error": message, "status": response_code}
+	var saved: Dictionary = await set_avatar_path(avatar_path)
+	if not saved.get("ok", false):
+		return saved
+	saved["avatar_path"] = avatar_path
+	return saved
+
 func get_leaderboard() -> Dictionary:
 	return await api("leaderboard")
 
