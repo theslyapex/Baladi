@@ -55,6 +55,7 @@ var daily_streak := 0
 var last_checkin_date := ""
 var auth_signup_mode := false
 var auth_login_button: Button
+var auth_mode_toggle_button: Button
 var stage_scroll: ScrollContainer
 var stage_touch_active := false
 var stage_touch_y := 0.0
@@ -118,6 +119,7 @@ func _enter_game() -> void:
 		var daily_reward := int(checkin_result.get("reward", 0))
 		_save()
 		if daily_reward > 0:
+			_animate_coin_reward(daily_reward)
 			_spawn_floating_text("پاداش ۷ روز متوالی: +%d سکه" % daily_reward, GOLD)
 	if session_timer == null:
 		session_timer = Timer.new()
@@ -392,9 +394,9 @@ func _show_auth(message: String = "") -> void:
 	auth_login_button.pressed.connect(_on_login_pressed)
 	fields.add_child(auth_login_button)
 
-	var signup_button := _make_button("ساخت حساب جدید", Color("#a77a35"), Color("#172b25"))
-	signup_button.pressed.connect(_toggle_signup_mode)
-	fields.add_child(signup_button)
+	auth_mode_toggle_button = _make_button("ساخت حساب جدید", Color("#a77a35"), Color("#172b25"))
+	auth_mode_toggle_button.pressed.connect(_toggle_signup_mode)
+	fields.add_child(auth_mode_toggle_button)
 
 	var guest_button := _make_button("ورود مهمان", Color("#294c43"), GOLD)
 	guest_button.pressed.connect(_show_guest_warning)
@@ -422,6 +424,7 @@ func _toggle_signup_mode() -> void:
 	auth_signup_mode = not auth_signup_mode
 	auth_name_input.visible = auth_signup_mode
 	auth_login_button.text = "ثبت‌نام و ساخت حساب" if auth_signup_mode else "ورود به حساب"
+	auth_mode_toggle_button.text = "بازگشت به ورود" if auth_signup_mode else "ساخت حساب جدید"
 	auth_status_label.text = "نام نمایشی را هم وارد کن." if auth_signup_mode else "ایمیل و رمز عبور حساب را وارد کن."
 	auth_status_label.add_theme_color_override("font_color", MUTED)
 
@@ -492,6 +495,12 @@ func _show_map() -> void:
 	heading.add_theme_font_size_override("font_size", 27)
 	heading.add_theme_color_override("font_color", CREAM)
 	content_box.add_child(heading)
+	var greeting := Label.new()
+	greeting.text = "سلام، %s! آماده‌ای؟" % display_name
+	greeting.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	greeting.add_theme_font_size_override("font_size", 16)
+	greeting.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(greeting)
 
 	var completed_count := completed_levels.size()
 	var progress_panel := _panel()
@@ -609,6 +618,7 @@ func _show_profile() -> void:
 	profile_name_input.text = display_name
 	profile_name_input.placeholder_text = "نامی که در بازی نمایش داده می‌شود"
 	profile_name_input.custom_minimum_size.y = 48
+	_style_input(profile_name_input)
 	identity_box.add_child(profile_name_input)
 	var save_name := _make_button("ذخیره نام پروفایل", Color("#287c68"), CREAM)
 	save_name.pressed.connect(_save_profile_name)
@@ -642,6 +652,12 @@ func _show_profile() -> void:
 	var back := _make_button("بازگشت به نقشه مراحل", Color("#294c43"), CREAM)
 	back.pressed.connect(_show_map)
 	content_box.add_child(back)
+	var attribution := Label.new()
+	attribution.text = "آیکون سکه: Icons8 · icons8.com"
+	attribution.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	attribution.add_theme_font_size_override("font_size", 11)
+	attribution.add_theme_color_override("font_color", MUTED)
+	content_box.add_child(attribution)
 
 func _save_profile_name() -> void:
 	var new_name := profile_name_input.text.strip_edges()
@@ -1209,21 +1225,29 @@ func _animate_coin_reward(amount: int) -> void:
 	if amount == 0:
 		return
 	var display_text := "+%d سکه" % amount if amount > 0 else "−%d سکه" % abs(amount)
-	var popup := Label.new()
-	popup.text = display_text
-	popup.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	popup.add_theme_font_size_override("font_size", 23)
-	popup.add_theme_color_override("font_color", GOLD if amount > 0 else RED)
-	popup.add_theme_color_override("font_shadow_color", Color("#071613"))
-	popup.add_theme_constant_override("shadow_offset_x", 2)
-	popup.add_theme_constant_override("shadow_offset_y", 2)
-	popup.size = Vector2(110, 42)
+	var popup := HBoxContainer.new()
+	popup.alignment = BoxContainer.ALIGNMENT_CENTER
+	popup.add_theme_constant_override("separation", 6)
+	popup.custom_minimum_size = Vector2(150, 42)
+	popup.size = Vector2(150, 42)
 	popup.z_index = 230
+	var popup_icon := TextureRect.new()
+	popup_icon.texture = load("res://assets/icons/coin.png")
+	popup_icon.custom_minimum_size = Vector2(30, 30)
+	popup_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	popup_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	popup.add_child(popup_icon)
+	var popup_label := Label.new()
+	popup_label.text = display_text
+	popup_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	popup_label.add_theme_font_size_override("font_size", 20)
+	popup_label.add_theme_color_override("font_color", GOLD if amount > 0 else RED)
+	popup.add_child(popup_label)
 	add_child(popup)
-	var center_position := Vector2(size.x * 0.5 - 55, size.y * 0.56)
+	var center_position := Vector2(size.x * 0.5 - 75, size.y * 0.56)
 	var coin_position := center_position
 	if coin_label != null and is_instance_valid(coin_label):
-		coin_position = coin_label.get_global_rect().get_center() - Vector2(55, 21)
+		coin_position = coin_label.get_global_rect().get_center() - Vector2(75, 21)
 	popup.position = center_position if amount > 0 else coin_position
 	popup.scale = Vector2(0.72, 0.72)
 	if coin_label != null and is_instance_valid(coin_label):
@@ -1266,12 +1290,22 @@ func _show_stage_complete(reward: int) -> void:
 	title.add_theme_font_size_override("font_size", 23)
 	title.add_theme_color_override("font_color", GOLD)
 	body.add_child(title)
+	var reward_row := HBoxContainer.new()
+	reward_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	reward_row.add_theme_constant_override("separation", 8)
+	var reward_icon := TextureRect.new()
+	reward_icon.texture = load("res://assets/icons/coin.png")
+	reward_icon.custom_minimum_size = Vector2(32, 32)
+	reward_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	reward_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	reward_row.add_child(reward_icon)
 	var reward_label := Label.new()
 	reward_label.text = "+%d سکه پاداش" % reward
-	reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reward_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	reward_label.add_theme_font_size_override("font_size", 21)
 	reward_label.add_theme_color_override("font_color", CREAM)
-	body.add_child(reward_label)
+	reward_row.add_child(reward_label)
+	body.add_child(reward_row)
 	var next_button := _make_button("رفتن به مرحله بعد", Color("#287c68"), CREAM)
 	next_button.disabled = cloud_current_level > levels.size()
 	next_button.pressed.connect(func():
