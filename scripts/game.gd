@@ -737,7 +737,6 @@ func _use_hint() -> void:
 	words.append(target)
 	level_solved[key] = words
 	if _is_level_complete():
-		var stage_id := int(levels[level_index].get("id", level_index + 1))
 		var completion: Dictionary = await CloudAccount.complete_level(stage_id)
 		if completion.get("ok", false):
 			_apply_cloud_profile(completion.get("profile", {}))
