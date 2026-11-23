@@ -77,6 +77,8 @@ var duel_round_number := 1
 var duel_answer_count := 0
 var duel_current_letters: Array = []
 var duel_found_words: Array = []
+var duel_poll_timer: Timer
+var duel_poll_busy := false
 var auth_signup_mode := false
 var auth_login_button: Button
 var auth_mode_toggle_button: Button
@@ -608,6 +610,8 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 	_update_controls()
 
 func _show_map() -> void:
+	if duel_poll_timer != null:
+		duel_poll_timer.stop()
 	duel_mode = false
 	duel_match_id = ""
 	_clear_content()
@@ -878,6 +882,12 @@ func _show_duel_game(match_id: String) -> void:
 	await _refresh_duel_round()
 	if duel_mode:
 		_show_game()
+		if duel_poll_timer == null:
+			duel_poll_timer = Timer.new()
+			duel_poll_timer.wait_time = 2.5
+			duel_poll_timer.timeout.connect(_poll_duel_status)
+			add_child(duel_poll_timer)
+		duel_poll_timer.start()
 
 func _refresh_duel_round() -> void:
 	var result: Dictionary = await CloudAccount.get_duel_state(duel_match_id)
@@ -887,6 +897,7 @@ func _refresh_duel_round() -> void:
 		_show_map()
 		return
 	var state: Dictionary = result.get("state", {})
+	_apply_cloud_profile(result.get("profile", {}))
 	if str(state.get("status", "")) == "completed":
 		_show_duel_result(str(state.get("winner_id", "")), int(state.get("elapsed_ms", 0)))
 		return
@@ -903,7 +914,21 @@ func _refresh_duel_round() -> void:
 	if letters_grid != null and is_instance_valid(letters_grid):
 		_render_letters()
 
+func _poll_duel_status() -> void:
+	if not duel_mode or duel_poll_busy or duel_match_id.is_empty():
+		return
+	duel_poll_busy = true
+	var result: Dictionary = await CloudAccount.get_duel_state(duel_match_id)
+	if result.get("ok", false):
+		_apply_cloud_profile(result.get("profile", {}))
+		var state: Dictionary = result.get("state", {})
+		if str(state.get("status", "")) == "completed":
+			_show_duel_result(str(state.get("winner_id", "")), int(state.get("winner_elapsed_ms", 0)))
+	duel_poll_busy = false
+
 func _show_duel_result(winner_id: String, elapsed_ms: int) -> void:
+	if duel_poll_timer != null:
+		duel_poll_timer.stop()
 	duel_mode = false
 	_clear_content()
 	var won := winner_id == CloudAccount.user_id
@@ -920,7 +945,7 @@ func _show_duel_result(winner_id: String, elapsed_ms: int) -> void:
 	detail.add_theme_color_override("font_color", CREAM)
 	content_box.add_child(detail)
 	var record := Label.new()
-	record.text = "نتیجه در پروفایل ثبت شد: ۱۰ برد / ۱ باخت به‌ازای هر مسابقه"
+	record.text = "تعداد بردها: %d  ·  تعداد باخت‌ها: %d" % [wins, losses]
 	record.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	record.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	record.add_theme_color_override("font_color", MUTED)
@@ -2067,7 +2092,7 @@ func _clear_selection() -> void:
 	trace_line.visible = false
 	trace_line.clear_points()
 	for index in selected_indices:
-		if index < letter_buttons.size():
+		if index < letter_buttons.size() and is_instance_valid(letter_buttons[index]):
 			letter_buttons[index].modulate = Color.WHITE
 			letter_buttons[index].scale = Vector2.ONE
 	selected_indices.clear()
@@ -2090,6 +2115,7 @@ func _submit_word() -> void:
 			_set_status(str(duel_result.get("error", "بررسی واژه در مسابقه انجام نشد.")), RED)
 		else:
 			var duel_data: Dictionary = duel_result.get("result", {})
+			_apply_cloud_profile(duel_result.get("profile", {}))
 			if not duel_data.get("correct", false):
 				_set_status("این واژه پاسخ این مرحله نیست.", RED)
 			elif duel_data.get("already_found", false):
@@ -2437,6 +2463,7 @@ func _use_hint_clue(hint_type: String) -> void:
 			_set_status(str(duel_hint.get("error", "راهنمای مسابقه انجام نشد.")), RED)
 			return
 		var hint_data: Dictionary = duel_hint.get("result", {})
+		_apply_cloud_profile(duel_hint.get("profile", {}))
 		var clue := str(hint_data.get("clue", ""))
 		_animate_coin_reward(-int(hint_data.get("cost", 0)))
 		if hint_type == "first_letter":
@@ -2557,6 +2584,7 @@ func _use_hint() -> void:
 			_set_status(str(duel_hint.get("error", "راهنمای مسابقه انجام نشد.")), RED)
 			return
 		var hint_data: Dictionary = duel_hint.get("result", {})
+		_apply_cloud_profile(duel_hint.get("profile", {}))
 		_animate_coin_reward(-int(hint_data.get("cost", 0)))
 		_set_status("یک واژه با راهنمای مسابقه آشکار شد.", GOLD)
 		if hint_data.get("result", {}).get("match_complete", false):
