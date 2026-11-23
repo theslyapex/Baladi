@@ -6,6 +6,14 @@ on:
     branches: [main]
     paths:
       - '**.gd'
+      - '**.kt'
+      - '**.kts'
+      - '**.xml'
+      - '**.gradle'
+      - 'gradle.properties'
+      - 'settings.gradle.kts'
+      - 'plugin/**'
+      - 'addons/**'
       - '**.tscn'
       - '**.godot'
       - '**.json'
@@ -33,6 +41,18 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Build Baladi media picker Android plugin
+        run: |
+          gradle --no-daemon :plugin:assembleDebug :plugin:assembleRelease
+          mkdir -p addons/baladi_media_picker/bin/debug addons/baladi_media_picker/bin/release
+          cp plugin/build/outputs/aar/BaladiMediaPicker-debug.aar addons/baladi_media_picker/bin/debug/
+          cp plugin/build/outputs/aar/BaladiMediaPicker-release.aar addons/baladi_media_picker/bin/release/
 
       - name: Verify Java toolchain
         run: |
@@ -100,6 +120,9 @@ jobs:
 
       - name: Import project
         run: godot --headless --editor --path . --quit
+
+      - name: Install Android Gradle build template
+        run: godot --headless --editor --path . --install-android-build-template --quit
 
       - name: Validate GDScript resources
         run: godot --headless --path . --script res://scripts/validate_game.gd
