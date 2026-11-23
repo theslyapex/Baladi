@@ -1,0 +1,7 @@
+Icons8 asset attribution
+
+Coin icon: Icons8, "Coins" (Fluency style)
+https://icons8.com/icon/aKxbRx329o3S/coins
+CDN asset: https://img.icons8.com/fluency/96/coins.png
+
+The icon is bundled in the Baladi Android application. Attribution is included in this file.
