@@ -52,6 +52,9 @@ jobs:
       - name: Import project
         run: godot --headless --editor --path . --quit
 
+      - name: Validate Persian level vocabulary
+        run: godot --headless --path . --script res://scripts/validate_levels.gd
+
       - name: Verify Android export environment
         run: |
           test -n "$JAVA_HOME"
