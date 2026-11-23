@@ -13,6 +13,9 @@ var user_email := ""
 var display_name := ""
 var expires_at := 0
 var game_session_id := ""
+signal refresh_completed
+var refresh_in_progress := false
+var last_refresh_result: Dictionary = {"ok": false, "error": "تمدید نشست انجام نشد."}
 
 func is_authenticated() -> bool:
 	return not access_token.is_empty() and not user_id.is_empty()
@@ -62,15 +65,59 @@ func _request_json(url: String, method: int, headers: PackedStringArray, payload
 	return {"ok": false, "error": "پاسخ سرور قابل خواندن نیست."}
 
 func _accept_session(data: Dictionary) -> void:
-	access_token = str(data.get("access_token", ""))
-	refresh_token = str(data.get("refresh_token", ""))
+	var next_access_token := str(data.get("access_token", ""))
+	if not next_access_token.is_empty():
+		access_token = next_access_token
+	var next_refresh_token := str(data.get("refresh_token", ""))
+	if not next_refresh_token.is_empty():
+		refresh_token = next_refresh_token
 	expires_at = int(data.get("expires_at", Time.get_unix_time_from_system() + int(data.get("expires_in", 3600))))
 	var user: Dictionary = data.get("user", {})
-	user_id = str(user.get("id", ""))
-	user_email = str(user.get("email", ""))
-	var metadata: Dictionary = user.get("user_metadata", {})
-	display_name = str(metadata.get("full_name", metadata.get("name", "")))
+	if not user.is_empty():
+		var next_user_id := str(user.get("id", ""))
+		if not next_user_id.is_empty():
+			user_id = next_user_id
+		var next_email := str(user.get("email", ""))
+		if not next_email.is_empty():
+			user_email = next_email
+		var metadata: Dictionary = user.get("user_metadata", {})
+		var next_display_name := str(metadata.get("full_name", metadata.get("name", "")))
+		if not next_display_name.is_empty():
+			display_name = next_display_name
 	_save_auth()
+
+func _refresh_saved_session() -> Dictionary:
+	if refresh_in_progress:
+		await refresh_completed
+		return last_refresh_result.duplicate(true)
+	if refresh_token.is_empty():
+		last_refresh_result = {"ok": false, "error": "نشست ذخیره‌شده‌ای برای بازیابی وجود ندارد."}
+		return last_refresh_result
+	refresh_in_progress = true
+	var token_used := refresh_token
+	var result: Dictionary = await _request_json(AUTH_PATH + "/token?grant_type=refresh_token", HTTPClient.METHOD_POST, _headers(), {
+		"refresh_token": token_used
+	})
+	if result.get("ok", false):
+		var session_data: Dictionary = result.data.duplicate(true)
+		# Keep the existing refresh credential if the provider omits it in a partial response.
+		if str(session_data.get("refresh_token", "")).is_empty():
+			session_data["refresh_token"] = token_used
+		_accept_session(session_data)
+		last_refresh_result = {"ok": is_authenticated()}
+		if not last_refresh_result.ok:
+			last_refresh_result["error"] = "پاسخ بازیابی نشست ناقص بود."
+	else:
+		var status := int(result.get("status", 0))
+		var message := str(result.get("error", "")).to_lower()
+		var explicit_invalid_refresh := message.contains("invalid refresh token") or message.contains("refresh token not found") or message.contains("refresh_token_not_found")
+		# A reused-token response can be caused by a concurrent refresh. Never erase credentials for it.
+		if status in [400, 401, 403] and explicit_invalid_refresh and not message.contains("already used"):
+			_clear_auth()
+		last_refresh_result = result.duplicate(true)
+	refresh_in_progress = false
+	refresh_completed.emit()
+	return last_refresh_result.duplicate(true)
 
 func _save_auth() -> void:
 	var cfg := ConfigFile.new()
@@ -123,38 +170,14 @@ func restore_session() -> bool:
 	refresh_token = str(cfg.get_value("auth", "refresh_token", ""))
 	if refresh_token.is_empty():
 		return false
-	var result := await _request_json(AUTH_PATH + "/token?grant_type=refresh_token", HTTPClient.METHOD_POST, _headers(), {
-		"refresh_token": refresh_token
-	})
-	if not result.ok:
-		# Keep credentials on transient network failures; clear only rejected refresh credentials.
-		var status := int(result.get("status", 0))
-		var message := str(result.get("error", "")).to_lower()
-		if status in [400, 401, 403] and (message.contains("refresh") or message.contains("token") or message.contains("invalid")):
-			_clear_auth()
-		return false
-	_accept_session(result.data)
-	return is_authenticated()
+	var result: Dictionary = await _refresh_saved_session()
+	return bool(result.get("ok", false)) and is_authenticated()
 
 func _refresh_if_needed() -> bool:
-	if access_token.is_empty():
-		return false
-	if expires_at > Time.get_unix_time_from_system() + 90:
-		return true
-	if refresh_token.is_empty():
-		return false
-	var result := await _request_json(AUTH_PATH + "/token?grant_type=refresh_token", HTTPClient.METHOD_POST, _headers(), {
-		"refresh_token": refresh_token
-	})
-	if not result.ok:
-		# Do not discard a valid refresh credential because of a temporary offline/5xx response.
-		var status := int(result.get("status", 0))
-		var message := str(result.get("error", "")).to_lower()
-		if status in [400, 401, 403] and (message.contains("refresh") or message.contains("token") or message.contains("invalid")):
-			_clear_auth()
-		return false
-	_accept_session(result.data)
-	return true
+	if not refresh_token.is_empty() and (access_token.is_empty() or expires_at <= Time.get_unix_time_from_system() + 90):
+		var result: Dictionary = await _refresh_saved_session()
+		return bool(result.get("ok", false)) and is_authenticated()
+	return is_authenticated()
 
 func api(action: String, extra: Dictionary = {}) -> Dictionary:
 	var session_valid: bool = await _refresh_if_needed()
