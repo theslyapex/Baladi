@@ -14,13 +14,13 @@ func _exit_tree() -> void:
 class AndroidExportPlugin extends EditorExportPlugin:
     const PLUGIN_NAME := "BaladiMediaPicker"
 
-    func _supports_platform(platform: EditorExportPlatform) -> bool:
+    func _supports_platform(platform):
         return platform is EditorExportPlatformAndroid
 
-    func _get_android_libraries(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
+    func _get_android_libraries(platform, debug):
         if debug:
             return PackedStringArray(["res://addons/baladi_media_picker/bin/debug/BaladiMediaPicker-debug.aar"])
         return PackedStringArray(["res://addons/baladi_media_picker/bin/release/BaladiMediaPicker-release.aar"])
 
-    func _get_name() -> String:
+    func _get_name():
         return PLUGIN_NAME
