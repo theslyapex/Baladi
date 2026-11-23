@@ -1866,11 +1866,18 @@ func _show_cosmetic_shop() -> void:
 	var owned_ids: Dictionary = {}
 	for owned in result.get("owned", []):
 		owned_ids[str(owned.get("cosmetic_id", ""))] = true
+	var shop_grid := GridContainer.new()
+	shop_grid.columns = 2
+	shop_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shop_grid.add_theme_constant_override("h_separation", 9)
+	shop_grid.add_theme_constant_override("v_separation", 9)
+	content_box.add_child(shop_grid)
 	for item in result.get("catalog", []):
 		var item_id := str(item.get("id", ""))
 		var item_kind := str(item.get("kind", ""))
 		var card := _panel(GOLD if item_kind == "avatar_unlock" else (Color("#b18a4d") if item_kind == "sticker" else TEAL))
-		content_box.add_child(card)
+		card.custom_minimum_size = Vector2(0, 190)
+		shop_grid.add_child(card)
 		var body := VBoxContainer.new()
 		body.add_theme_constant_override("separation", 6)
 		card.add_child(body)
@@ -1880,10 +1887,21 @@ func _show_cosmetic_shop() -> void:
 		title.add_theme_color_override("font_color", CREAM)
 		body.add_child(title)
 		var asset_path := str(item.get("asset_path", ""))
-		if not asset_path.is_empty() and (asset_path.begins_with("assets/frames/") or asset_path.begins_with("assets/stickers/")):
+		if item_kind == "frame":
+			var frame_preview := _build_avatar_widget("", item_id, 74)
+			body.add_child(frame_preview)
+		elif item_kind == "avatar_unlock":
+			var avatar_preview := TextureRect.new()
+			avatar_preview.texture = load("res://assets/icons/profile.svg")
+			avatar_preview.custom_minimum_size = Vector2(74, 74)
+			avatar_preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			avatar_preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+			avatar_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			body.add_child(avatar_preview)
+		elif not asset_path.is_empty() and asset_path.begins_with("assets/stickers/"):
 			var item_art := TextureRect.new()
 			item_art.texture = load("res://" + asset_path)
-			item_art.custom_minimum_size = Vector2(76, 76)
+			item_art.custom_minimum_size = Vector2(74, 74)
 			item_art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			item_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 			item_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
