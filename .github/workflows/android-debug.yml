@@ -9,6 +9,9 @@ on:
       - '**.tscn'
       - '**.godot'
       - '**.json'
+      - '**.tres'
+      - '**.svg'
+      - 'assets/**'
       - 'export_presets.cfg'
       - '.github/workflows/android-debug.yml'
 
@@ -25,12 +28,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Java and system dependencies
+      - name: Install Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Verify build utilities
         run: |
-          apt-get update
-          apt-get install -y --no-install-recommends openjdk-17-jdk-headless fontconfig unzip curl
-          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> "$GITHUB_ENV"
-          echo "/usr/lib/jvm/java-17-openjdk-amd64/bin" >> "$GITHUB_PATH"
+          command -v curl
+          command -v unzip
           java -version
           javac -version
 
