@@ -101,7 +101,7 @@ var startup_action_taken := false
 var current_page := "auth"
 var back_confirm: ConfirmationDialog
 var back_navigation := {
-	"profile": "map", "global_chat": "map", "groups": "map",
+	"profile": "map", "global_chat": "map", "groups": "map", "settings": "map", "privacy": "settings", "faq": "settings",
 	"group_chat": "groups", "sticker_picker": "global_chat",
 	"cosmetic_shop": "profile", "leaderboard": "map",
 	"duel_invites": "map", "duel_game": "duel_invites",
@@ -1050,6 +1050,10 @@ func _confirm_delete_game_account() -> void:
 				DirAccess.remove_absolute(save_file)
 			coins = 100
 			diamonds = 0
+			name_change_count = 0
+			level_index = 0
+			cloud_current_level = 1
+			display_name = "بازیکن"
 			completed_levels.clear()
 			level_solved.clear()
 			_show_auth("اطلاعات مهمان این دستگاه حذف شد.")
@@ -1059,6 +1063,10 @@ func _confirm_delete_game_account() -> void:
 				guest_mode = true
 				coins = 100
 				diamonds = 0
+				name_change_count = 0
+				level_index = 0
+				cloud_current_level = 1
+				display_name = "بازیکن"
 				completed_levels.clear()
 				level_solved.clear()
 				_show_auth("اطلاعات بازی حذف شد. برای شروع دوباره وارد شو.")
