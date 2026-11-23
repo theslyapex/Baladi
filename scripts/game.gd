@@ -1633,6 +1633,7 @@ func _show_avatar_crop() -> void:
 	crop_viewport.gui_input.connect(_on_avatar_crop_input)
 	var crop_backdrop := ColorRect.new()
 	crop_backdrop.color = Color("#102b25")
+	crop_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	crop_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	crop_viewport.add_child(crop_backdrop)
 	crop_texture_rect = TextureRect.new()
