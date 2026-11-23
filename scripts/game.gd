@@ -1195,7 +1195,7 @@ func _refresh_global_chat() -> void:
 				message_label.text = str(message.get("body", ""))
 				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				message_label.add_theme_color_override("font_color", CREAM)
-					body.add_child(message_label)
+				body.add_child(message_label)
 			if not active_group_chat_id.is_empty() and bool(message.get("is_pinned", false)):
 				var pinned_label := Label.new()
 				pinned_label.text = "پیام سنجاق‌شده"
