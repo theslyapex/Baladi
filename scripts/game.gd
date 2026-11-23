@@ -71,6 +71,12 @@ var active_group_chat_id := ""
 var active_group_chat_name := ""
 var group_name_input: LineEdit
 var group_description_input: LineEdit
+var duel_mode := false
+var duel_match_id := ""
+var duel_round_number := 1
+var duel_answer_count := 0
+var duel_current_letters: Array = []
+var duel_found_words: Array = []
 var auth_signup_mode := false
 var auth_login_button: Button
 var auth_mode_toggle_button: Button
@@ -602,6 +608,8 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 	_update_controls()
 
 func _show_map() -> void:
+	duel_mode = false
+	duel_match_id = ""
 	_clear_content()
 	if exit_button != null:
 		exit_button.visible = true
@@ -858,6 +866,73 @@ func _show_profile() -> void:
 	var back := _make_button("بازگشت به نقشه مراحل", Color("#294c43"), CREAM)
 	back.pressed.connect(_show_map)
 	content_box.add_child(back)
+
+func _current_letters() -> Array:
+	if duel_mode:
+		return duel_current_letters
+	return levels[level_index].get("letters", [])
+
+func _show_duel_game(match_id: String) -> void:
+	duel_mode = true
+	duel_match_id = match_id
+	await _refresh_duel_round()
+	if duel_mode:
+		_show_game()
+
+func _refresh_duel_round() -> void:
+	var result: Dictionary = await CloudAccount.get_duel_state(duel_match_id)
+	if not result.get("ok", false):
+		duel_mode = false
+		_set_status(str(result.get("error", "وضعیت مسابقه دریافت نشد.")), RED)
+		_show_map()
+		return
+	var state: Dictionary = result.get("state", {})
+	if str(state.get("status", "")) == "completed":
+		_show_duel_result(str(state.get("winner_id", "")), int(state.get("elapsed_ms", 0)))
+		return
+	duel_round_number = int(state.get("current_round", 1))
+	duel_current_letters = state.get("letters", [])
+	duel_answer_count = int(state.get("answer_count", 0))
+	duel_found_words = state.get("found_words", [])
+	if level_label != null and is_instance_valid(level_label):
+		level_label.text = "رقابت %02d از ۱۰" % duel_round_number
+	if subtitle_label != null and is_instance_valid(subtitle_label):
+		subtitle_label.text = "مرحله تصادفی · همه واژه‌ها را پیدا کن"
+	if board_box != null and is_instance_valid(board_box):
+		_render_board()
+	if letters_grid != null and is_instance_valid(letters_grid):
+		_render_letters()
+
+func _show_duel_result(winner_id: String, elapsed_ms: int) -> void:
+	duel_mode = false
+	_clear_content()
+	var won := winner_id == CloudAccount.user_id
+	var heading := Label.new()
+	heading.text = "پیروزی در رقابت!" if won else "این بار حریف برنده شد"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 27)
+	heading.add_theme_color_override("font_color", GOLD if won else RED)
+	content_box.add_child(heading)
+	var detail := Label.new()
+	detail.text = "زمان تو: %.1f ثانیه" % (float(elapsed_ms) / 1000.0)
+	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	detail.add_theme_font_size_override("font_size", 18)
+	detail.add_theme_color_override("font_color", CREAM)
+	content_box.add_child(detail)
+	var record := Label.new()
+	record.text = "نتیجه در پروفایل ثبت شد: ۱۰ برد / ۱ باخت به‌ازای هر مسابقه"
+	record.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	record.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	record.add_theme_color_override("font_color", MUTED)
+	content_box.add_child(record)
+	var back := _make_button("بازگشت به نقشه", Color("#287c68"), CREAM)
+	back.pressed.connect(_show_map)
+	content_box.add_child(back)
+
+func _leave_duel_to_map() -> void:
+	duel_mode = false
+	duel_match_id = ""
+	_show_map()
 
 func _show_global_chat() -> void:
 	active_group_chat_id = ""
@@ -1561,15 +1636,17 @@ func _show_game() -> void:
 		return
 
 	var data: Dictionary = levels[level_index]
+	if duel_mode:
+		data = {"id": duel_round_number, "title": "رقابت دونفره"}
 	level_label = Label.new()
-	level_label.text = "مرحله %02d" % int(data.get("id", level_index + 1))
+	level_label.text = "رقابت %02d از ۱۰" % duel_round_number if duel_mode else "مرحله %02d" % int(data.get("id", level_index + 1))
 	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	level_label.add_theme_font_size_override("font_size", 25)
 	level_label.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(level_label)
 
 	subtitle_label = Label.new()
-	subtitle_label.text = str(data.get("title", ""))
+	subtitle_label.text = "اولین بازیکنی که ۱۰ مرحله را کامل کند، برنده است." if duel_mode else str(data.get("title", ""))
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle_label.add_theme_font_size_override("font_size", 13)
 	subtitle_label.add_theme_color_override("font_color", MUTED)
@@ -1625,8 +1702,10 @@ func _show_game() -> void:
 	submit_button.pressed.connect(_submit_word)
 	actions.add_child(submit_button)
 
-	var map_button := _make_button("بازگشت به نقشه مراحل", Color("#203e38"), CREAM)
-	map_button.pressed.connect(_show_map)
+	var map_button := _make_button("خروج از رقابت" if duel_mode else "بازگشت به نقشه مراحل", Color("#203e38"), CREAM)
+	map_button.pressed.connect(_leave_duel_to_map if duel_mode else _show_map)
+	if duel_mode and profile_button != null:
+		profile_button.visible = false
 	content_box.add_child(map_button)
 	_update_controls()
 
@@ -1740,6 +1819,10 @@ func _render_board() -> void:
 		child.queue_free()
 	var answers: Array = levels[level_index].get("answers", [])
 	var words: Array = _words_for_current_level()
+	if duel_mode:
+		answers = []
+		for _i in range(duel_answer_count):
+			answers.append("")
 
 	var journal := VBoxContainer.new()
 	journal.add_theme_constant_override("separation", 9)
@@ -1749,7 +1832,7 @@ func _render_board() -> void:
 	header.add_theme_constant_override("separation", 8)
 	journal.add_child(header)
 	var title := Label.new()
-	title.text = "دفتر واژه‌ها"
+	title.text = "واژه‌های رقابت" if duel_mode else "دفتر واژه‌ها"
 	title.add_theme_font_size_override("font_size", 17)
 	title.add_theme_color_override("font_color", GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1827,7 +1910,7 @@ func _render_letters() -> void:
 	tray.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	letters_grid.add_child(tray)
 
-	var letters: Array = levels[level_index].get("letters", [])
+	var letters: Array = _current_letters()
 	for i in range(letters.size()):
 		var button := _make_button(str(letters[i]), PANEL_ALT, CREAM)
 		button.custom_minimum_size = Vector2(68, 68)
@@ -1866,11 +1949,15 @@ func _layout_letters() -> void:
 		button.position = target - button.size * 0.5
 
 func _words_for_current_level() -> Array:
+	if duel_mode:
+		return duel_found_words
 	var key := str(int(levels[level_index].get("id", level_index + 1)))
 	var value = level_solved.get(key, [])
 	return value if value is Array else []
 
 func _bonus_words_for_current_level() -> Array:
+	if duel_mode:
+		return []
 	var key := str(int(levels[level_index].get("id", level_index + 1)))
 	var value = level_bonus_found.get(key, [])
 	return value if value is Array else []
@@ -1916,7 +2003,7 @@ func _add_trace_letter(index: int) -> void:
 	if index < 0 or index >= letter_buttons.size() or selected_indices.has(index):
 		return
 	selected_indices.append(index)
-	var letters: Array = levels[level_index].get("letters", [])
+	var letters: Array = _current_letters()
 	selected_word += str(letters[index])
 	var button := letter_buttons[index]
 	button.modulate = GOLD
@@ -1997,6 +2084,30 @@ func _submit_word() -> void:
 	if selected_word.is_empty():
 		return
 	var candidate := _normalize_word(selected_word)
+	if duel_mode:
+		var duel_result: Dictionary = await CloudAccount.submit_duel_word(duel_match_id, candidate)
+		if not duel_result.get("ok", false):
+			_set_status(str(duel_result.get("error", "بررسی واژه در مسابقه انجام نشد.")), RED)
+		else:
+			var duel_data: Dictionary = duel_result.get("result", {})
+			if not duel_data.get("correct", false):
+				_set_status("این واژه پاسخ این مرحله نیست.", RED)
+			elif duel_data.get("already_found", false):
+				_set_status("این واژه را قبلاً پیدا کرده‌ای.", GOLD)
+			elif duel_data.get("match_complete", false):
+				_play_sfx("complete")
+				_show_duel_result(str(duel_data.get("winner_id", "")), int(duel_data.get("elapsed_ms", 0)))
+			elif duel_data.get("round_complete", false):
+				_play_sfx("complete")
+				await _refresh_duel_round()
+			else:
+				duel_found_words = duel_data.get("found_words", duel_found_words)
+				_play_sfx("found")
+				_set_status("واژه پیدا شد! ادامه بده.", GREEN)
+				_render_board()
+		_clear_selection()
+		_update_controls()
+		return
 	var stage_id := int(levels[level_index].get("id", level_index + 1))
 	var answers: Array = levels[level_index].get("answers", [])
 	var matched := ""
@@ -2232,6 +2343,8 @@ func _set_status(message: String, color: Color) -> void:
 		status_label.add_theme_color_override("font_color", color)
 
 func _is_level_complete() -> bool:
+	if duel_mode:
+		return duel_answer_count > 0 and duel_found_words.size() >= duel_answer_count
 	if levels.is_empty():
 		return false
 	var answers: Array = levels[level_index].get("answers", [])
@@ -2318,6 +2431,32 @@ func _on_hint_menu_selected(option: int) -> void:
 		await _use_hint_clue("highlight_letter")
 
 func _use_hint_clue(hint_type: String) -> void:
+	if duel_mode:
+		var duel_hint: Dictionary = await CloudAccount.spend_duel_hint(duel_match_id, hint_type)
+		if not duel_hint.get("ok", false):
+			_set_status(str(duel_hint.get("error", "راهنمای مسابقه انجام نشد.")), RED)
+			return
+		var hint_data: Dictionary = duel_hint.get("result", {})
+		var clue := str(hint_data.get("clue", ""))
+		_animate_coin_reward(-int(hint_data.get("cost", 0)))
+		if hint_type == "first_letter":
+			_set_status("حرف اول یکی از پاسخ‌های حل‌نشده: «%s»" % clue, GOLD)
+		else:
+			for button in letter_buttons:
+				if button.text == clue:
+					button.modulate = Color("#ffe08a")
+					var pulse := create_tween()
+					pulse.tween_property(button, "scale", Vector2(1.28, 1.28), 0.18)
+					pulse.tween_property(button, "scale", Vector2.ONE, 0.24)
+					pulse.tween_property(button, "modulate", Color.WHITE, 0.35)
+					break
+			_set_status("یک حرف موردنیاز در صفحه مشخص شد.", GOLD)
+		if hint_data.get("result", {}).get("match_complete", false):
+			_show_duel_result(str(hint_data.get("result", {}).get("winner_id", "")), int(hint_data.get("result", {}).get("elapsed_ms", 0)))
+		elif hint_data.get("result", {}).get("round_complete", false):
+			await _refresh_duel_round()
+		_update_controls()
+		return
 	var costs := {"first_letter": 8, "highlight_letter": 12}
 	var cost := int(costs.get(hint_type, 0))
 	if cost <= 0:
@@ -2412,6 +2551,19 @@ func _use_hint_clue(hint_type: String) -> void:
 	_update_controls()
 
 func _use_hint() -> void:
+	if duel_mode:
+		var duel_hint: Dictionary = await CloudAccount.spend_duel_hint(duel_match_id, "reveal_word")
+		if not duel_hint.get("ok", false):
+			_set_status(str(duel_hint.get("error", "راهنمای مسابقه انجام نشد.")), RED)
+			return
+		var hint_data: Dictionary = duel_hint.get("result", {})
+		_animate_coin_reward(-int(hint_data.get("cost", 0)))
+		_set_status("یک واژه با راهنمای مسابقه آشکار شد.", GOLD)
+		if hint_data.get("result", {}).get("match_complete", false):
+			_show_duel_result(str(hint_data.get("result", {}).get("winner_id", "")), int(hint_data.get("result", {}).get("elapsed_ms", 0)))
+		else:
+			await _refresh_duel_round()
+		return
 	if coins < 20:
 		_set_status("سکه کافی نداری. با حل واژه‌ها سکه جمع کن.", RED)
 		return
