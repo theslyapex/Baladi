@@ -193,6 +193,27 @@ func use_hint_clue(hint_type: String, level: int) -> Dictionary:
 func record_word_found(word: String, level: int) -> Dictionary:
 	return await api("word_found", {"word": word, "level": level, "session_id": game_session_id})
 
+func get_duel_invites() -> Dictionary:
+	return await api("duel_invites_list")
+
+func send_duel_invite(recipient_id: String) -> Dictionary:
+	return await api("send_duel_invite", {"recipient_id": recipient_id})
+
+func accept_duel_invite(invite_id: String) -> Dictionary:
+	return await api("accept_duel_invite", {"invite_id": invite_id})
+
+func decline_duel_invite(invite_id: String) -> Dictionary:
+	return await api("decline_duel_invite", {"invite_id": invite_id})
+
+func get_duel_state(match_id: String) -> Dictionary:
+	return await api("duel_state", {"match_id": match_id})
+
+func submit_duel_word(match_id: String, word: String) -> Dictionary:
+	return await api("duel_submit_word", {"match_id": match_id, "word": word})
+
+func spend_duel_hint(match_id: String, hint_type: String) -> Dictionary:
+	return await api("duel_spend_hint", {"match_id": match_id, "hint_type": hint_type})
+
 func get_groups() -> Dictionary:
 	return await api("groups_list")
 
