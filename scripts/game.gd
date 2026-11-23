@@ -1473,8 +1473,9 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 			for target_role in target_roles:
 				if target_role == member_role:
 					continue
-				var role_button := _make_button("تعیین مقام: %s" % _group_role_label(str(target_role)), Color("#385b75"), CREAM)
-				role_button.pressed.connect(func(): _change_group_role(group_id, member_id, str(target_role)))
+				var selected_role := str(target_role)
+				var role_button := _make_button("تعیین مقام: %s" % _group_role_label(selected_role), Color("#385b75"), CREAM)
+				role_button.pressed.connect(func(): _change_group_role(group_id, member_id, selected_role))
 				row_box.add_child(role_button)
 			if role == "leader":
 				var transfer := _make_button("واگذاری رهبری", Color("#765a31"), CREAM)
