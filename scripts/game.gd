@@ -1205,7 +1205,7 @@ func _animate_coin_reward(amount: int) -> void:
 	popup.position = center_position if amount > 0 else coin_position
 	popup.scale = Vector2(0.72, 0.72)
 	if coin_label != null and is_instance_valid(coin_label):
-		coin_label.text = "◆ %d" % coins
+		coin_label.text = "%d" % coins
 		var pulse := create_tween()
 		pulse.tween_property(coin_label, "scale", Vector2(1.28, 1.28), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		pulse.tween_property(coin_label, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -1405,7 +1405,7 @@ func _use_hint() -> void:
 
 func _update_controls() -> void:
 	if coin_label != null and is_instance_valid(coin_label):
-		coin_label.text = "◆ %d" % coins
+		coin_label.text = "%d" % coins
 	if hint_button != null and is_instance_valid(hint_button):
 		hint_button.disabled = _is_level_complete() or coins < 5
 	if submit_button != null and is_instance_valid(submit_button):
