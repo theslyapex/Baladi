@@ -122,7 +122,7 @@ func _refresh_saved_session() -> Dictionary:
 		var message := str(result.get("error", "")).to_lower()
 		var explicit_invalid_refresh := message.contains("invalid refresh token") or message.contains("refresh token not found") or message.contains("refresh_token_not_found")
 		# A reused-token response can be caused by a concurrent refresh. Never erase credentials for it.
-		if status in [400, 401, 403] and explicit_invalid_refresh and not message.contains("already used"):
+		if status in [400, 401, 403] and explicit_invalid_refresh:
 			_clear_auth()
 		last_refresh_result = result.duplicate(true)
 	refresh_in_progress = false
