@@ -1322,7 +1322,7 @@ func _render_group_discovery() -> void:
 	list_title.add_theme_font_size_override("font_size", 19)
 	list_title.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(list_title)
-	var result: Dictionary = await CloudAccount.get_groups()
+	var result: Dictionary = await CloudAccount.fetch_groups()
 	if not result.get("ok", false):
 		_set_status(str(result.get("error", "فهرست گروه‌ها بارگذاری نشد.")), RED)
 		return
