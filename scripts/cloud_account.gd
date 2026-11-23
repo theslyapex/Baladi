@@ -193,6 +193,9 @@ func use_hint_clue(hint_type: String, level: int) -> Dictionary:
 func record_word_found(word: String, level: int) -> Dictionary:
 	return await api("word_found", {"word": word, "level": level, "session_id": game_session_id})
 
+func get_active_duel() -> Dictionary:
+	return await api("active_duel")
+
 func get_duel_invites() -> Dictionary:
 	return await api("duel_invites_list")
 
