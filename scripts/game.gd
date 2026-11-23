@@ -1375,7 +1375,7 @@ func _show_duel_invites() -> void:
 			body.add_theme_constant_override("separation", 7)
 			card.add_child(body)
 			var name := Label.new()
-			name.text = "%s تو را به رقابت دعوت کرده است." % str(sender.get("display_name", "بازیکن"))
+			name.text = "%s تو را به رقابت دعوت کرده است." % _safe_player_name(sender.get("display_name", null))
 			name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			name.add_theme_color_override("font_color", CREAM)
 			body.add_child(name)
@@ -1817,7 +1817,7 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 		var row_box := VBoxContainer.new()
 		row_box.add_theme_constant_override("separation", 4)
 		row.add_child(row_box)
-		var name := _make_button("%s  ·  %s" % [str(player.get("display_name", "بازیکن")), _group_role_label(member_role)], Color("#294c43"), CREAM)
+		var name := _make_button("%s  ·  %s" % [_safe_player_name(player.get("display_name", null)), _group_role_label(member_role)], Color("#294c43"), CREAM)
 		name.custom_minimum_size = Vector2(0, 36)
 		if member_id == CloudAccount.user_id:
 			name.disabled = true
@@ -1835,7 +1835,7 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 				row_box.add_child(role_button)
 			if role == "leader":
 				var transfer := _make_button("واگذاری رهبری", Color("#765a31"), CREAM)
-				transfer.pressed.connect(func(): _confirm_group_leadership_transfer(group_id, member_id, str(player.get("display_name", "این عضو"))))
+				transfer.pressed.connect(func(): _confirm_group_leadership_transfer(group_id, member_id, _safe_player_name(player.get("display_name", null), "این عضو")))
 				row_box.add_child(transfer)
 			if role == "leader" or member_role in ["member", "veteran"]:
 				var remove := _make_button("حذف از گروه", Color("#713e3b"), CREAM)
@@ -2281,7 +2281,7 @@ func _show_public_profile(target_user_id: String) -> void:
 	var public_avatar := _build_avatar_widget(str(player.get("avatar_path", "")), str(player.get("equipped_frame_id", "frame_default")), 92)
 	content_box.add_child(public_avatar)
 	var heading := Label.new()
-	heading.text = str(player.get("display_name", "بازیکن"))
+	heading.text = _safe_player_name(player.get("display_name", null))
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.add_theme_font_size_override("font_size", 25)
 	heading.add_theme_color_override("font_color", GOLD)
