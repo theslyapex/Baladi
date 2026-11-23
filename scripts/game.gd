@@ -93,7 +93,9 @@ func _enter_game() -> void:
 	var profile: Dictionary = response.get("profile", {})
 	_load_save()
 	coins = int(profile.get("coins", 100))
-	display_name = str(profile.get("display_name", display_name))
+	display_name = str(profile.get("display_name", ""))
+	if display_name.is_empty():
+		display_name = CloudAccount.display_name if not CloudAccount.display_name.is_empty() else "بازیکن"
 	daily_streak = int(profile.get("daily_streak", 0))
 	last_checkin_date = str(profile.get("last_checkin_date", ""))
 	cloud_current_level = int(profile.get("current_level", 1))
@@ -451,6 +453,9 @@ func _on_signup_pressed() -> void:
 		return
 	if result.get("confirmed", false):
 		await _enter_game()
+		var name_result: Dictionary = await CloudAccount.update_profile_name(auth_name_input.text.strip_edges())
+		if name_result.get("ok", false):
+			_apply_cloud_profile(name_result.get("profile", {}))
 	else:
 		auth_status_label.text = "حساب ساخته شد. ایمیل تأیید را بررسی کن، سپس با همان حساب وارد شو."
 		auth_status_label.add_theme_color_override("font_color", GREEN)
