@@ -55,6 +55,7 @@ var profile_name_input: LineEdit
 var profile_status_label: Label
 var display_name := "بازیکن"
 var diamonds := 0
+var name_change_count := 0
 var sound_enabled := true
 var daily_streak := 0
 var last_checkin_date := ""
@@ -155,6 +156,8 @@ func _enter_game() -> void:
 	var profile: Dictionary = response.get("profile", {})
 	_load_save()
 	coins = int(profile.get("coins", 100))
+	diamonds = int(profile.get("diamonds", 0))
+	name_change_count = int(profile.get("name_change_count", 0))
 	var profile_name = profile.get("display_name", null)
 	display_name = _safe_player_name(profile_name, CloudAccount.display_name)
 	if display_name.is_empty():
@@ -270,6 +273,8 @@ func _load_save() -> void:
 	if cfg.load(_save_path()) != OK:
 		return
 	coins = int(cfg.get_value("player", "coins", 100))
+	diamonds = int(cfg.get_value("player", "diamonds", 0))
+	sound_enabled = bool(cfg.get_value("player", "sound_enabled", true))
 	level_index = clampi(int(cfg.get_value("player", "level_index", 0)), 0, max(0, levels.size() - 1))
 	cloud_current_level = int(cfg.get_value("player", "current_level", level_index + 1))
 	display_name = _safe_player_name(cfg.get_value("player", "display_name", "بازیکن"))
@@ -302,6 +307,8 @@ func _safe_player_name(value: Variant, fallback: String = "بازیکن") -> Str
 func _save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("player", "coins", coins)
+	cfg.set_value("player", "diamonds", diamonds)
+	cfg.set_value("player", "sound_enabled", sound_enabled)
 	cfg.set_value("player", "level_index", level_index)
 	cfg.set_value("player", "level_solved", level_solved)
 	cfg.set_value("player", "completed_levels", completed_levels)
@@ -672,6 +679,8 @@ func _on_signup_pressed() -> void:
 
 func _apply_cloud_profile(profile: Dictionary) -> void:
 	coins = int(profile.get("coins", coins))
+	diamonds = int(profile.get("diamonds", diamonds))
+	name_change_count = int(profile.get("name_change_count", name_change_count))
 	var profile_name = profile.get("display_name", null)
 	if profile_name != null and not str(profile_name).strip_edges().is_empty():
 		display_name = str(profile_name)
@@ -793,6 +802,10 @@ func _show_map() -> void:
 	groups_nav.custom_minimum_size = Vector2(0, 44)
 	groups_nav.pressed.connect(_show_groups)
 	social_row.add_child(groups_nav)
+	var settings_nav := _make_button("تنظیمات", Color("#294c43"), GOLD)
+	settings_nav.custom_minimum_size = Vector2(0, 44)
+	settings_nav.pressed.connect(_show_settings)
+	social_row.add_child(settings_nav)
 
 	if cloud_current_level > levels.size():
 		var finished := Label.new()
@@ -890,6 +903,156 @@ func _show_map() -> void:
 			stage_button.pressed.connect(_open_level.bind(stage_index))
 			stage_grid.add_child(stage_button)
 
+func _show_settings() -> void:
+	current_page = "settings"
+	_clear_content()
+	var heading := Label.new()
+	heading.text = "تنظیمات"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 27)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	var sound_panel := _panel(TEAL)
+	content_box.add_child(sound_panel)
+	var sound_row := HBoxContainer.new()
+	sound_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	sound_row.add_theme_constant_override("separation", 12)
+	sound_panel.add_child(sound_row)
+	var sound_label := Label.new()
+	sound_label.text = "صدای بازی"
+	sound_label.add_theme_font_size_override("font_size", 17)
+	sound_label.add_theme_color_override("font_color", CREAM)
+	sound_row.add_child(sound_label)
+	var sound_toggle := CheckButton.new()
+	sound_toggle.button_pressed = sound_enabled
+	sound_toggle.toggled.connect(func(enabled: bool):
+		sound_enabled = enabled
+		_save()
+		if enabled:
+			_play_sfx("select")
+	)
+	sound_row.add_child(sound_toggle)
+	var privacy := _make_button("حریم خصوصی و اطلاعات کاربران", Color("#245448"), CREAM)
+	privacy.pressed.connect(_show_privacy_info)
+	content_box.add_child(privacy)
+	var faq := _make_button("پرسش‌های متداول", Color("#385b75"), CREAM)
+	faq.pressed.connect(_show_game_faq)
+	content_box.add_child(faq)
+	var coins_button := _make_button("درخواست خرید سکه · هر ۱۰۰۰ سکه ۸٬۹۰۰ تومان", Color("#765a31"), CREAM)
+	coins_button.pressed.connect(func(): OS.shell_open("https://alishams.ir/game-coins.html"))
+	content_box.add_child(coins_button)
+	var diamond_panel := _panel(Color("#55c6b5"))
+	content_box.add_child(diamond_panel)
+	var diamond_text := Label.new()
+	diamond_text.text = "الماس‌های تو: %d\nبا هر فصل کامل، یک الماس می‌گیری. اولین تغییر نام رایگان است و دفعات بعد یک الماس هزینه دارد." % diamonds
+	diamond_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	diamond_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	diamond_text.add_theme_color_override("font_color", CREAM)
+	diamond_panel.add_child(diamond_text)
+	var delete_button := _make_button("حذف حساب بازی و اطلاعات آن", Color("#713e3b"), CREAM)
+	delete_button.pressed.connect(_confirm_delete_game_account)
+	content_box.add_child(delete_button)
+	var note := Label.new()
+	note.text = "حذف حساب بازی، اطلاعات بازی و تصاویر پروفایل را پاک می‌کند؛ حساب ورود سایت علی شمس حذف نمی‌شود."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.add_theme_font_size_override("font_size", 12)
+	note.add_theme_color_override("font_color", MUTED)
+	content_box.add_child(note)
+	var back := _make_button("بازگشت", PANEL_ALT, CREAM)
+	back.pressed.connect(_show_map)
+	content_box.add_child(back)
+
+func _show_privacy_info() -> void:
+	current_page = "privacy"
+	_clear_content()
+	var heading := Label.new()
+	heading.text = "حریم خصوصی"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 24)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	var body := Label.new()
+	body.text = "برای حساب بازی، شناسه کاربر، نام نمایشی، پیشرفت مراحل، موجودی سکه و الماس، آمار رقابت و پیام‌های ارسالی ذخیره می‌شود.\n\nاطلاعات حساب برای اجرای امکانات آنلاین، رتبه‌بندی، گروه‌ها و همگام‌سازی پیشرفت استفاده می‌شود. رمز عبور در بازی ذخیره نمی‌شود و ورود از طریق سرویس احراز هویت انجام می‌گیرد.\n\nتصویر پروفایل در فضای ذخیره‌سازی اختصاصی بازی نگهداری می‌شود. با حذف حساب بازی، داده‌های بازی و تصویر پروفایل حذف خواهند شد. حساب ورود سایت علی شمس مستقل باقی می‌ماند."
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_color_override("font_color", CREAM)
+	var panel := _panel()
+	panel.add_child(body)
+	content_box.add_child(panel)
+	var back := _make_button("بازگشت به تنظیمات", PANEL_ALT, CREAM)
+	back.pressed.connect(_show_settings)
+	content_box.add_child(back)
+
+func _show_game_faq() -> void:
+	current_page = "faq"
+	_clear_content()
+	var heading := Label.new()
+	heading.text = "پرسش‌های متداول"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 24)
+	heading.add_theme_color_override("font_color", GOLD)
+	content_box.add_child(heading)
+	var questions := [
+		["چطور الماس بگیرم؟", "با تکمیل هر فصل ۲۰ مرحله‌ای، یک الماس به حسابت اضافه می‌شود."],
+		["تغییر نام چقدر هزینه دارد؟", "اولین بار رایگان است. از بار دوم، هر بار یک الماس مصرف می‌شود."],
+		["سکه را چطور بخرم؟", "از تنظیمات وارد صفحه خرید سکه در وب‌سایت علی شمس شو. هر ۱۰۰۰ سکه ۸٬۹۰۰ تومان است."],
+		["پیشرفت مهمان ذخیره می‌شود؟", "بله، روی همان دستگاه ذخیره می‌شود؛ اما به حساب آنلاین منتقل نمی‌شود."],
+		["اگر بازی را حذف کنم چه می‌شود؟", "پیشرفت مهمان ممکن است از بین برود. برای همگام‌سازی دائمی از حساب کاربری استفاده کن."]
+	]
+	for item in questions:
+		var panel := _panel(TEAL)
+		content_box.add_child(panel)
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 5)
+		panel.add_child(box)
+		var q := Label.new()
+		q.text = item[0]
+		q.add_theme_color_override("font_color", GOLD)
+		q.add_theme_font_size_override("font_size", 16)
+		box.add_child(q)
+		var a := Label.new()
+		a.text = item[1]
+		a.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		a.add_theme_color_override("font_color", CREAM)
+		box.add_child(a)
+	var back := _make_button("بازگشت به تنظیمات", PANEL_ALT, CREAM)
+	back.pressed.connect(_show_settings)
+	content_box.add_child(back)
+
+func _confirm_delete_game_account() -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "حذف حساب بازی"
+	dialog.dialog_text = "تمام پیشرفت، سکه‌ها، الماس‌ها، پیام‌ها و تصاویر پروفایل بازی حذف می‌شوند. حساب ورود alishams.ir باقی می‌ماند. ادامه می‌دهی؟"
+	dialog.ok_button_text = "حذف دائمی اطلاعات بازی"
+	dialog.cancel_button_text = "انصراف"
+	add_child(dialog)
+	dialog.confirmed.connect(func():
+		if guest_mode:
+			var save_file := ProjectSettings.globalize_path("user://baladi_save_guest.cfg")
+			if FileAccess.file_exists("user://baladi_save_guest.cfg"):
+				DirAccess.remove_absolute(save_file)
+			coins = 100
+			diamonds = 0
+			completed_levels.clear()
+			level_solved.clear()
+			_show_auth("اطلاعات مهمان این دستگاه حذف شد.")
+		else:
+			var result: Dictionary = await CloudAccount.delete_account()
+			if result.get("ok", false):
+				guest_mode = true
+				coins = 100
+				diamonds = 0
+				completed_levels.clear()
+				level_solved.clear()
+				_show_auth("اطلاعات بازی حذف شد. برای شروع دوباره وارد شو.")
+			else:
+				_show_settings()
+				_set_status(str(result.get("error", "حذف اطلاعات بازی انجام نشد.")), RED)
+	)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.popup_centered()
+
 func _show_profile() -> void:
 	current_page = "profile"
 	_clear_content()
@@ -955,6 +1118,7 @@ func _show_profile() -> void:
 	_add_profile_stat(stats_grid, "مراحل کامل‌شده", str(completed_levels.size()), GREEN)
 	_add_profile_stat(stats_grid, "واژه‌های پیدا‌شده", str(words_total), TEAL)
 	_add_profile_stat(stats_grid, "موجودی سکه", str(coins), GOLD)
+	_add_profile_stat(stats_grid, "موجودی الماس", str(diamonds), TEAL)
 	_add_profile_stat(stats_grid, "برد دونفره", str(wins), GREEN)
 	_add_profile_stat(stats_grid, "باخت دونفره", str(losses), RED)
 
@@ -987,6 +1151,9 @@ func _show_profile() -> void:
 		var change_avatar := _make_button("انتخاب یا تغییر عکس پروفایل", Color("#765a31"), CREAM)
 		change_avatar.pressed.connect(_pick_avatar_from_gallery)
 		content_box.add_child(change_avatar)
+	var settings_button := _make_button("تنظیمات بازی", Color("#294c43"), GOLD)
+	settings_button.pressed.connect(_show_settings)
+	content_box.add_child(settings_button)
 	var shop_button := _make_button("فروشگاه قاب‌ها و تصویر پروفایل", Color("#765a31"), CREAM)
 	shop_button.pressed.connect(_show_cosmetic_shop)
 	content_box.add_child(shop_button)
@@ -2124,7 +2291,7 @@ func _save_profile_name() -> void:
 		profile_status_label.add_theme_color_override("font_color", RED)
 		return
 	_apply_cloud_profile(result.get("profile", {}))
-	profile_status_label.text = "نام پروفایل با موفقیت ذخیره شد."
+	profile_status_label.text = "نام پروفایل با موفقیت ذخیره شد." if int(result.get("diamonds_spent", 0)) == 0 else "نام تغییر کرد؛ یک الماس مصرف شد."
 	profile_status_label.add_theme_color_override("font_color", GREEN)
 
 func _open_level(index: int) -> void:
@@ -2150,15 +2317,16 @@ func _open_level(index: int) -> void:
 				_set_status(str(completion.get("error", "ثبت مرحله انجام نشد.")), RED)
 
 func _chapter_title(level_number: int) -> String:
-	if level_number <= 20:
-		return "باغ واژه‌ها"
-	if level_number <= 40:
-		return "بازار رازآلود"
-	if level_number <= 60:
-		return "کاروانسرای کلمات"
-	if level_number <= 80:
-		return "قله‌های دانایی"
-	return "کاخ گنج واژه‌ها"
+	if level_number <= 20: return "باغ واژه‌ها"
+	if level_number <= 40: return "بازار رازآلود"
+	if level_number <= 60: return "کاروانسرای کلمات"
+	if level_number <= 80: return "قله‌های دانایی"
+	if level_number <= 100: return "کاخ گنج واژه‌ها"
+	if level_number <= 120: return "دشت رازها"
+	if level_number <= 140: return "بندر افق"
+	if level_number <= 160: return "جنگل اسرار"
+	if level_number <= 180: return "آسمان ستارگان"
+	return "قلعه زرین"
 
 func _chapter_background_path(level_number: int) -> String:
 	if level_number <= 20:
@@ -2320,7 +2488,7 @@ func _init_audio() -> void:
 	add_child(sfx_player)
 
 func _play_sfx(kind: String) -> void:
-	if sfx_player == null:
+	if sfx_player == null or not sound_enabled:
 		return
 	var notes: Array[float] = [520.0]
 	match kind:
@@ -2818,6 +2986,9 @@ func _complete_guest_level() -> void:
 	var reward := int(levels[level_index].get("reward", 0))
 	coins += reward
 	cloud_current_level = stage_id + 1
+	if stage_id % 20 == 0:
+		diamonds += 1
+		_spawn_floating_text("یک الماس برای عبور از فصل دریافت کردی!", GOLD)
 	_save()
 	_show_stage_complete(reward)
 
