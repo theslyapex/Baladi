@@ -1560,6 +1560,13 @@ func _show_global_chat() -> void:
 	open_chat.add_theme_font_size_override("font_size", 17)
 	open_chat.pressed.connect(_launch_community_chat)
 	content_box.add_child(open_chat)
+	chat_status_label = Label.new()
+	chat_status_label.text = "برای استفاده از انجمن، با حساب بازی وارد شو." if guest_mode or not CloudAccount.is_authenticated() else "ورود با نشست فعلی بازی انجام می‌شود؛ نیازی به ورود دوباره نیست."
+	chat_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	chat_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	chat_status_label.add_theme_color_override("font_color", MUTED)
+	content_box.add_child(chat_status_label)
+	open_chat.disabled = guest_mode or not CloudAccount.is_authenticated()
 	var game_actions := HBoxContainer.new()
 	game_actions.add_theme_constant_override("separation", 8)
 	content_box.add_child(game_actions)
@@ -1577,6 +1584,8 @@ func _show_global_chat() -> void:
 
 func _launch_community_chat() -> void:
 	if guest_mode or not CloudAccount.is_authenticated():
+		if chat_status_label != null and is_instance_valid(chat_status_label):
+			chat_status_label.text = "برای ورود به انجمن، ابتدا وارد حساب بازی شو."
 		return
 	var session_valid: bool = await CloudAccount._refresh_if_needed()
 	if not session_valid:
