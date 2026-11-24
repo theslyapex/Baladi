@@ -37,11 +37,6 @@ class BaladiCommunityWebView(godot: Godot) : GodotPlugin(godot) {
         }
     }
 
-    override fun onMainDestroy() {
-        if (activePlugin === this) activePlugin = null
-        super.onMainDestroy()
-    }
-
     companion object {
         @Volatile
         var activePlugin: BaladiCommunityWebView? = null
