@@ -3591,25 +3591,25 @@ func _submit_word() -> void:
 			return
 	else:
 		var bonus_result: Dictionary = await CloudAccount.record_word_found(candidate, stage_id)
-			if not bonus_result.get("ok", false):
-				_set_status(str(bonus_result.get("error", "اعتبار واژه بررسی نشد.")), RED)
-			elif bonus_result.get("already_found", false):
-				_set_status("این واژه را قبلاً پیدا کرده‌ای؛ پاداش آن قبلاً پرداخت شده است.", GOLD)
-				var existing_bonus := _bonus_words_for_current_level()
-				if not existing_bonus.has(candidate):
-					existing_bonus.append(candidate)
-					level_bonus_found[str(stage_id)] = existing_bonus
-			else:
-				_apply_cloud_profile(bonus_result.get("profile", {}))
-				var member_bonus := _bonus_words_for_current_level()
-				member_bonus.append(candidate)
-				level_bonus_found[str(stage_id)] = member_bonus
-				var bonus_coins := int(bonus_result.get("coins_awarded", 7))
-				if bonus_coins > 0:
-					_play_sfx("bonus")
-					_animate_coin_reward(bonus_coins)
-				_show_bonus_word_feedback(candidate)
-				_save()
+		if not bonus_result.get("ok", false):
+			_set_status(str(bonus_result.get("error", "اعتبار واژه بررسی نشد.")), RED)
+		elif bonus_result.get("already_found", false):
+			_set_status("این واژه را قبلاً پیدا کرده‌ای؛ پاداش آن قبلاً پرداخت شده است.", GOLD)
+			var existing_bonus := _bonus_words_for_current_level()
+			if not existing_bonus.has(candidate):
+				existing_bonus.append(candidate)
+				level_bonus_found[str(stage_id)] = existing_bonus
+		else:
+			_apply_cloud_profile(bonus_result.get("profile", {}))
+			var member_bonus := _bonus_words_for_current_level()
+			member_bonus.append(candidate)
+			level_bonus_found[str(stage_id)] = member_bonus
+			var bonus_coins := int(bonus_result.get("coins_awarded", 7))
+			if bonus_coins > 0:
+				_play_sfx("bonus")
+				_animate_coin_reward(bonus_coins)
+			_show_bonus_word_feedback(candidate)
+			_save()
 	else:
 		_set_status("این واژه در واژه‌نامه فارسی پیدا نشد. دوباره تلاش کن.", RED)
 	_clear_selection()
