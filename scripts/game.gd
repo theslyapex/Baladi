@@ -3585,6 +3585,7 @@ func _submit_word() -> void:
 			_play_sfx("found")
 			_clear_selection()
 			_render_board()
+			_save()
 			_set_status("آفرین! واژه پیدا شد.", GREEN)
 			_sync_found_word(matched, stage_id)
 			return
@@ -3624,6 +3625,7 @@ func _sync_found_word(word: String, stage_id: int) -> void:
 			level_solved[str(stage_id)] = words
 			if current_page == "game" and not levels.is_empty() and int(levels[level_index].get("id", level_index + 1)) == stage_id:
 				_render_board()
+		_save()
 		_set_status(str(word_result.get("error", "ثبت واژه در حساب انجام نشد؛ دوباره تلاش کن.")), RED)
 			return
 	if word_result.get("already_found", false):
