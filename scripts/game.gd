@@ -2118,7 +2118,6 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 		amount_input.placeholder_text = "مقدار مشارکت به سکه"
 		amount_input.custom_minimum_size.y = 44
 		amount_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		amount_input.keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
 		_style_input(amount_input)
 		contribution_row.add_child(amount_input)
 		var contribute := _make_button("مشارکت", Color("#765a31"), CREAM)
