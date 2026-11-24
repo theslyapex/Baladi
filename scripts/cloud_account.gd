@@ -298,6 +298,10 @@ func join_group(group_id: String) -> Dictionary:
 
 func upgrade_group_capacity(group_id: String, new_capacity: int) -> Dictionary:
 	return await api("upgrade_group_capacity", {"group_id": group_id, "new_capacity": new_capacity})
+func contribute_to_group(group_id: String, amount: int) -> Dictionary:
+	return await api("group_contribute", {"group_id": group_id, "amount": amount})
+func claim_group_daily_reward(group_id: String) -> Dictionary:
+	return await api("claim_group_daily_reward", {"group_id": group_id})
 
 func set_group_role(group_id: String, target_user_id: String, role: String) -> Dictionary:
 	return await api("set_group_role", {"group_id": group_id, "target_user_id": target_user_id, "role": role})
@@ -349,6 +353,8 @@ func purchase_cosmetic(cosmetic_id: String) -> Dictionary:
 
 func equip_frame(frame_id: String) -> Dictionary:
 	return await api("equip_frame", {"frame_id": frame_id})
+func equip_avatar(avatar_id: String) -> Dictionary:
+	return await api("equip_avatar", {"avatar_id": avatar_id})
 
 func set_avatar_path(avatar_path: String) -> Dictionary:
 	return await api("set_avatar_path", {"avatar_path": avatar_path})
