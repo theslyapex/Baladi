@@ -1642,9 +1642,12 @@ func _refresh_global_chat() -> void:
 				body.add_child(sticker_art)
 			else:
 				var message_label := Label.new()
-				message_label.text = str(message.get("body", ""))
+				var message_text := str(message.get("body", message.get("content", ""))).strip_edges()
+				message_label.text = message_text if not message_text.is_empty() else "پیام متنی"
 				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-				message_label.add_theme_font_size_override("font_size", 15)
+				message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				message_label.custom_minimum_size = Vector2(0, 30)
+				message_label.add_theme_font_size_override("font_size", 16)
 				message_label.add_theme_color_override("font_color", CREAM)
 				body.add_child(message_label)
 
@@ -1653,11 +1656,21 @@ func _refresh_global_chat() -> void:
 				actions.add_theme_constant_override("separation", 6)
 				body.add_child(actions)
 				if not is_own_message:
+					var invite_button := _make_button("دعوت به بازی دونفره", Color("#287c68"), CREAM)
+					invite_button.custom_minimum_size = Vector2(0, 34)
+					invite_button.pressed.connect(_send_duel_invite_to.bind(player_id))
+					actions.add_child(invite_button)
 					var more := _make_button("عملیات پیام  ⋮", Color("#294c43"), GOLD)
 					more.custom_minimum_size = Vector2(0, 34)
 					var group_message_id := int(message.get("id", 0))
 					more.pressed.connect(_show_group_message_menu.bind(group_message_id, player_id))
 					actions.add_child(more)
+				if active_group_role == "leader":
+					var delete_button := _make_button("حذف پیام", Color("#713e3b"), CREAM)
+					delete_button.custom_minimum_size = Vector2(0, 34)
+					var delete_message_id := int(message.get("id", 0))
+					delete_button.pressed.connect(_delete_group_chat_message.bind(requested_group_id, delete_message_id))
+					actions.add_child(delete_button)
 				if bool(message.get("is_pinned", false)):
 					var pinned_label := Label.new()
 					pinned_label.text = "سنجاق‌شده"
@@ -1800,6 +1813,27 @@ func _submit_chat_report(reason_index: int, message_id: int) -> void:
 		_set_status(str(result.get("error", "ثبت گزارش انجام نشد.")), RED)
 	else:
 		_set_status("گزارش پیام برای بررسی ثبت شد.", GREEN)
+
+func _delete_group_chat_message(group_id: String, message_id: int) -> void:
+	if active_group_role != "leader" or group_id.is_empty() or message_id <= 0:
+		return
+	var confirm := ConfirmationDialog.new()
+	confirm.title = "حذف پیام گروه"
+	confirm.dialog_text = "این پیام برای همه اعضای گروه حذف شود؟"
+	confirm.ok_button_text = "حذف پیام"
+	confirm.cancel_button_text = "انصراف"
+	add_child(confirm)
+	confirm.confirmed.connect(func():
+		var result: Dictionary = await CloudAccount.delete_group_chat_message(group_id, message_id)
+		if not result.get("ok", false):
+			_set_status(str(result.get("error", "حذف پیام انجام نشد.")), RED)
+		else:
+			_set_status("پیام از گفت‌وگوی گروه حذف شد.", GREEN)
+			await _refresh_global_chat()
+		confirm.queue_free()
+	)
+	confirm.canceled.connect(func(): confirm.queue_free())
+	confirm.popup_centered(Vector2i(360, 180))
 
 func _toggle_group_message_pin(group_id: String, message_id: int, pinned: bool) -> void:
 	var result: Dictionary = await CloudAccount.pin_group_chat_message(group_id, message_id, pinned)
