@@ -320,6 +320,9 @@ func send_group_chat_message(group_id: String, message_body: String) -> Dictiona
 func send_group_chat_sticker(group_id: String, sticker_id: String) -> Dictionary:
 	return await api("group_chat_send", {"group_id": group_id, "sticker_id": sticker_id})
 
+func report_group_chat_message(group_id: String, message_id: int, reason: String) -> Dictionary:
+	return await api("report_group_chat_message", {"group_id": group_id, "message_id": message_id, "reason": reason})
+
 func pin_group_chat_message(group_id: String, message_id: int, pinned: bool) -> Dictionary:
 	return await api("pin_group_message", {"group_id": group_id, "message_id": message_id, "pinned": pinned})
 
