@@ -72,6 +72,9 @@ var chat_poll_timer: Timer
 var chat_messages_box: VBoxContainer
 var chat_scroll_container: ScrollContainer
 var chat_scroll_to_bottom := true
+var chat_long_press_timer: Timer
+var pending_chat_message_id := 0
+var pending_chat_player_id := ""
 var chat_input: LineEdit
 var chat_status_label: Label
 var chat_poll_busy := false
@@ -1605,6 +1608,10 @@ func _refresh_global_chat() -> void:
 			var body := VBoxContainer.new()
 			body.add_theme_constant_override("separation", 6)
 			card.add_child(body)
+			if not requested_group_id.is_empty() and not is_own_message:
+				_ensure_chat_long_press_timer()
+				var long_press_message_id := int(message.get("id", 0))
+				card.gui_input.connect(_on_chat_message_gui_input.bind(long_press_message_id, player_id))
 
 			var sender_row := HBoxContainer.new()
 			sender_row.add_theme_constant_override("separation", 8)
@@ -1691,6 +1698,38 @@ func _scroll_chat_to_bottom() -> void:
 	var scroll_bar := chat_scroll_container.get_v_scroll_bar()
 	scroll_bar.value = scroll_bar.max_value
 	chat_scroll_to_bottom = false
+
+func _ensure_chat_long_press_timer() -> void:
+	if chat_long_press_timer != null and is_instance_valid(chat_long_press_timer):
+		return
+	chat_long_press_timer = Timer.new()
+	chat_long_press_timer.one_shot = true
+	chat_long_press_timer.wait_time = 0.55
+	chat_long_press_timer.timeout.connect(_open_pending_chat_message_menu)
+	add_child(chat_long_press_timer)
+
+func _on_chat_message_gui_input(event: InputEvent, message_id: int, player_id: String) -> void:
+	if chat_long_press_timer == null or not is_instance_valid(chat_long_press_timer):
+		return
+	var pressed := false
+	var released := false
+	if event is InputEventScreenTouch:
+		pressed = event.pressed
+		released = not event.pressed
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		pressed = event.pressed
+		released = not event.pressed
+	if pressed:
+		pending_chat_message_id = message_id
+		pending_chat_player_id = player_id
+		chat_long_press_timer.start()
+	elif released:
+		chat_long_press_timer.stop()
+
+func _open_pending_chat_message_menu() -> void:
+	if current_page != "group_chat" or pending_chat_message_id <= 0 or pending_chat_player_id.is_empty():
+		return
+	_show_group_message_menu(pending_chat_message_id, pending_chat_player_id)
 
 func _show_group_message_menu(message_id: int, player_id: String) -> void:
 	if message_id <= 0 or player_id.is_empty():
@@ -2171,6 +2210,14 @@ func _show_group_chat(group_id: String, group_name: String) -> void:
 	subtitle.add_theme_font_size_override("font_size", 11)
 	subtitle.add_theme_color_override("font_color", MUTED)
 	header_text.add_child(subtitle)
+
+	var hint := Label.new()
+	hint.text = "برای دیدن گزینه‌های هر پیام، چند لحظه روی آن نگه دار یا دکمه عملیات پیام را بزن."
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 11)
+	hint.add_theme_color_override("font_color", MUTED)
+	content_box.add_child(hint)
 
 	var toolbar := HBoxContainer.new()
 	toolbar.add_theme_constant_override("separation", 7)
