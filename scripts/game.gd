@@ -3442,19 +3442,31 @@ func _render_board() -> void:
 	title.add_theme_color_override("font_color", GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
+	var progress_percent := int(round(float(words.size()) / float(maxi(1, answers.size())) * 100.0))
 	var progress := Label.new()
-	progress.text = "%d از %d واژه" % [words.size(), answers.size()]
+	progress.text = "%d از %d واژه  ·  %d٪" % [words.size(), answers.size(), progress_percent]
 	progress.add_theme_font_size_override("font_size", 13)
-	progress.add_theme_color_override("font_color", MUTED)
+	progress.add_theme_color_override("font_color", GOLD if progress_percent >= 100 else MUTED)
 	header.add_child(progress)
 
 	var progress_bar := ProgressBar.new()
 	progress_bar.min_value = 0
 	progress_bar.max_value = max(1, answers.size())
-	progress_bar.value = words.size()
+	progress_bar.value = 0
 	progress_bar.show_percentage = false
-	progress_bar.custom_minimum_size.y = 7
+	progress_bar.custom_minimum_size.y = 10
+	var progress_track := StyleBoxFlat.new()
+	progress_track.bg_color = Color("#0b211f")
+	progress_track.set_corner_radius_all(6)
+	progress_bar.add_theme_stylebox_override("background", progress_track)
+	var progress_fill := StyleBoxFlat.new()
+	progress_fill.bg_color = Color("#d2ad62") if progress_percent >= 100 else Color("#55b99b")
+	progress_fill.set_corner_radius_all(6)
+	progress_bar.add_theme_stylebox_override("fill", progress_fill)
 	journal.add_child(progress_bar)
+	if words.size() > 0:
+		var progress_tween := create_tween()
+		progress_tween.tween_property(progress_bar, "value", words.size(), 0.48).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 	if words.is_empty():
 		var empty_state := VBoxContainer.new()
@@ -3480,6 +3492,7 @@ func _render_board() -> void:
 	found_grid.add_theme_constant_override("h_separation", 7)
 	found_grid.add_theme_constant_override("v_separation", 7)
 	journal.add_child(found_grid)
+	var chip_index := 0
 	for word_value in words:
 		var chip := PanelContainer.new()
 		var chip_style := StyleBoxFlat.new()
@@ -3503,6 +3516,13 @@ func _render_board() -> void:
 		word_label.add_theme_color_override("font_color", CREAM)
 		chip.add_child(word_label)
 		found_grid.add_child(chip)
+		chip.scale = Vector2(0.86, 0.86)
+		chip.modulate.a = 0.0
+		var chip_tween := create_tween()
+		chip_tween.set_parallel(true)
+		chip_tween.tween_property(chip, "scale", Vector2.ONE, 0.24).set_delay(float(chip_index) * 0.035).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		chip_tween.tween_property(chip, "modulate:a", 1.0, 0.18).set_delay(float(chip_index) * 0.035)
+		chip_index += 1
 
 func _render_letters() -> void:
 	for child in letters_grid.get_children():
@@ -4032,6 +4052,19 @@ func _set_status(message: String, color: Color) -> void:
 	if status_label != null and is_instance_valid(status_label):
 		status_label.text = message
 		status_label.add_theme_color_override("font_color", color)
+		status_label.pivot_offset = status_label.size * 0.5
+		var feedback := create_tween()
+		if color == RED:
+			var base_position := status_label.position
+			feedback.tween_property(status_label, "position:x", base_position.x - 7.0, 0.045)
+			feedback.tween_property(status_label, "position:x", base_position.x + 7.0, 0.045)
+			feedback.tween_property(status_label, "position:x", base_position.x - 4.0, 0.04)
+			feedback.tween_property(status_label, "position:x", base_position.x, 0.05)
+			feedback.parallel().tween_property(status_label, "scale", Vector2(1.025, 1.025), 0.10)
+			feedback.tween_property(status_label, "scale", Vector2.ONE, 0.12)
+		elif color == GREEN:
+			feedback.tween_property(status_label, "scale", Vector2(1.06, 1.06), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			feedback.tween_property(status_label, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _is_level_complete() -> bool:
 	if duel_mode:
