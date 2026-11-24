@@ -1545,111 +1545,63 @@ func _show_global_chat() -> void:
 	active_group_chat_id = ""
 	active_group_chat_name = ""
 	_clear_content()
-	_add_page_heading("گفت‌وگوی بازیکنان", "با جامعه بلدی؟ در ارتباط باش و رقیب پیدا کن")
+	_add_page_heading("گفت‌وگوی عمومی Alishams", "انجمن زنده کاربران، با امکانات کامل پیام‌رسانی")
 	var intro_panel := _panel(Color("#8d7548"))
 	content_box.add_child(intro_panel)
 	var intro := Label.new()
-	intro.text = "گفت‌وگو کن، استیکر بفرست، پروفایل بازیکنان را ببین و آن‌ها را به رقابت دونفره دعوت کن."
+	intro.text = "گفت‌وگوی عمومی بازی اکنون از انجمن رسمی Alishams استفاده می‌کند. پیام متنی، تصویر، فایل، پیام صوتی، واکنش، پاسخ و جست‌وجوی پیام‌ها در همان محیط در دسترس است."
 	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	intro.add_theme_color_override("font_color", CREAM)
 	intro_panel.add_child(intro)
-	if guest_mode:
-		var guest_note := Label.new()
-		guest_note.text = "برای حضور در گفت‌وگوی عمومی، با حساب کاربری وارد شو."
-		guest_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		guest_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		guest_note.add_theme_color_override("font_color", MUTED)
-		content_box.add_child(guest_note)
-		var guest_back := _make_button("بازگشت به نقشه", PANEL_ALT, CREAM)
-		guest_back.pressed.connect(_show_map)
-		content_box.add_child(guest_back)
-		return
-	if not chat_unlocked:
-		var lock_panel := _panel(GOLD)
-		content_box.add_child(lock_panel)
-		var lock_body := VBoxContainer.new()
-		lock_body.add_theme_constant_override("separation", 10)
-		lock_panel.add_child(lock_body)
-		var lock_title := Label.new()
-		lock_title.text = "دروازه گفت‌وگوی بلدی؟"
-		lock_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lock_title.add_theme_font_size_override("font_size", 20)
-		lock_title.add_theme_color_override("font_color", GOLD)
-		lock_body.add_child(lock_title)
-		var lock_text := Label.new()
-		lock_text.text = "چت عمومی هنوز برای حسابت فعال نیست. با یک خرید دائمی، فقط یک‌بار ۵٬۰۰۰ سکه پرداخت می‌کنی و دسترسی چت برای همیشه باز می‌شود."
-		lock_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		lock_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lock_text.add_theme_color_override("font_color", CREAM)
-		lock_body.add_child(lock_text)
-		var balance := Label.new()
-		balance.text = "موجودی فعلی: %s سکه" % _format_coin_price(coins)
-		balance.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		balance.add_theme_font_size_override("font_size", 16)
-		balance.add_theme_color_override("font_color", GOLD)
-		lock_body.add_child(balance)
-		var unlock := _make_button("خرید و فعال‌سازی چت عمومی · ۵٬۰۰۰ سکه", Color("#a77a35"), CREAM)
-		unlock.custom_minimum_size = Vector2(0, 58)
-		unlock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		unlock.add_theme_font_size_override("font_size", 17)
-		unlock.pressed.connect(_unlock_global_chat)
-		lock_body.add_child(unlock)
-		var sticker_shop := _make_button("فروشگاه استیکرها", PANEL_ALT, GOLD)
-		sticker_shop.pressed.connect(_show_sticker_picker)
-		lock_body.add_child(sticker_shop)
-	else:
-		var chat_actions := HBoxContainer.new()
-		chat_actions.add_theme_constant_override("separation", 7)
-		content_box.add_child(chat_actions)
-		var sticker_button := _make_button("استیکرهای من", Color("#765a31"), CREAM)
-		sticker_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		sticker_button.pressed.connect(_show_sticker_picker)
-		chat_actions.add_child(sticker_button)
-		var invites_button := _make_button("دعوت‌های بازی", Color("#294c43"), GOLD)
-		invites_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		invites_button.pressed.connect(_show_duel_invites)
-		chat_actions.add_child(invites_button)
-		var messages_scroll := ScrollContainer.new()
-		messages_scroll.custom_minimum_size = Vector2(0, 280)
-		messages_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		messages_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		messages_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		content_box.add_child(messages_scroll)
-		chat_scroll_container = messages_scroll
-		chat_messages_box = VBoxContainer.new()
-		chat_messages_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		chat_messages_box.add_theme_constant_override("separation", 7)
-		messages_scroll.add_child(chat_messages_box)
-		var composer := HBoxContainer.new()
-		composer.add_theme_constant_override("separation", 6)
-		content_box.add_child(composer)
-		chat_input = LineEdit.new()
-		chat_input.placeholder_text = "پیامت را بنویس..."
-		chat_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		chat_input.custom_minimum_size.y = 48
-		_style_input(chat_input)
-		composer.add_child(chat_input)
-		var send := _make_button("ارسال", Color("#287c68"), CREAM)
-		send.custom_minimum_size = Vector2(76, 48)
-		send.size_flags_horizontal = Control.SIZE_SHRINK_END
-		send.pressed.connect(_send_global_chat_message)
-		composer.add_child(send)
-		chat_status_label = Label.new()
-		chat_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		chat_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		chat_status_label.add_theme_color_override("font_color", MUTED)
-		content_box.add_child(chat_status_label)
-		await _refresh_global_chat()
-		if chat_poll_timer == null:
-			chat_poll_timer = Timer.new()
-			chat_poll_timer.wait_time = 5.0
-			chat_poll_timer.timeout.connect(_refresh_global_chat)
-			add_child(chat_poll_timer)
-		chat_poll_timer.start()
+	var open_chat := _make_button("ورود به انجمن گفت‌وگو", Color("#a8d84b"), Color("#10200e"))
+	open_chat.custom_minimum_size = Vector2(0, 58)
+	open_chat.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	open_chat.add_theme_font_size_override("font_size", 17)
+	open_chat.pressed.connect(_launch_community_chat)
+	content_box.add_child(open_chat)
+	var game_actions := HBoxContainer.new()
+	game_actions.add_theme_constant_override("separation", 8)
+	content_box.add_child(game_actions)
+	var invites := _make_button("دعوت‌های بازی", Color("#294c43"), GOLD)
+	invites.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	invites.pressed.connect(_show_duel_invites)
+	game_actions.add_child(invites)
+	var stickers := _make_button("استیکرهای بلدی؟", Color("#765a31"), CREAM)
+	stickers.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stickers.pressed.connect(_show_sticker_picker)
+	game_actions.add_child(stickers)
 	var back := _make_button("بازگشت به نقشه مراحل", PANEL_ALT, CREAM)
 	back.pressed.connect(_show_map)
 	content_box.add_child(back)
+
+func _launch_community_chat() -> void:
+	if guest_mode or not CloudAccount.is_authenticated():
+		_set_status("برای ورود به انجمن، ابتدا وارد حساب بازی شو.", RED)
+		return
+	var webview = Engine.get_singleton("BaladiCommunityWebView")
+	if webview == null:
+		_set_status("ماژول انجمن در این نسخه نصب نشده است. نسخه جدید بازی را دریافت کن.", RED)
+		return
+	if webview.has_signal("session_updated") and not webview.session_updated.is_connected(_on_community_session_updated):
+		webview.session_updated.connect(_on_community_session_updated)
+	var user_payload := {
+		"id": CloudAccount.user_id,
+		"email": CloudAccount.user_email,
+		"aud": "authenticated",
+		"role": "authenticated",
+		"app_metadata": {"provider": "email", "providers": ["email"]},
+		"user_metadata": {"full_name": CloudAccount.display_name}
+	}
+	webview.openCommunityChat(
+		CloudAccount.access_token,
+		CloudAccount.refresh_token,
+		float(CloudAccount.expires_at),
+		JSON.stringify(user_payload)
+	)
+
+func _on_community_session_updated(session_json: String) -> void:
+	CloudAccount.accept_external_session(session_json)
 
 func _unlock_global_chat() -> void:
 	# Legacy entry point retained for older UI references; public chat has no purchase gate.
