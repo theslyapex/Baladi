@@ -3420,7 +3420,7 @@ func _finish_trace() -> void:
 		_submit_word()
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ESCAPE or event.keycode == KEY_BACK):
+	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ESCAPE):
 		_handle_back_request()
 		get_viewport().set_input_as_handled()
 		return
