@@ -2078,6 +2078,71 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 	summary.text = "مقام تو: %s  ·  اعضا: %d / %d" % [_group_role_label(role), count, capacity]
 	summary.add_theme_color_override("font_color", CREAM)
 	body.add_child(summary)
+	var group_level := int(group.get("group_level", 1))
+	var upgrade_progress := int(group.get("upgrade_progress", 0))
+	var target_cost := 40000 if group_level == 1 else 200000
+	var reward_per_day := 120 if group_level == 2 else (500 if group_level == 3 else 0)
+	var level_panel := _panel(Color("#8d7548"))
+	content_box.add_child(level_panel)
+	var level_box := VBoxContainer.new()
+	level_box.add_theme_constant_override("separation", 7)
+	level_panel.add_child(level_box)
+	var level_title := Label.new()
+	level_title.text = "سطح باشگاه: %d از ۳" % group_level
+	level_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	level_title.add_theme_font_size_override("font_size", 20)
+	level_title.add_theme_color_override("font_color", GOLD)
+	level_box.add_child(level_title)
+	var benefit := Label.new()
+	benefit.text = "پاداش روزانه هر عضو: %s سکه" % ("بدون پاداش" if reward_per_day == 0 else _format_coin_price(reward_per_day))
+	benefit.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	benefit.add_theme_color_override("font_color", CREAM)
+	level_box.add_child(benefit)
+	if group_level < 3:
+		var progress_label := Label.new()
+		progress_label.text = "پیشرفت ارتقا: %s از %s سکه" % [_format_coin_price(upgrade_progress), _format_coin_price(target_cost)]
+		progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		progress_label.add_theme_color_override("font_color", MUTED)
+		level_box.add_child(progress_label)
+		var progress := ProgressBar.new()
+		progress.min_value = 0
+		progress.max_value = target_cost
+		progress.value = upgrade_progress
+		progress.show_percentage = false
+		progress.custom_minimum_size.y = 16
+		level_box.add_child(progress)
+		var contribution_row := HBoxContainer.new()
+		contribution_row.add_theme_constant_override("separation", 6)
+		level_box.add_child(contribution_row)
+		var amount_input := LineEdit.new()
+		amount_input.placeholder_text = "مقدار مشارکت به سکه"
+		amount_input.custom_minimum_size.y = 44
+		amount_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		amount_input.keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+		_style_input(amount_input)
+		contribution_row.add_child(amount_input)
+		var contribute := _make_button("مشارکت", Color("#765a31"), CREAM)
+		contribute.custom_minimum_size = Vector2(95, 44)
+		contribute.pressed.connect(func(): _contribute_to_group(group_id, amount_input.text))
+		contribution_row.add_child(contribute)
+	else:
+		var max_level := Label.new()
+		max_level.text = "باشگاه به بالاترین سطح رسیده است."
+		max_level.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		max_level.add_theme_color_override("font_color", GOLD)
+		level_box.add_child(max_level)
+	if group_level >= 2:
+		var claim_reward := _make_button("برداشت پاداش امروز · %s سکه" % _format_coin_price(reward_per_day), Color("#287c68"), CREAM)
+		claim_reward.pressed.connect(func(): _claim_group_daily_reward(group_id))
+		level_box.add_child(claim_reward)
+	else:
+		var locked_reward := Label.new()
+		locked_reward.text = "با ارتقا به سطح ۲، هر عضو روزانه ۱۲۰ سکه قابل برداشت می‌گیرد."
+		locked_reward.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		locked_reward.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		locked_reward.add_theme_color_override("font_color", MUTED)
+		level_box.add_child(locked_reward)
+
 	var chat := _make_button("ورود به گفت‌وگوی گروه", Color("#287c68"), CREAM)
 	chat.pressed.connect(func(): _show_group_chat(group_id, safe_group_name))
 	body.add_child(chat)
@@ -2136,6 +2201,30 @@ func _group_role_label(role: String) -> String:
 		"deputy": return "قائم‌مقام"
 		"veteran": return "پیشکسوت"
 		_: return "عضو"
+
+func _contribute_to_group(group_id: String, amount_text: String) -> void:
+	var amount := int(amount_text.strip_edges())
+	if amount <= 0:
+		_set_status("مقدار مشارکت را به‌صورت عدد مثبت وارد کن.", RED)
+		return
+	var result: Dictionary = await CloudAccount.contribute_to_group(group_id, amount)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "مشارکت در ارتقای گروه انجام نشد.")), RED)
+		return
+	_apply_cloud_profile(result.get("profile", {}))
+	_set_status("مشارکت ثبت شد. سطح جدید گروه: %d" % int(result.get("group", {}).get("group_level", 1)), GREEN)
+	_show_groups()
+
+func _claim_group_daily_reward(group_id: String) -> void:
+	var result: Dictionary = await CloudAccount.claim_group_daily_reward(group_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "برداشت پاداش روزانه انجام نشد.")), RED)
+		return
+	_apply_cloud_profile(result.get("profile", {}))
+	var reward := int(result.get("reward_coins", 0))
+	_animate_coin_reward(reward)
+	_set_status("پاداش روزانه گروه: %s سکه به حسابت اضافه شد." % _format_coin_price(reward), GREEN)
+	_show_groups()
 
 func _upgrade_my_group(group_id: String, capacity: int) -> void:
 	var result: Dictionary = await CloudAccount.upgrade_group_capacity(group_id, capacity)
@@ -2297,7 +2386,7 @@ func _build_avatar_widget(path: String, frame_id: String, widget_size: int, avat
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(picture)
-	if not path.is_empty():
+	if not path.is_empty() and avatar_id.is_empty():
 		var request := HTTPRequest.new()
 		request.timeout = 15.0
 		add_child(request)
