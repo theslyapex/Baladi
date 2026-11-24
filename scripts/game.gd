@@ -2136,7 +2136,10 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 		max_level.add_theme_color_override("font_color", GOLD)
 		level_box.add_child(max_level)
 	if group_level >= 2:
-		var claim_reward := _make_button("برداشت پاداش امروز · %s سکه" % _format_coin_price(reward_per_day), Color("#287c68"), CREAM)
+		var already_claimed := bool(group.get("daily_reward_claimed", false))
+		var claim_label := "پاداش امروز دریافت شد" if already_claimed else "برداشت پاداش امروز · %s سکه" % _format_coin_price(reward_per_day)
+		var claim_reward := _make_button(claim_label, Color("#287c68"), CREAM)
+		claim_reward.disabled = already_claimed
 		claim_reward.pressed.connect(func(): _claim_group_daily_reward(group_id))
 		level_box.add_child(claim_reward)
 	else:
