@@ -141,7 +141,7 @@ class CommunityChatActivity : Activity() {
     }
 
     private fun installSessionBootstrap(accessToken: String, refreshToken: String, expiresAt: Long, userJson: String) {
-        if (!WebViewFeature.isFeatureSupported(webView, WebViewFeature.DOCUMENT_START_SCRIPT)) return
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) return
         try {
             val user = JSONObject(userJson)
             val session = JSONObject()
@@ -157,7 +157,12 @@ class CommunityChatActivity : Activity() {
                 (function () {
                   const key = $key;
                   const initial = $value;
-                  try { localStorage.setItem(key, initial); } catch (_) {}
+                  try {
+                    if (!sessionStorage.getItem("__baladiSessionSeeded")) {
+                      localStorage.setItem(key, initial);
+                      sessionStorage.setItem("__baladiSessionSeeded", "1");
+                    }
+                  } catch (_) {}
                   const originalSetItem = Storage.prototype.setItem;
                   Storage.prototype.setItem = function (name, value) {
                     originalSetItem.call(this, name, value);
