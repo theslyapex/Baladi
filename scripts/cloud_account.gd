@@ -330,6 +330,9 @@ func report_group_chat_message(group_id: String, message_id: int, reason: String
 func pin_group_chat_message(group_id: String, message_id: int, pinned: bool) -> Dictionary:
 	return await api("pin_group_message", {"group_id": group_id, "message_id": message_id, "pinned": pinned})
 
+func delete_group_chat_message(group_id: String, message_id: int) -> Dictionary:
+	return await api("delete_group_message", {"group_id": group_id, "message_id": message_id})
+
 func unlock_global_chat() -> Dictionary:
 	# Compatibility shim: public chat is free and no server purchase action is needed.
 	return {"ok": true, "cost": 0, "already_unlocked": true}
