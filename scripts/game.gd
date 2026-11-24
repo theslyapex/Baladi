@@ -3589,8 +3589,8 @@ func _submit_word() -> void:
 			_set_status("آفرین! واژه پیدا شد.", GREEN)
 			_sync_found_word(matched, stage_id)
 			return
-		else:
-			var bonus_result: Dictionary = await CloudAccount.record_word_found(candidate, stage_id)
+	else:
+		var bonus_result: Dictionary = await CloudAccount.record_word_found(candidate, stage_id)
 			if not bonus_result.get("ok", false):
 				_set_status(str(bonus_result.get("error", "اعتبار واژه بررسی نشد.")), RED)
 			elif bonus_result.get("already_found", false):
@@ -3627,7 +3627,7 @@ func _sync_found_word(word: String, stage_id: int) -> void:
 				_render_board()
 		_save()
 		_set_status(str(word_result.get("error", "ثبت واژه در حساب انجام نشد؛ دوباره تلاش کن.")), RED)
-			return
+		return
 	if word_result.get("already_found", false):
 		_set_status("این واژه قبلاً در حسابت ثبت شده است.", GOLD)
 	else:
