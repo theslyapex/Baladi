@@ -1240,13 +1240,15 @@ func _show_profile() -> void:
 
 	_add_page_heading("پروفایل بازیکن", "پیشرفت، آمار و تنظیمات هویت بازی تو")
 
-	var identity := _panel(GOLD)
+	var identity := _panel(Color("#a77a35"))
+	identity.custom_minimum_size.y = 132
 	content_box.add_child(identity)
 	var identity_row := HBoxContainer.new()
 	identity_row.add_theme_constant_override("separation", 14)
 	identity.add_child(identity_row)
-	var avatar := _build_avatar_widget(avatar_path, equipped_frame_id, 76, equipped_avatar_id)
+	var avatar := _build_avatar_widget(avatar_path, equipped_frame_id, 104, equipped_avatar_id)
 	identity_row.add_child(avatar)
+	identity.custom_minimum_size.y = 132
 	var identity_info := VBoxContainer.new()
 	identity_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	identity_info.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1264,7 +1266,7 @@ func _show_profile() -> void:
 		verified_note.add_theme_color_override("font_color", Color("#35a9ff"))
 		identity_info.add_child(verified_note)
 	var player_tag := Label.new()
-	player_tag.text = "ماجراجوی واژه‌ها"
+	player_tag.text = "ماجراجوی واژه‌ها  ·  سطح %d" % maxi(1, int(ceil(float(cloud_current_level) / 20.0)))
 	player_tag.add_theme_font_size_override("font_size", 13)
 	player_tag.add_theme_color_override("font_color", GOLD)
 	identity_info.add_child(player_tag)
@@ -1695,7 +1697,7 @@ func _refresh_global_chat() -> void:
 			chat_messages_box.add_child(card)
 			var body := VBoxContainer.new()
 			body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			body.add_theme_constant_override("separation", 6)
+			body.add_theme_constant_override("separation", 8)
 			card.add_child(body)
 			if not requested_group_id.is_empty() and not is_own_message:
 				_ensure_chat_long_press_timer()
@@ -1758,7 +1760,7 @@ func _refresh_global_chat() -> void:
 				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				message_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-				message_label.custom_minimum_size = Vector2(0, 42)
+				message_label.custom_minimum_size = Vector2(0, 48)
 				message_label.add_theme_font_size_override("font_size", 16)
 				message_label.add_theme_color_override("font_color", CREAM)
 				body.add_child(message_label)
@@ -2752,7 +2754,7 @@ func _show_cosmetic_shop() -> void:
 		var card := _panel(GOLD if item_kind == "avatar_unlock" else (Color("#b18a4d") if item_kind == "sticker" else TEAL))
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		card.custom_minimum_size = Vector2(0, 220)
+		card.custom_minimum_size = Vector2(0, 268)
 		shop_grid.add_child(card)
 		var body := VBoxContainer.new()
 		body.add_theme_constant_override("separation", 6)
@@ -2764,14 +2766,14 @@ func _show_cosmetic_shop() -> void:
 		body.add_child(title)
 		var asset_path := str(item.get("asset_path", ""))
 		if item_kind == "frame":
-			var frame_preview := _build_avatar_widget("", item_id, 74)
+			var frame_preview := _build_avatar_widget("", item_id, 108)
 			body.add_child(frame_preview)
 		elif item_kind == "avatar":
 			var avatar_preview := TextureRect.new()
 			var avatar_file := item_id.trim_prefix("avatar_")
 			var avatar_asset := "res://assets/avatars/%s.svg" % avatar_file
 			avatar_preview.texture = load(avatar_asset) if ResourceLoader.exists(avatar_asset) else load("res://assets/icons/profile.svg")
-			avatar_preview.custom_minimum_size = Vector2(84, 84)
+			avatar_preview.custom_minimum_size = Vector2(108, 108)
 			avatar_preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			avatar_preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 			avatar_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -2779,7 +2781,7 @@ func _show_cosmetic_shop() -> void:
 		elif item_kind == "avatar_unlock":
 			var avatar_preview := TextureRect.new()
 			avatar_preview.texture = load("res://assets/icons/profile.svg")
-			avatar_preview.custom_minimum_size = Vector2(74, 74)
+			avatar_preview.custom_minimum_size = Vector2(108, 108)
 			avatar_preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			avatar_preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 			avatar_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -2787,13 +2789,15 @@ func _show_cosmetic_shop() -> void:
 		elif not asset_path.is_empty() and asset_path.begins_with("assets/stickers/"):
 			var item_art := TextureRect.new()
 			item_art.texture = load("res://" + asset_path)
-			item_art.custom_minimum_size = Vector2(74, 74)
+			item_art.custom_minimum_size = Vector2(104, 104)
 			item_art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			item_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 			item_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			body.add_child(item_art)
 		var price := Label.new()
 		price.text = "رایگان" if int(item.get("price_coins", 0)) == 0 else "%s سکه" % _format_coin_price(item.get("price_coins", 0))
+		price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		price.add_theme_font_size_override("font_size", 15)
 		price.add_theme_color_override("font_color", GOLD)
 		body.add_child(price)
 		if owned_ids.has(item_id):
@@ -3215,7 +3219,7 @@ func _show_game() -> void:
 	content_box.add_child(game_banner)
 
 	var board_panel := _panel(Color("#8f7547"))
-	board_panel.custom_minimum_size.y = 150
+	board_panel.custom_minimum_size.y = 168
 	content_box.add_child(board_panel)
 	board_box = GridContainer.new()
 	board_box.columns = 1
@@ -3226,13 +3230,13 @@ func _show_game() -> void:
 	_render_board()
 
 	var selection_panel := _panel(Color("#9a7738"))
-	selection_panel.custom_minimum_size.y = 68
+	selection_panel.custom_minimum_size.y = 76
 	content_box.add_child(selection_panel)
 	selection_label = Label.new()
 	selection_label.text = "حروف را با کشیدن انگشت به هم وصل کن"
 	selection_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	selection_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	selection_label.add_theme_font_size_override("font_size", 18)
+	selection_label.add_theme_font_size_override("font_size", 19)
 	selection_label.add_theme_color_override("font_color", GOLD)
 	selection_panel.add_child(selection_label)
 
@@ -3464,10 +3468,13 @@ func _render_board() -> void:
 	for word_value in words:
 		var chip := PanelContainer.new()
 		var chip_style := StyleBoxFlat.new()
-		chip_style.bg_color = Color("#245448")
-		chip_style.border_color = GOLD
+		chip_style.bg_color = Color("#1d5145")
+		chip_style.border_color = Color("#c5a35e")
 		chip_style.set_border_width_all(1)
-		chip_style.set_corner_radius_all(12)
+		chip_style.set_corner_radius_all(15)
+		chip_style.shadow_color = Color(0, 0, 0, 0.18)
+		chip_style.shadow_size = 3
+		chip_style.shadow_offset = Vector2(0, 2)
 		chip_style.content_margin_left = 8
 		chip_style.content_margin_right = 8
 		chip_style.content_margin_top = 7
@@ -3476,7 +3483,8 @@ func _render_board() -> void:
 		var word_label := Label.new()
 		word_label.text = "✦  " + str(word_value)
 		word_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		word_label.add_theme_font_size_override("font_size", 17)
+		word_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		word_label.add_theme_font_size_override("font_size", 18)
 		word_label.add_theme_color_override("font_color", CREAM)
 		chip.add_child(word_label)
 		found_grid.add_child(chip)
