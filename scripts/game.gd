@@ -1580,7 +1580,15 @@ func _refresh_global_chat() -> void:
 	if result.get("ok", false) and still_same_chat and chat_messages_box != null and is_instance_valid(chat_messages_box):
 		for child in chat_messages_box.get_children():
 			child.queue_free()
-		for message in result.get("messages", []):
+		var visible_messages: Array = result.get("messages", [])
+		if visible_messages.is_empty():
+			var empty_label := Label.new()
+			empty_label.text = "هنوز پیامی در گفت‌وگو ثبت نشده. اولین پیام را تو بفرست!"
+			empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			empty_label.add_theme_color_override("font_color", MUTED)
+			chat_messages_box.add_child(empty_label)
+		for message in visible_messages:
 			var card := _panel(TEAL if str(message.get("user_id", "")) == CloudAccount.user_id else Color("#456b5b"))
 			chat_messages_box.add_child(card)
 			var body := VBoxContainer.new()
@@ -1588,6 +1596,8 @@ func _refresh_global_chat() -> void:
 			card.add_child(body)
 			var player: Dictionary = message.get("player", {})
 			var player_id := str(message.get("user_id", ""))
+			var message_avatar := _build_avatar_widget(str(player.get("avatar_path", "")), str(player.get("equipped_frame_id", "frame_default")), 42)
+			body.add_child(message_avatar)
 			var name_label := _make_button(_safe_player_name(player.get("display_name", null)) + ("  ✓" if bool(player.get("is_verified", false)) else ""), Color("#294c43"), GOLD)
 			name_label.custom_minimum_size = Vector2(0, 34)
 			name_label.add_theme_font_size_override("font_size", 12)
