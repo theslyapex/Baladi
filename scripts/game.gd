@@ -1577,7 +1577,10 @@ func _show_global_chat() -> void:
 
 func _launch_community_chat() -> void:
 	if guest_mode or not CloudAccount.is_authenticated():
-		_set_status("برای ورود به انجمن، ابتدا وارد حساب بازی شو.", RED)
+		return
+	var session_valid: bool = await CloudAccount._refresh_if_needed()
+	if not session_valid:
+		_set_status("نشست بازی منقضی شده است. دوباره وارد حساب شو.", RED)
 		return
 	var webview = Engine.get_singleton("BaladiCommunityWebView")
 	if webview == null:
