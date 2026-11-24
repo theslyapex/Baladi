@@ -1586,8 +1586,9 @@ func _launch_community_chat() -> void:
 	if webview == null:
 		_set_status("ماژول انجمن در این نسخه نصب نشده است. نسخه جدید بازی را دریافت کن.", RED)
 		return
-	if webview.has_signal("session_updated") and not webview.session_updated.is_connected(_on_community_session_updated):
-		webview.session_updated.connect(_on_community_session_updated)
+	var session_callback := Callable(self, "_on_community_session_updated")
+	if webview.has_signal("session_updated") and not webview.is_connected("session_updated", session_callback):
+		webview.connect("session_updated", session_callback)
 	var user_payload := {
 		"id": CloudAccount.user_id,
 		"email": CloudAccount.user_email,
@@ -1596,7 +1597,8 @@ func _launch_community_chat() -> void:
 		"app_metadata": {"provider": "email", "providers": ["email"]},
 		"user_metadata": {"full_name": CloudAccount.display_name}
 	}
-	webview.openCommunityChat(
+	webview.call(
+		"openCommunityChat",
 		CloudAccount.access_token,
 		CloudAccount.refresh_token,
 		float(CloudAccount.expires_at),
