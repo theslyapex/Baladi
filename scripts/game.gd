@@ -1692,12 +1692,27 @@ func _refresh_global_chat() -> void:
 			var player: Dictionary = message.get("player", {})
 			var player_id := str(message.get("user_id", ""))
 			var is_own_message := player_id == CloudAccount.user_id
-			var card := _panel(TEAL if is_own_message else Color("#456b5b"))
+			var card := _panel(Color("#c5a35e") if is_own_message else Color("#31594d"))
 			card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var bubble_style := StyleBoxFlat.new()
+			bubble_style.bg_color = Color("#245747") if is_own_message else Color("#173a33")
+			bubble_style.border_color = Color("#b99755") if is_own_message else Color("#31594d")
+			bubble_style.set_border_width_all(1)
+			bubble_style.set_corner_radius_all(18)
+			bubble_style.set_corner_radius(CORNER_BOTTOM_RIGHT, 5 if is_own_message else 18)
+			bubble_style.set_corner_radius(CORNER_BOTTOM_LEFT, 18 if is_own_message else 5)
+			bubble_style.shadow_color = Color(0, 0, 0, 0.24)
+			bubble_style.shadow_size = 6
+			bubble_style.shadow_offset = Vector2(0, 3)
+			bubble_style.content_margin_left = 13
+			bubble_style.content_margin_right = 13
+			bubble_style.content_margin_top = 11
+			bubble_style.content_margin_bottom = 11
+			card.add_theme_stylebox_override("panel", bubble_style)
 			chat_messages_box.add_child(card)
 			var body := VBoxContainer.new()
 			body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			body.add_theme_constant_override("separation", 8)
+			body.add_theme_constant_override("separation", 9)
 			card.add_child(body)
 			if not requested_group_id.is_empty() and not is_own_message:
 				_ensure_chat_long_press_timer()
@@ -3523,7 +3538,16 @@ func _render_letters() -> void:
 		button.add_theme_stylebox_override("normal", circle_style)
 		var hover_style := circle_style.duplicate()
 		hover_style.bg_color = Color("#2c6b5b")
+		hover_style.border_color = Color("#f0d99d")
 		button.add_theme_stylebox_override("hover", hover_style)
+		var pressed_style := circle_style.duplicate()
+		pressed_style.bg_color = Color("#94743d")
+		pressed_style.border_color = Color("#ffe4a5")
+		button.add_theme_stylebox_override("pressed", pressed_style)
+		var focus_style := circle_style.duplicate()
+		focus_style.border_color = GOLD
+		focus_style.set_border_width_all(3)
+		button.add_theme_stylebox_override("focus", focus_style)
 		letters_grid.add_child(button)
 		letter_buttons.append(button)
 	call_deferred("_layout_letters")
@@ -3604,13 +3628,29 @@ func _add_trace_letter(index: int) -> void:
 	var letters: Array = _current_letters()
 	selected_word += str(letters[index])
 	var button := letter_buttons[index]
-	button.modulate = GOLD
+	_style_letter_state(button, true)
 	_play_sfx("select")
 	var tween := create_tween()
 	tween.tween_property(button, "scale", Vector2(1.16, 1.16), 0.10).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(button, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 	_update_selection_label()
 	_update_controls()
+
+func _style_letter_state(button: Button, selected: bool) -> void:
+	if button == null or not is_instance_valid(button):
+		return
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#94743d") if selected else Color("#205247")
+	style.border_color = Color("#ffe3a0") if selected else Color("#d4b46f")
+	style.set_border_width_all(3 if selected else 2)
+	style.set_corner_radius_all(34)
+	style.shadow_color = Color(0.88, 0.68, 0.30, 0.34) if selected else Color(0, 0, 0, 0.28)
+	style.shadow_size = 9 if selected else 5
+	style.shadow_offset = Vector2(0, 4 if selected else 3)
+	button.add_theme_stylebox_override("normal", style)
+	button.add_theme_color_override("font_color", Color("#fff1c8") if selected else CREAM)
+	button.add_theme_color_override("font_hover_color", Color("#fff1c8"))
+	button.scale = Vector2(1.08, 1.08) if selected else Vector2.ONE
 
 func _finish_trace() -> void:
 	if not is_dragging:
@@ -3683,8 +3723,7 @@ func _clear_selection() -> void:
 	trace_line.clear_points()
 	for index in selected_indices:
 		if index < letter_buttons.size() and is_instance_valid(letter_buttons[index]):
-			letter_buttons[index].modulate = Color.WHITE
-			letter_buttons[index].scale = Vector2.ONE
+			_style_letter_state(letter_buttons[index], false)
 	selected_indices.clear()
 	selected_word = ""
 	_update_selection_label()
