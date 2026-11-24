@@ -987,7 +987,7 @@ func _show_map() -> void:
 		chapter_box.add_theme_constant_override("separation", 10)
 		chapter_panel.add_child(chapter_box)
 		var chapter_banner := _build_chapter_banner(first_level)
-		chapter_banner.custom_minimum_size = Vector2(0, 104)
+		chapter_banner.custom_minimum_size = Vector2(0, 128)
 		chapter_box.add_child(chapter_banner)
 		var chapter_meta := Label.new()
 		chapter_meta.text = "مراحل %d تا %d" % [first_level, last_level]
@@ -1015,6 +1015,14 @@ func _show_map() -> void:
 		chapter_count_label.add_theme_font_size_override("font_size", 12)
 		chapter_count_label.add_theme_color_override("font_color", GOLD)
 		chapter_box.add_child(chapter_count_label)
+		var chapter_status := Label.new()
+		var chapter_is_active := cloud_current_level >= first_level and cloud_current_level <= last_level
+		var chapter_is_finished := chapter_done >= last_index - first_index
+		chapter_status.text = "✦ فصل جاری تو" if chapter_is_active else ("✓ این سرزمین کامل شده" if chapter_is_finished else "برای رسیدن به این سرزمین، مسیرت را ادامه بده")
+		chapter_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		chapter_status.add_theme_font_size_override("font_size", 11)
+		chapter_status.add_theme_color_override("font_color", GOLD if chapter_is_active or chapter_is_finished else MUTED)
+		chapter_box.add_child(chapter_status)
 
 		var stage_grid := GridContainer.new()
 		stage_grid.columns = 4
@@ -1032,26 +1040,33 @@ func _show_map() -> void:
 			var is_open := stage_id <= cloud_current_level or completed_levels.has(stage_id) or (stage_index > 0 and completed_levels.has(previous_stage_id))
 			var is_current := stage_id == cloud_current_level
 			var stage_button := Button.new()
-			stage_button.custom_minimum_size = Vector2(0, 62)
+			stage_button.custom_minimum_size = Vector2(0, 68)
 			stage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			stage_button.text = "✓" if is_done else "%02d" % stage_id
+			stage_button.text = "✓" if is_done else ("▶\n%02d" % stage_id if is_current else ("قفل" if not is_open else "%02d" % stage_id))
+			stage_button.tooltip_text = "مرحله %d · %s" % [stage_id, ("تکمیل‌شده" if is_done else ("مرحله فعلی" if is_current else ("باز" if is_open else "قفل‌شده")))]
 			stage_button.disabled = not is_open
-			stage_button.add_theme_font_size_override("font_size", 18)
-			stage_button.add_theme_color_override("font_color", Color("#fff4d0") if is_current else (GOLD if is_done else (CREAM if is_open else MUTED)))
-			stage_button.add_theme_color_override("font_disabled_color", GOLD if is_done else Color("#71837d"))
+			stage_button.add_theme_font_size_override("font_size", 16 if is_current else 17)
+			stage_button.add_theme_color_override("font_color", Color("#fff4d0") if is_current else (GOLD if is_done else (CREAM if is_open else Color("#71837d"))))
+			stage_button.add_theme_color_override("font_disabled_color", Color("#71837d"))
 			var node_style := StyleBoxFlat.new()
 			node_style.bg_color = Color("#246d59") if is_current else (Color("#315f4f") if is_done else (Color("#183b34") if is_open else Color("#142d29")))
 			node_style.border_color = GOLD if is_current or is_done else (TEAL if is_open else Color("#29443d"))
-			node_style.set_border_width_all(2 if is_current else 1)
-			node_style.set_corner_radius_all(18)
-			node_style.shadow_color = Color(0, 0, 0, 0.20)
-			node_style.shadow_size = 4 if is_current else 1
+			node_style.set_border_width_all(2 if is_current or is_done else 1)
+			node_style.set_corner_radius_all(21)
+			node_style.shadow_color = Color(0, 0, 0, 0.24)
+			node_style.shadow_size = 7 if is_current else (3 if is_done else 1)
+			node_style.shadow_offset = Vector2(0, 3)
 			node_style.content_margin_left = 2
 			node_style.content_margin_right = 2
 			stage_button.add_theme_stylebox_override("normal", node_style)
 			var node_hover := node_style.duplicate()
 			node_hover.bg_color = node_style.bg_color.lightened(0.12)
+			node_hover.shadow_size = 8
 			stage_button.add_theme_stylebox_override("hover", node_hover)
+			var node_pressed := node_style.duplicate()
+			node_pressed.bg_color = node_style.bg_color.darkened(0.12)
+			node_pressed.shadow_size = 1
+			stage_button.add_theme_stylebox_override("pressed", node_pressed)
 			stage_button.add_theme_stylebox_override("disabled", node_style)
 			stage_button.pressed.connect(_open_level.bind(stage_index))
 			stage_grid.add_child(stage_button)
