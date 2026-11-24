@@ -33,6 +33,8 @@ var pending_word_syncs := 0
 
 var page_box: VBoxContainer
 var content_box: VBoxContainer
+var bottom_nav_panel: PanelContainer
+var bottom_nav_buttons: Dictionary = {}
 var coin_label: Label
 var coin_panel: PanelContainer
 var coin_icon_control: TextureRect
@@ -459,12 +461,37 @@ func _build_base() -> void:
 	content_scroll.add_child(content_box)
 	stage_scroll = content_scroll
 
-	var footer := Label.new()
-	footer.text = "ALISHAMS GAME STUDIO"
-	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	footer.add_theme_font_size_override("font_size", 10)
-	footer.add_theme_color_override("font_color", Color("#78968b"))
-	page_box.add_child(footer)
+	bottom_nav_panel = PanelContainer.new()
+	bottom_nav_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bottom_nav_panel.visible = false
+	var nav_style := StyleBoxFlat.new()
+	nav_style.bg_color = Color("#102b26")
+	nav_style.border_color = Color("#345b4d")
+	nav_style.set_border_width_all(1)
+	nav_style.set_corner_radius_all(18)
+	nav_style.content_margin_left = 6
+	nav_style.content_margin_right = 6
+	nav_style.content_margin_top = 6
+	nav_style.content_margin_bottom = 6
+	bottom_nav_panel.add_theme_stylebox_override("panel", nav_style)
+	page_box.add_child(bottom_nav_panel)
+	var nav_row := HBoxContainer.new()
+	nav_row.add_theme_constant_override("separation", 5)
+	bottom_nav_panel.add_child(nav_row)
+	var nav_specs := [
+		["map", "مراحل", _show_map],
+		["groups", "گروه‌ها", _show_groups],
+		["global_chat", "گفت‌وگو", _show_global_chat],
+		["leaderboard", "رتبه‌بندی", _show_leaderboard]
+	]
+	for spec in nav_specs:
+		var nav_button := _make_button(str(spec[1]), Color("#173a32"), MUTED)
+		nav_button.custom_minimum_size = Vector2(0, 44)
+		nav_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		nav_button.add_theme_font_size_override("font_size", 11)
+		nav_button.pressed.connect(spec[2])
+		nav_row.add_child(nav_button)
+		bottom_nav_buttons[str(spec[0])] = nav_button
 
 	trace_line = Line2D.new()
 	trace_line.width = 8.5
@@ -480,6 +507,38 @@ func _build_base() -> void:
 	trace_line.visible = false
 	add_child(trace_line)
 	coin_label.text = "%d" % coins
+
+func _refresh_bottom_nav() -> void:
+	if bottom_nav_buttons.is_empty():
+		return
+	var active_page := current_page
+	if current_page == "group_chat":
+		active_page = "groups"
+	elif current_page == "game":
+		active_page = "map"
+	for page_key in bottom_nav_buttons.keys():
+		var nav_button: Button = bottom_nav_buttons[page_key]
+		if not is_instance_valid(nav_button):
+			continue
+		var active := str(page_key) == active_page
+		var base := StyleBoxFlat.new()
+		base.bg_color = Color("#745c31") if active else Color("#173a32")
+		base.border_color = GOLD if active else Color("#2d5146")
+		base.set_border_width_all(1)
+		base.set_corner_radius_all(12)
+		base.content_margin_left = 4
+		base.content_margin_right = 4
+		base.content_margin_top = 6
+		base.content_margin_bottom = 6
+		nav_button.add_theme_stylebox_override("normal", base)
+		var hover := base.duplicate()
+		hover.bg_color = base.bg_color.lightened(0.10)
+		nav_button.add_theme_stylebox_override("hover", hover)
+		var pressed := base.duplicate()
+		pressed.bg_color = base.bg_color.darkened(0.12)
+		nav_button.add_theme_stylebox_override("pressed", pressed)
+		nav_button.add_theme_color_override("font_color", GOLD if active else MUTED)
+		nav_button.add_theme_color_override("font_hover_color", CREAM)
 
 func _add_page_heading(title_text: String, subtitle_text: String = "") -> void:
 	var heading_panel := _panel(Color("#9a7b42"))
@@ -513,6 +572,9 @@ func _play_page_entry() -> void:
 	tween.tween_property(content_box, "modulate:a", 1.0, 0.22)
 
 func _clear_content() -> void:
+	if bottom_nav_panel != null and is_instance_valid(bottom_nav_panel):
+		bottom_nav_panel.visible = current_page != "auth"
+		_refresh_bottom_nav()
 	stage_scroll = null
 	stage_touch_active = false
 	is_dragging = false
