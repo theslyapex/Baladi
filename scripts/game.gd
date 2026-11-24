@@ -863,7 +863,7 @@ func _show_map() -> void:
 	social_row.add_child(settings_nav)
 
 	if not guest_mode and not chat_unlocked:
-		var unlock_chat_nav := _make_button("خرید دسترسی دائمی چت عمومی · ۱۸٬۰۰۰ سکه", Color("#a77a35"), CREAM)
+		var unlock_chat_nav := _make_button("خرید دسترسی دائمی چت عمومی · ۵٬۰۰۰ سکه", Color("#a77a35"), CREAM)
 		unlock_chat_nav.pressed.connect(_unlock_global_chat)
 		content_box.add_child(unlock_chat_nav)
 
@@ -1441,13 +1441,20 @@ func _show_global_chat() -> void:
 	active_group_chat_id = ""
 	active_group_chat_name = ""
 	_clear_content()
-	_add_section_art("assets/backgrounds/ambient.svg", 92)
 	var heading := Label.new()
 	heading.text = "گفت‌وگوی بازیکنان"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.add_theme_font_size_override("font_size", 25)
 	heading.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(heading)
+	var intro_panel := _panel(Color("#8d7548"))
+	content_box.add_child(intro_panel)
+	var intro := Label.new()
+	intro.text = "گفت‌وگو کن، استیکر بفرست، پروفایل بازیکنان را ببین و آن‌ها را به رقابت دونفره دعوت کن."
+	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro.add_theme_color_override("font_color", CREAM)
+	intro_panel.add_child(intro)
 	if guest_mode:
 		var guest_note := Label.new()
 		guest_note.text = "برای حضور در گفت‌وگوی عمومی، با حساب کاربری وارد شو."
@@ -1472,7 +1479,7 @@ func _show_global_chat() -> void:
 		lock_title.add_theme_color_override("font_color", GOLD)
 		lock_body.add_child(lock_title)
 		var lock_text := Label.new()
-		lock_text.text = "چت عمومی هنوز برای حسابت فعال نیست. با یک خرید دائمی، فقط یک‌بار ۱۸٬۰۰۰ سکه پرداخت می‌کنی و دسترسی چت برای همیشه باز می‌شود."
+		lock_text.text = "چت عمومی هنوز برای حسابت فعال نیست. با یک خرید دائمی، فقط یک‌بار ۵٬۰۰۰ سکه پرداخت می‌کنی و دسترسی چت برای همیشه باز می‌شود."
 		lock_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		lock_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lock_text.add_theme_color_override("font_color", CREAM)
@@ -1483,7 +1490,7 @@ func _show_global_chat() -> void:
 		balance.add_theme_font_size_override("font_size", 16)
 		balance.add_theme_color_override("font_color", GOLD)
 		lock_body.add_child(balance)
-		var unlock := _make_button("خرید و فعال‌سازی چت عمومی · ۱۸٬۰۰۰ سکه", Color("#a77a35"), CREAM)
+		var unlock := _make_button("خرید و فعال‌سازی چت عمومی · ۵٬۰۰۰ سکه", Color("#a77a35"), CREAM)
 		unlock.custom_minimum_size = Vector2(0, 58)
 		unlock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		unlock.add_theme_font_size_override("font_size", 17)
@@ -1493,7 +1500,19 @@ func _show_global_chat() -> void:
 		sticker_shop.pressed.connect(_show_sticker_picker)
 		lock_body.add_child(sticker_shop)
 	else:
+		var chat_actions := HBoxContainer.new()
+		chat_actions.add_theme_constant_override("separation", 7)
+		content_box.add_child(chat_actions)
+		var sticker_button := _make_button("استیکرهای من", Color("#765a31"), CREAM)
+		sticker_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sticker_button.pressed.connect(_show_sticker_picker)
+		chat_actions.add_child(sticker_button)
+		var invites_button := _make_button("دعوت‌های بازی", Color("#294c43"), GOLD)
+		invites_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		invites_button.pressed.connect(_show_duel_invites)
+		chat_actions.add_child(invites_button)
 		var messages_scroll := ScrollContainer.new()
+		messages_scroll.custom_minimum_size = Vector2(0, 280)
 		messages_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		messages_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		messages_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1516,9 +1535,6 @@ func _show_global_chat() -> void:
 		send.size_flags_horizontal = Control.SIZE_SHRINK_END
 		send.pressed.connect(_send_global_chat_message)
 		composer.add_child(send)
-		var sticker_button := _make_button("استیکرها", Color("#765a31"), CREAM)
-		sticker_button.pressed.connect(_show_sticker_picker)
-		content_box.add_child(sticker_button)
 		chat_status_label = Label.new()
 		chat_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		chat_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1536,15 +1552,15 @@ func _show_global_chat() -> void:
 	content_box.add_child(back)
 
 func _unlock_global_chat() -> void:
-	if coins < 18000:
-		_set_status("برای بازکردن چت، ۱۸٬۰۰۰ سکه لازم داری.", RED)
+	if coins < 5000:
+		_set_status("برای بازکردن چت، ۵٬۰۰۰ سکه لازم داری.", RED)
 		return
 	var result: Dictionary = await CloudAccount.unlock_global_chat()
 	if not result.get("ok", false):
 		_set_status(str(result.get("error", "بازکردن چت انجام نشد.")), RED)
 		return
 	_apply_cloud_profile(result.get("profile", {}))
-	_animate_coin_reward(-18000)
+	_animate_coin_reward(-5000)
 	_show_global_chat()
 
 func _refresh_global_chat() -> void:
@@ -1595,6 +1611,11 @@ func _refresh_global_chat() -> void:
 				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				message_label.add_theme_color_override("font_color", CREAM)
 				body.add_child(message_label)
+			if active_group_chat_id.is_empty() and player_id != CloudAccount.user_id:
+				var report_button := _make_button("گزارش پیام", Color("#713e3b"), CREAM)
+				report_button.custom_minimum_size = Vector2(0, 34)
+				report_button.pressed.connect(func(): _show_chat_report_menu(int(message.get("id", 0))))
+				body.add_child(report_button)
 			if not active_group_chat_id.is_empty() and bool(message.get("is_pinned", false)):
 				var pinned_label := Label.new()
 				pinned_label.text = "پیام سنجاق‌شده"
@@ -1609,6 +1630,29 @@ func _refresh_global_chat() -> void:
 	elif not result.get("ok", false) and still_same_chat and chat_status_label != null and is_instance_valid(chat_status_label):
 		chat_status_label.text = str(result.get("error", "دریافت پیام‌ها انجام نشد."))
 	chat_poll_busy = false
+
+func _show_chat_report_menu(message_id: int) -> void:
+	if message_id <= 0:
+		return
+	var popup := PopupMenu.new()
+	popup.add_item("تبلیغات و هرزنامه", 0)
+	popup.add_item("توهین و آزار", 1)
+	popup.add_item("محتوای نامناسب", 2)
+	popup.add_item("تهدید یا کلاهبرداری", 3)
+	popup.add_item("سایر موارد", 4)
+	add_child(popup)
+	popup.id_pressed.connect(_submit_chat_report.bind(message_id))
+	popup.popup_centered(Vector2i(300, 250))
+
+func _submit_chat_report(reason_index: int, message_id: int) -> void:
+	var reasons := ["تبلیغات و هرزنامه", "توهین و آزار", "محتوای نامناسب", "تهدید یا کلاهبرداری", "سایر موارد"]
+	if reason_index < 0 or reason_index >= reasons.size():
+		return
+	var result: Dictionary = await CloudAccount.report_global_chat_message(message_id, reasons[reason_index])
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "ثبت گزارش انجام نشد.")), RED)
+	else:
+		_set_status("گزارش پیام برای بررسی ثبت شد.", GREEN)
 
 func _toggle_group_message_pin(group_id: String, message_id: int, pinned: bool) -> void:
 	var result: Dictionary = await CloudAccount.pin_group_chat_message(group_id, message_id, pinned)
