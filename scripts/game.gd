@@ -481,6 +481,37 @@ func _build_base() -> void:
 	add_child(trace_line)
 	coin_label.text = "%d" % coins
 
+func _add_page_heading(title_text: String, subtitle_text: String = "") -> void:
+	var heading_panel := _panel(Color("#9a7b42"))
+	heading_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_box.add_child(heading_panel)
+	var heading_body := VBoxContainer.new()
+	heading_body.add_theme_constant_override("separation", 4)
+	heading_panel.add_child(heading_body)
+	var title := Label.new()
+	title.text = title_text
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", GOLD)
+	heading_body.add_child(title)
+	if not subtitle_text.is_empty():
+		var subtitle := Label.new()
+		subtitle.text = subtitle_text
+		subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		subtitle.add_theme_font_size_override("font_size", 12)
+		subtitle.add_theme_color_override("font_color", MUTED)
+		heading_body.add_child(subtitle)
+
+func _play_page_entry() -> void:
+	if content_box == null or not is_instance_valid(content_box):
+		return
+	content_box.modulate.a = 0.0
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(content_box, "modulate:a", 1.0, 0.22)
+
 func _clear_content() -> void:
 	stage_scroll = null
 	stage_touch_active = false
@@ -496,6 +527,7 @@ func _clear_content() -> void:
 	trace_line.visible = false
 	for child in content_box.get_children():
 		child.queue_free()
+	call_deferred("_play_page_entry")
 
 func _add_section_art(asset_path: String, height: float = 104.0) -> void:
 	if content_box == null or not is_instance_valid(content_box):
@@ -774,12 +806,7 @@ func _show_map() -> void:
 	coin_panel.visible = true
 	coin_label.text = "%d" % coins
 
-	var heading := Label.new()
-	heading.text = "نقشه مراحل"
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.add_theme_font_size_override("font_size", 27)
-	heading.add_theme_color_override("font_color", CREAM)
-	content_box.add_child(heading)
+	_add_page_heading("نقشه مراحل", "۲۰۰ مرحله برای کشف واژه‌ها و سرزمین‌های تازه")
 	var greeting := Label.new()
 	greeting.text = "سلام، %s! آماده‌ای؟" % display_name
 	greeting.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1146,12 +1173,7 @@ func _show_profile() -> void:
 	if profile_button != null:
 		profile_button.visible = true
 
-	var heading := Label.new()
-	heading.text = "پروفایل بازیکن"
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.add_theme_font_size_override("font_size", 28)
-	heading.add_theme_color_override("font_color", GOLD)
-	content_box.add_child(heading)
+	_add_page_heading("پروفایل بازیکن", "پیشرفت، آمار و تنظیمات هویت بازی تو")
 
 	var identity := _panel(GOLD)
 	content_box.add_child(identity)
@@ -1454,12 +1476,7 @@ func _show_global_chat() -> void:
 	active_group_chat_id = ""
 	active_group_chat_name = ""
 	_clear_content()
-	var heading := Label.new()
-	heading.text = "گفت‌وگوی بازیکنان"
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.add_theme_font_size_override("font_size", 25)
-	heading.add_theme_color_override("font_color", GOLD)
-	content_box.add_child(heading)
+	_add_page_heading("گفت‌وگوی بازیکنان", "با جامعه بلدی؟ در ارتباط باش و رقیب پیدا کن")
 	var intro_panel := _panel(Color("#8d7548"))
 	content_box.add_child(intro_panel)
 	var intro := Label.new()
@@ -2035,12 +2052,7 @@ func _show_groups() -> void:
 	active_group_role = ""
 	_clear_content()
 	_add_section_art("assets/backgrounds/chapter-caravanserai.svg", 92)
-	var heading := Label.new()
-	heading.text = "باشگاه گروه‌ها"
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.add_theme_font_size_override("font_size", 25)
-	heading.add_theme_color_override("font_color", GOLD)
-	content_box.add_child(heading)
+	_add_page_heading("باشگاه گروه‌ها", "گروه بساز، عضو شو و با هم پیشرفت کن")
 	if guest_mode:
 		var note := Label.new()
 		note.text = "برای ساخت گروه یا عضویت در گروه‌ها، وارد حساب کاربری شو."
@@ -2647,12 +2659,7 @@ func _show_cosmetic_shop() -> void:
 	current_page = "cosmetic_shop"
 	_clear_content()
 	_add_section_art("assets/backgrounds/chapter-palace.svg", 92)
-	var heading := Label.new()
-	heading.text = "فروشگاه قاب‌ها و تصویر پروفایل"
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.add_theme_font_size_override("font_size", 25)
-	heading.add_theme_color_override("font_color", GOLD)
-	content_box.add_child(heading)
+	_add_page_heading("فروشگاه شخصی‌سازی", "قاب‌ها، آواتارها و آیتم‌های ویژه برای پروفایلت")
 	if guest_mode:
 		_set_status("خریدهای فروشگاه برای حساب‌های ثبت‌شده فعال است.", GOLD)
 		var guest_back := _make_button("بازگشت", PANEL_ALT, CREAM)
@@ -2783,12 +2790,7 @@ func _show_leaderboard() -> void:
 	current_page = "leaderboard"
 	_clear_content()
 	_add_section_art("assets/backgrounds/chapter-mountains.svg", 92)
-	var heading := Label.new()
-	heading.text = "رقابت ماهانه"
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.add_theme_font_size_override("font_size", 25)
-	heading.add_theme_color_override("font_color", GOLD)
-	content_box.add_child(heading)
+	_add_page_heading("رقابت ماهانه", "با بهترین بازیکنان رقابت کن و جایزه بگیر")
 	if guest_mode:
 		_set_status("برای شرکت در رقابت ماهانه و دریافت جایزه، وارد حساب کاربری شو.", GOLD)
 	else:
