@@ -1557,15 +1557,8 @@ func _show_global_chat() -> void:
 	content_box.add_child(back)
 
 func _unlock_global_chat() -> void:
-	if coins < 5000:
-		_set_status("برای بازکردن چت، ۵٬۰۰۰ سکه لازم داری.", RED)
-		return
-	var result: Dictionary = await CloudAccount.unlock_global_chat()
-	if not result.get("ok", false):
-		_set_status(str(result.get("error", "بازکردن چت انجام نشد.")), RED)
-		return
-	_apply_cloud_profile(result.get("profile", {}))
-	_animate_coin_reward(-5000)
+	# Legacy entry point retained for older UI references; public chat has no purchase gate.
+	chat_unlocked = true
 	_show_global_chat()
 
 func _refresh_global_chat() -> void:
