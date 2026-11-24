@@ -68,7 +68,7 @@ var equipped_frame_id := "frame_default"
 var equipped_avatar_id := ""
 var wins := 0
 var losses := 0
-var chat_unlocked := false
+var chat_unlocked := true
 var chat_poll_timer: Timer
 var chat_messages_box: VBoxContainer
 var chat_scroll_container: ScrollContainer
@@ -183,8 +183,8 @@ func _enter_game() -> void:
 	equipped_avatar_id = str(profile.get("equipped_avatar_id", ""))
 	wins = int(profile.get("wins", 0))
 	losses = int(profile.get("losses", 0))
-	var chat_stamp = profile.get("chat_unlocked_at", null)
-	chat_unlocked = chat_stamp != null and not str(chat_stamp).is_empty()
+	# Public chat is available to every signed-in player; no coin unlock flag is required.
+	chat_unlocked = true
 	cloud_current_level = int(profile.get("current_level", 1))
 	level_index = clampi(cloud_current_level - 1, 0, max(0, levels.size() - 1))
 	var remote_completed = profile.get("completed_levels", [])
@@ -739,7 +739,8 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 	equipped_avatar_id = str(profile.get("equipped_avatar_id", equipped_avatar_id))
 	wins = int(profile.get("wins", wins))
 	losses = int(profile.get("losses", losses))
-	chat_unlocked = not str(profile.get("chat_unlocked_at", "")).is_empty()
+	# Keep legacy profile flags from re-locking the public chat.
+	chat_unlocked = true
 	cloud_current_level = int(profile.get("current_level", cloud_current_level))
 	var remote_completed = profile.get("completed_levels", completed_levels)
 	if remote_completed is Array:
@@ -870,10 +871,6 @@ func _show_map() -> void:
 	settings_nav.pressed.connect(_show_settings)
 	social_row.add_child(settings_nav)
 
-	if not guest_mode and not chat_unlocked:
-		var unlock_chat_nav := _make_button("خرید دسترسی دائمی چت عمومی · ۵٬۰۰۰ سکه", Color("#a77a35"), CREAM)
-		unlock_chat_nav.pressed.connect(_unlock_global_chat)
-		content_box.add_child(unlock_chat_nav)
 
 	if cloud_current_level > levels.size():
 		var finished := Label.new()
@@ -3438,7 +3435,7 @@ func _finish_trace() -> void:
 		_submit_word()
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ESCAPE):
+	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ESCAPE or event.keycode == KEY_BACK):
 		_handle_back_request()
 		get_viewport().set_input_as_handled()
 		return
@@ -4128,6 +4125,7 @@ func _confirm_app_exit() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		_handle_back_request()
+		get_viewport().set_input_as_handled()
 	elif what == NOTIFICATION_APPLICATION_PAUSED:
 		_save()
 		if not guest_mode and CloudAccount.is_authenticated():
