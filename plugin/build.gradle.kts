@@ -40,6 +40,5 @@ kotlin {
 dependencies {
     implementation("org.godotengine:godot:4.7.2.stable")
     implementation("androidx.webkit:webkit:1.14.0")
-    implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("androidx.core:core-ktx:1.16.0")
 }
