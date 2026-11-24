@@ -83,6 +83,7 @@ var chat_poll_busy := false
 var active_group_chat_id := ""
 var active_group_chat_name := ""
 var active_group_role := ""
+var public_profile_return_page := "leaderboard"
 var group_name_input: LineEdit
 var group_description_input: LineEdit
 var duel_mode := false
@@ -1614,8 +1615,19 @@ func _refresh_global_chat() -> void:
 			var sender_row := HBoxContainer.new()
 			sender_row.add_theme_constant_override("separation", 8)
 			body.add_child(sender_row)
+			var avatar_button := Button.new()
+			avatar_button.flat = true
+			avatar_button.custom_minimum_size = Vector2(48, 48)
+			avatar_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			avatar_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			avatar_button.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+			avatar_button.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
+			avatar_button.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
 			var message_avatar := _build_avatar_widget(str(player.get("avatar_path", "")), str(player.get("equipped_frame_id", "frame_default")), 42, str(player.get("equipped_avatar_id", "")))
-			sender_row.add_child(message_avatar)
+			message_avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			avatar_button.add_child(message_avatar)
+			avatar_button.pressed.connect(_open_chat_public_profile.bind(player_id))
+			sender_row.add_child(avatar_button)
 			var sender_info := VBoxContainer.new()
 			sender_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			sender_row.add_child(sender_info)
@@ -1625,7 +1637,7 @@ func _refresh_global_chat() -> void:
 			if player_id == CloudAccount.user_id:
 				name_label.disabled = true
 			else:
-				name_label.pressed.connect(_show_public_profile.bind(player_id))
+				name_label.pressed.connect(_open_chat_public_profile.bind(player_id))
 			sender_info.add_child(name_label)
 			var created_at := str(message.get("created_at", ""))
 			var time_label := Label.new()
@@ -1647,8 +1659,11 @@ func _refresh_global_chat() -> void:
 				body.add_child(sticker_art)
 			else:
 				var message_label := Label.new()
-				var message_text := str(message.get("body", message.get("content", ""))).strip_edges()
-				message_label.text = message_text if not message_text.is_empty() else "پیام متنی"
+				var message_value = message.get("body", null)
+				if message_value == null:
+					message_value = message.get("content", message.get("message", message.get("text", "")))
+				var message_text := str(message_value).strip_edges()
+				message_label.text = message_text if not message_text.is_empty() else "متن پیام دریافت نشد"
 				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				message_label.custom_minimum_size = Vector2(0, 30)
@@ -2859,6 +2874,10 @@ func _show_leaderboard() -> void:
 	back.pressed.connect(_show_profile)
 	content_box.add_child(back)
 
+func _open_chat_public_profile(target_user_id: String) -> void:
+	public_profile_return_page = current_page if current_page in ["global_chat", "group_chat"] else "leaderboard"
+	_show_public_profile(target_user_id)
+
 func _show_public_profile(target_user_id: String) -> void:
 	current_page = "public_profile"
 	if guest_mode:
@@ -2868,7 +2887,7 @@ func _show_public_profile(target_user_id: String) -> void:
 	if not result.get("ok", false):
 		_set_status(str(result.get("error", "پروفایل بازیکن بارگذاری نشد.")), RED)
 		var back_error := _make_button("بازگشت به رتبه‌بندی", PANEL_ALT, CREAM)
-		back_error.pressed.connect(_show_leaderboard)
+		back_error.pressed.connect(_return_from_public_profile)
 		content_box.add_child(back_error)
 		return
 	var player: Dictionary = result.get("profile", {})
@@ -2894,8 +2913,11 @@ func _show_public_profile(target_user_id: String) -> void:
 	challenge.pressed.connect(func(): _send_duel_invite_to(target_user_id))
 	content_box.add_child(challenge)
 	var back := _make_button("بازگشت به رتبه‌بندی", PANEL_ALT, CREAM)
-	back.pressed.connect(_show_leaderboard)
+	back.pressed.connect(_return_from_public_profile)
 	content_box.add_child(back)
+
+func _return_from_public_profile() -> void:
+	_navigate_back_to(public_profile_return_page)
 
 func _add_profile_stat(parent: GridContainer, caption: String, value: String, accent: Color) -> void:
 	var tile := _panel(accent)
@@ -4141,7 +4163,7 @@ func _handle_back_request() -> void:
 		"duel_result":
 			_show_duel_invites()
 		"public_profile":
-			_show_leaderboard()
+			_return_from_public_profile()
 		"sticker_picker":
 			if not active_group_chat_id.is_empty():
 				_show_group_chat(active_group_chat_id, active_group_chat_name)
