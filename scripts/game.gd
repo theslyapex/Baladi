@@ -486,6 +486,7 @@ func _clear_content() -> void:
 	if chat_poll_timer != null:
 		chat_poll_timer.stop()
 	chat_messages_box = null
+	chat_scroll_container = null
 	chat_input = null
 	chat_status_label = null
 	trace_line.clear_points()
@@ -1526,6 +1527,7 @@ func _show_global_chat() -> void:
 		messages_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		messages_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		content_box.add_child(messages_scroll)
+		chat_scroll_container = messages_scroll
 		chat_messages_box = VBoxContainer.new()
 		chat_messages_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		chat_messages_box.add_theme_constant_override("separation", 7)
@@ -1585,10 +1587,11 @@ func _refresh_global_chat() -> void:
 	var still_same_chat := current_page == requested_page and active_group_chat_id == requested_group_id
 	if result.get("ok", false) and still_same_chat and chat_messages_box != null and is_instance_valid(chat_messages_box):
 		if requested_page == "group_chat":
-			active_group_role = str(result.get("role", ""))
+			active_group_role = str(result.get("role", "")).strip_edges().to_lower()
 		for child in chat_messages_box.get_children():
 			child.queue_free()
 		var visible_messages: Array = result.get("messages", [])
+		print("[Baladi][Chat] page=", requested_page, " messages=", visible_messages.size())
 		if visible_messages.is_empty():
 			var empty_panel := _panel(Color("#547c6b"))
 			chat_messages_box.add_child(empty_panel)
@@ -1603,8 +1606,10 @@ func _refresh_global_chat() -> void:
 			var player_id := str(message.get("user_id", ""))
 			var is_own_message := player_id == CloudAccount.user_id
 			var card := _panel(TEAL if is_own_message else Color("#456b5b"))
+			card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			chat_messages_box.add_child(card)
 			var body := VBoxContainer.new()
+			body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			body.add_theme_constant_override("separation", 6)
 			card.add_child(body)
 			if not requested_group_id.is_empty() and not is_own_message:
@@ -1613,6 +1618,7 @@ func _refresh_global_chat() -> void:
 				card.gui_input.connect(_on_chat_message_gui_input.bind(long_press_message_id, player_id))
 
 			var sender_row := HBoxContainer.new()
+			sender_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			sender_row.add_theme_constant_override("separation", 8)
 			body.add_child(sender_row)
 			var avatar_button := Button.new()
@@ -1666,7 +1672,8 @@ func _refresh_global_chat() -> void:
 				message_label.text = message_text if not message_text.is_empty() else "متن پیام دریافت نشد"
 				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				message_label.custom_minimum_size = Vector2(0, 30)
+				message_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+				message_label.custom_minimum_size = Vector2(0, 42)
 				message_label.add_theme_font_size_override("font_size", 16)
 				message_label.add_theme_color_override("font_color", CREAM)
 				body.add_child(message_label)
@@ -1835,7 +1842,11 @@ func _submit_chat_report(reason_index: int, message_id: int) -> void:
 		_set_status("گزارش پیام برای بررسی ثبت شد.", GREEN)
 
 func _delete_group_chat_message(group_id: String, message_id: int) -> void:
-	if active_group_role != "leader" or group_id.is_empty() or message_id <= 0:
+	if group_id.is_empty() or message_id <= 0:
+		return
+	if active_group_role.strip_edges().to_lower() != "leader":
+		if chat_status_label != null and is_instance_valid(chat_status_label):
+			chat_status_label.text = "حذف پیام فقط برای رهبر گروه فعال است. نقش فعلی: " + active_group_role
 		return
 	var confirm := ConfirmationDialog.new()
 	confirm.title = "حذف پیام گروه"
@@ -1843,17 +1854,32 @@ func _delete_group_chat_message(group_id: String, message_id: int) -> void:
 	confirm.ok_button_text = "حذف پیام"
 	confirm.cancel_button_text = "انصراف"
 	add_child(confirm)
-	confirm.confirmed.connect(func():
-		var result: Dictionary = await CloudAccount.delete_group_chat_message(group_id, message_id)
-		if not result.get("ok", false):
-			_set_status(str(result.get("error", "حذف پیام انجام نشد.")), RED)
-		else:
-			_set_status("پیام از گفت‌وگوی گروه حذف شد.", GREEN)
-			await _refresh_global_chat()
-		confirm.queue_free()
+	confirm.confirmed.connect(_confirm_group_message_delete.bind(confirm, group_id, message_id))
+	confirm.canceled.connect(func():
+		if is_instance_valid(confirm):
+			confirm.queue_free()
 	)
-	confirm.canceled.connect(func(): confirm.queue_free())
 	confirm.popup_centered(Vector2i(360, 180))
+
+func _confirm_group_message_delete(confirm: ConfirmationDialog, group_id: String, message_id: int) -> void:
+	if chat_status_label != null and is_instance_valid(chat_status_label):
+		chat_status_label.text = "در حال حذف پیام..."
+	var result: Dictionary = await CloudAccount.delete_group_chat_message(group_id, message_id)
+	if not result.get("ok", false):
+		var error_text := str(result.get("error", "حذف پیام انجام نشد."))
+		if chat_status_label != null and is_instance_valid(chat_status_label):
+			chat_status_label.text = error_text
+		_set_status(error_text, RED)
+	else:
+		if chat_status_label != null and is_instance_valid(chat_status_label):
+			chat_status_label.text = "پیام از گفت‌وگوی گروه حذف شد."
+		_set_status("پیام از گفت‌وگوی گروه حذف شد.", GREEN)
+		while chat_poll_busy:
+			await get_tree().process_frame
+		if current_page == "group_chat" and active_group_chat_id == group_id:
+			await _refresh_global_chat()
+	if is_instance_valid(confirm):
+		confirm.queue_free()
 
 func _toggle_group_message_pin(group_id: String, message_id: int, pinned: bool) -> void:
 	var result: Dictionary = await CloudAccount.pin_group_chat_message(group_id, message_id, pinned)
