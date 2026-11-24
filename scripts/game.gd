@@ -1580,6 +1580,8 @@ func _refresh_global_chat() -> void:
 		result = await CloudAccount.get_global_chat_messages()
 	var still_same_chat := current_page == requested_page and active_group_chat_id == requested_group_id
 	if result.get("ok", false) and still_same_chat and chat_messages_box != null and is_instance_valid(chat_messages_box):
+		if requested_page == "group_chat":
+			active_group_role = str(result.get("role", ""))
 		for child in chat_messages_box.get_children():
 			child.queue_free()
 		var visible_messages: Array = result.get("messages", [])
