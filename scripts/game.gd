@@ -29,6 +29,7 @@ var selected_indices: Array[int] = []
 var selected_word := ""
 var is_dragging := false
 var active_pointer := -1
+var pending_word_syncs := 0
 
 var page_box: VBoxContainer
 var content_box: VBoxContainer
@@ -3576,44 +3577,17 @@ func _submit_word() -> void:
 				_set_status("آفرین! واژه پیدا شد و ۳ سکه گرفتی.", GREEN)
 				_render_board()
 		else:
-			var word_result: Dictionary = await CloudAccount.record_word_found(matched, stage_id)
-			if not word_result.get("ok", false):
-				_set_status(str(word_result.get("error", "ثبت واژه در حساب انجام نشد.")), RED)
-			elif word_result.get("already_found", false):
-				_set_status("این واژه قبلاً در حسابت ثبت شده است.", GOLD)
-			else:
-				_apply_cloud_profile(word_result.get("profile", {}))
-				var member_words := _words_for_current_level()
-				member_words.append(matched)
-				level_solved[str(stage_id)] = member_words
-				var awarded := int(word_result.get("coins_awarded", 3))
-				if awarded > 0:
-					_play_sfx("found")
-					_animate_coin_reward(awarded)
-				if _is_level_complete():
-					var completion: Dictionary = await CloudAccount.complete_level(stage_id)
-					if completion.get("ok", false):
-						_apply_cloud_profile(completion.get("profile", {}))
-						_show_stage_complete(int(levels[level_index].get("reward", 0)))
-					else:
-						_set_status(str(completion.get("error", "ثبت تکمیل مرحله انجام نشد.")), RED)
-						_render_board()
-				else:
-					_set_status("آفرین! یک واژه دیگر پیدا کردی.", GREEN)
-					_render_board()
-		_save()
-	elif bonus_word_set.has(candidate):
-		if _bonus_words_for_current_level().has(candidate):
-			_set_status("این واژه اضافه را قبلاً پیدا کرده‌ای و پاداشش را گرفته‌ای.", GOLD)
-		elif guest_mode:
-			var guest_bonus := _bonus_words_for_current_level()
-			guest_bonus.append(candidate)
-			level_bonus_found[str(stage_id)] = guest_bonus
-			coins += 7
-			_play_sfx("bonus")
-			_animate_coin_reward(7)
-			_show_bonus_word_feedback(candidate)
-			_save()
+			# Show the found word immediately. Cloud persistence runs in the background.
+			var member_words := _words_for_current_level()
+			member_words.append(matched)
+			level_solved[str(stage_id)] = member_words
+			pending_word_syncs += 1
+			_play_sfx("found")
+			_clear_selection()
+			_render_board()
+			_set_status("آفرین! واژه پیدا شد.", GREEN)
+			_sync_found_word(matched, stage_id)
+			return
 		else:
 			var bonus_result: Dictionary = await CloudAccount.record_word_found(candidate, stage_id)
 			if not bonus_result.get("ok", false):
@@ -3639,6 +3613,35 @@ func _submit_word() -> void:
 		_set_status("این واژه در واژه‌نامه فارسی پیدا نشد. دوباره تلاش کن.", RED)
 	_clear_selection()
 	_update_controls()
+
+func _sync_found_word(word: String, stage_id: int) -> void:
+	var word_result: Dictionary = await CloudAccount.record_word_found(word, stage_id)
+	pending_word_syncs = maxi(0, pending_word_syncs - 1)
+	if not word_result.get("ok", false):
+		var words = level_solved.get(str(stage_id), [])
+		if words is Array and words.has(word):
+			words.erase(word)
+			level_solved[str(stage_id)] = words
+			if current_page == "game" and not levels.is_empty() and int(levels[level_index].get("id", level_index + 1)) == stage_id:
+				_render_board()
+		_set_status(str(word_result.get("error", "ثبت واژه در حساب انجام نشد؛ دوباره تلاش کن.")), RED)
+			return
+	if word_result.get("already_found", false):
+		_set_status("این واژه قبلاً در حسابت ثبت شده است.", GOLD)
+	else:
+		_apply_cloud_profile(word_result.get("profile", {}))
+		var awarded := int(word_result.get("coins_awarded", 3))
+		if awarded > 0:
+			_animate_coin_reward(awarded)
+	_save()
+	if pending_word_syncs == 0 and current_page == "game" and not duel_mode and not levels.is_empty() and int(levels[level_index].get("id", level_index + 1)) == stage_id and _is_level_complete():
+		var completion: Dictionary = await CloudAccount.complete_level(stage_id)
+		if completion.get("ok", false):
+			_apply_cloud_profile(completion.get("profile", {}))
+			_show_stage_complete(int(levels[level_index].get("reward", 0)))
+		else:
+			_set_status(str(completion.get("error", "ثبت تکمیل مرحله انجام نشد.")), RED)
+			_render_board()
 
 func _complete_guest_level() -> void:
 	var stage_id := int(levels[level_index].get("id", level_index + 1))
