@@ -3610,8 +3610,6 @@ func _submit_word() -> void:
 				_animate_coin_reward(bonus_coins)
 			_show_bonus_word_feedback(candidate)
 			_save()
-	else:
-		_set_status("این واژه در واژه‌نامه فارسی پیدا نشد. دوباره تلاش کن.", RED)
 	_clear_selection()
 	_update_controls()
 
