@@ -331,7 +331,8 @@ func pin_group_chat_message(group_id: String, message_id: int, pinned: bool) -> 
 	return await api("pin_group_message", {"group_id": group_id, "message_id": message_id, "pinned": pinned})
 
 func unlock_global_chat() -> Dictionary:
-	return await api("unlock_global_chat")
+	# Compatibility shim: public chat is free and no server purchase action is needed.
+	return {"ok": true, "cost": 0, "already_unlocked": true}
 
 func get_global_chat_messages() -> Dictionary:
 	return await api("global_chat_list")
