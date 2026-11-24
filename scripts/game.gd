@@ -1624,7 +1624,8 @@ func _refresh_global_chat() -> void:
 			if active_group_chat_id.is_empty() and player_id != CloudAccount.user_id:
 				var report_button := _make_button("گزارش پیام", Color("#713e3b"), CREAM)
 				report_button.custom_minimum_size = Vector2(0, 34)
-				report_button.pressed.connect(func(): _show_chat_report_menu(int(message.get("id", 0))))
+				var report_message_id := int(message.get("id", 0))
+				report_button.pressed.connect(_show_chat_report_menu.bind(report_message_id))
 				body.add_child(report_button)
 			if not active_group_chat_id.is_empty() and bool(message.get("is_pinned", false)):
 				var pinned_label := Label.new()
@@ -1651,8 +1652,13 @@ func _show_chat_report_menu(message_id: int) -> void:
 	popup.add_item("تهدید یا کلاهبرداری", 3)
 	popup.add_item("سایر موارد", 4)
 	add_child(popup)
-	popup.id_pressed.connect(_submit_chat_report.bind(message_id))
+	popup.id_pressed.connect(_on_chat_report_reason_selected.bind(message_id, popup))
 	popup.popup_centered(Vector2i(300, 250))
+
+func _on_chat_report_reason_selected(reason_index: int, message_id: int, popup: PopupMenu) -> void:
+	if is_instance_valid(popup):
+		popup.queue_free()
+	await _submit_chat_report(reason_index, message_id)
 
 func _submit_chat_report(reason_index: int, message_id: int) -> void:
 	var reasons := ["تبلیغات و هرزنامه", "توهین و آزار", "محتوای نامناسب", "تهدید یا کلاهبرداری", "سایر موارد"]
