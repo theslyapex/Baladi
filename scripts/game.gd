@@ -361,22 +361,25 @@ func _build_base() -> void:
 	var margin := MarginContainer.new()
 	margin.name = "MainMargin"
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.add_theme_constant_override("margin_right", 18)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_bottom", 14)
+	margin.add_theme_constant_override("margin_left", 15)
+	margin.add_theme_constant_override("margin_right", 15)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 10)
 	add_child(margin)
 
 	page_box = VBoxContainer.new()
 	page_box.name = "PageBox"
 	page_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	page_box.add_theme_constant_override("separation", 14)
+	page_box.add_theme_constant_override("separation", 11)
 	margin.add_child(page_box)
 
+	var header_panel := _panel(Color("#416b59"))
+	header_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page_box.add_child(header_panel)
 	var header := VBoxContainer.new()
-	header.add_theme_constant_override("separation", 8)
-	page_box.add_child(header)
+	header.add_theme_constant_override("separation", 9)
+	header_panel.add_child(header)
 
 	var brand_row := HBoxContainer.new()
 	brand_row.add_theme_constant_override("separation", 10)
@@ -3241,63 +3244,93 @@ func _make_chime(notes: Array[float]) -> AudioStreamWAV:
 	return stream
 
 func _style_input(field: LineEdit) -> void:
+	field.custom_minimum_size.y = maxf(field.custom_minimum_size.y, 52.0)
+	field.add_theme_font_size_override("font_size", 15)
+	field.add_theme_color_override("font_color", CREAM)
+	field.add_theme_color_override("font_placeholder_color", Color("#8ca99d"))
+	field.add_theme_color_override("caret_color", GOLD)
+	field.add_theme_color_override("selection_color", Color("#4b8876", 0.55))
 	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color("#102e29")
-	normal.border_color = Color("#547b6d")
+	normal.bg_color = Color("#0d2925")
+	normal.border_color = Color("#345d50")
 	normal.set_border_width_all(1)
-	normal.set_corner_radius_all(12)
-	normal.content_margin_left = 12
-	normal.content_margin_right = 12
-	normal.content_margin_top = 8
-	normal.content_margin_bottom = 8
+	normal.set_corner_radius_all(15)
+	normal.content_margin_left = 15
+	normal.content_margin_right = 15
+	normal.content_margin_top = 10
+	normal.content_margin_bottom = 10
 	field.add_theme_stylebox_override("normal", normal)
 	var focus := normal.duplicate()
 	focus.border_color = GOLD
 	focus.set_border_width_all(2)
+	focus.shadow_color = Color(0.93, 0.78, 0.47, 0.16)
+	focus.shadow_size = 5
 	field.add_theme_stylebox_override("focus", focus)
-	field.add_theme_color_override("font_color", CREAM)
-	field.add_theme_color_override("font_placeholder_color", MUTED)
 
-func _panel(border_color: Color = Color("#557b6d")) -> PanelContainer:
+func _panel(border_color: Color = Color("#31594d")) -> PanelContainer:
 	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var style := StyleBoxFlat.new()
-	style.bg_color = PANEL
+	style.bg_color = Color("#112f2a")
 	style.border_color = border_color
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(17)
-	style.shadow_color = Color(0, 0, 0, 0.22)
-	style.shadow_size = 5
-	style.shadow_offset = Vector2(0, 3)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 10
-	style.content_margin_bottom = 10
+	style.set_corner_radius_all(20)
+	style.shadow_color = Color(0, 0, 0, 0.30)
+	style.shadow_size = 8
+	style.shadow_offset = Vector2(0, 4)
+	style.content_margin_left = 15
+	style.content_margin_right = 15
+	style.content_margin_top = 13
+	style.content_margin_bottom = 13
 	panel.add_theme_stylebox_override("panel", style)
 	return panel
 
 func _make_button(label_text: String, color: Color, text_color: Color) -> Button:
 	var button := Button.new()
 	button.text = label_text
-	button.custom_minimum_size = Vector2(0, 48)
+	button.custom_minimum_size = Vector2(0, 52)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.add_theme_font_size_override("font_size", 15)
 	button.add_theme_color_override("font_color", text_color)
 	button.add_theme_color_override("font_hover_color", text_color)
+	button.add_theme_color_override("font_pressed_color", text_color)
+	button.add_theme_color_override("font_focus_color", text_color)
+	button.add_theme_color_override("icon_normal_color", text_color)
+	button.add_theme_color_override("icon_hover_color", text_color)
+	button.add_theme_color_override("icon_pressed_color", text_color)
+	button.add_theme_constant_override("outline_size", 0)
+	button.clip_text = true
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = color
-	normal.set_corner_radius_all(13)
-	normal.shadow_color = Color(0, 0, 0, 0.2)
-	normal.shadow_size = 4
-	normal.shadow_offset = Vector2(0, 2)
-	normal.content_margin_left = 9
-	normal.content_margin_right = 9
+	normal.border_color = color.lightened(0.16)
+	normal.set_border_width_all(1)
+	normal.set_corner_radius_all(15)
+	normal.shadow_color = Color(0, 0, 0, 0.22)
+	normal.shadow_size = 5
+	normal.shadow_offset = Vector2(0, 3)
+	normal.content_margin_left = 12
+	normal.content_margin_right = 12
+	normal.content_margin_top = 8
+	normal.content_margin_bottom = 8
 	button.add_theme_stylebox_override("normal", normal)
 	var hover := normal.duplicate()
-	hover.bg_color = color.lightened(0.12)
+	hover.bg_color = color.lightened(0.10)
+	hover.border_color = color.lightened(0.24)
+	hover.shadow_size = 7
 	button.add_theme_stylebox_override("hover", hover)
 	var pressed := normal.duplicate()
-	pressed.bg_color = color.darkened(0.12)
+	pressed.bg_color = color.darkened(0.10)
+	pressed.shadow_size = 1
+	pressed.shadow_offset = Vector2(0, 1)
 	button.add_theme_stylebox_override("pressed", pressed)
+	var disabled := normal.duplicate()
+	disabled.bg_color = Color("#263d37")
+	disabled.border_color = Color("#344e45")
+	button.add_theme_stylebox_override("disabled", disabled)
+	var focus := normal.duplicate()
+	focus.border_color = GOLD
+	focus.set_border_width_all(2)
+	button.add_theme_stylebox_override("focus", focus)
 	return button
 
 func _render_board() -> void:
