@@ -16,7 +16,6 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
-import androidx.activity.OnBackPressedCallback
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.webkit.WebViewCompat
@@ -138,12 +137,6 @@ class CommunityChatActivity : Activity() {
             }
         }
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (::webView.isInitialized && webView.canGoBack()) webView.goBack()
-                else finish()
-            }
-        })
         webView.loadUrl(CHAT_URL)
     }
 
@@ -189,6 +182,12 @@ class CommunityChatActivity : Activity() {
                 // Ignore malformed or unavailable bridge updates.
             }
         }
+    }
+
+    @Deprecated("Deprecated in Android")
+    override fun onBackPressed() {
+        if (::webView.isInitialized && webView.canGoBack()) webView.goBack()
+        else finish()
     }
 
     @Deprecated("Deprecated in Android")
