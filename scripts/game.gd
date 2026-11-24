@@ -70,6 +70,8 @@ var losses := 0
 var chat_unlocked := false
 var chat_poll_timer: Timer
 var chat_messages_box: VBoxContainer
+var chat_scroll_container: ScrollContainer
+var chat_scroll_to_bottom := true
 var chat_input: LineEdit
 var chat_status_label: Label
 var chat_poll_busy := false
@@ -1571,6 +1573,10 @@ func _refresh_global_chat() -> void:
 	chat_poll_busy = true
 	var requested_page := current_page
 	var requested_group_id := active_group_chat_id
+	var should_keep_bottom := chat_scroll_to_bottom
+	if chat_scroll_container != null and is_instance_valid(chat_scroll_container):
+		var scroll_bar := chat_scroll_container.get_v_scroll_bar()
+		should_keep_bottom = should_keep_bottom or scroll_bar.value >= scroll_bar.max_value - 48
 	var result: Dictionary
 	if requested_page == "group_chat" and not requested_group_id.is_empty():
 		result = await CloudAccount.get_group_chat_messages(requested_group_id)
@@ -1582,36 +1588,55 @@ func _refresh_global_chat() -> void:
 			child.queue_free()
 		var visible_messages: Array = result.get("messages", [])
 		if visible_messages.is_empty():
+			var empty_panel := _panel(Color("#547c6b"))
+			chat_messages_box.add_child(empty_panel)
 			var empty_label := Label.new()
-			empty_label.text = "هنوز پیامی در گفت‌وگو ثبت نشده. اولین پیام را تو بفرست!"
+			empty_label.text = "هنوز پیامی در این گفت‌وگو نیست. اولین پیام را تو بفرست!"
 			empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			empty_label.add_theme_color_override("font_color", MUTED)
-			chat_messages_box.add_child(empty_label)
+			empty_panel.add_child(empty_label)
 		for message in visible_messages:
-			var card := _panel(TEAL if str(message.get("user_id", "")) == CloudAccount.user_id else Color("#456b5b"))
-			chat_messages_box.add_child(card)
-			var body := VBoxContainer.new()
-			body.add_theme_constant_override("separation", 3)
-			card.add_child(body)
 			var player: Dictionary = message.get("player", {})
 			var player_id := str(message.get("user_id", ""))
+			var is_own_message := player_id == CloudAccount.user_id
+			var card := _panel(TEAL if is_own_message else Color("#456b5b"))
+			chat_messages_box.add_child(card)
+			var body := VBoxContainer.new()
+			body.add_theme_constant_override("separation", 6)
+			card.add_child(body)
+
+			var sender_row := HBoxContainer.new()
+			sender_row.add_theme_constant_override("separation", 8)
+			body.add_child(sender_row)
 			var message_avatar := _build_avatar_widget(str(player.get("avatar_path", "")), str(player.get("equipped_frame_id", "frame_default")), 42)
-			body.add_child(message_avatar)
+			sender_row.add_child(message_avatar)
+			var sender_info := VBoxContainer.new()
+			sender_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			sender_row.add_child(sender_info)
 			var name_label := _make_button(_safe_player_name(player.get("display_name", null)) + ("  ✓" if bool(player.get("is_verified", false)) else ""), Color("#294c43"), GOLD)
-			name_label.custom_minimum_size = Vector2(0, 34)
-			name_label.add_theme_font_size_override("font_size", 12)
+			name_label.custom_minimum_size = Vector2(0, 30)
+			name_label.add_theme_font_size_override("font_size", 13)
 			if player_id == CloudAccount.user_id:
 				name_label.disabled = true
 			else:
-				name_label.pressed.connect(func(): _show_public_profile(player_id))
-			body.add_child(name_label)
+				name_label.pressed.connect(_show_public_profile.bind(player_id))
+			sender_info.add_child(name_label)
+			var created_at := str(message.get("created_at", ""))
+			var time_label := Label.new()
+			time_label.text = created_at.substr(11, 5) if created_at.length() >= 16 else ""
+			time_label.add_theme_font_size_override("font_size", 10)
+			time_label.add_theme_color_override("font_color", MUTED)
+			sender_info.add_child(time_label)
+
 			var sticker_id := str(message.get("sticker_id", ""))
 			if not sticker_id.is_empty():
 				var sticker_art := TextureRect.new()
 				var sticker_file := sticker_id.trim_prefix("sticker_")
-				sticker_art.texture = load("res://assets/stickers/%s.svg" % sticker_file)
-				sticker_art.custom_minimum_size = Vector2(72, 72)
+				var sticker_path := "res://assets/stickers/%s.svg" % sticker_file
+				if ResourceLoader.exists(sticker_path):
+					sticker_art.texture = load(sticker_path)
+				sticker_art.custom_minimum_size = Vector2(112, 112)
 				sticker_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 				sticker_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				body.add_child(sticker_art)
@@ -1619,28 +1644,102 @@ func _refresh_global_chat() -> void:
 				var message_label := Label.new()
 				message_label.text = str(message.get("body", ""))
 				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				message_label.add_theme_font_size_override("font_size", 15)
 				message_label.add_theme_color_override("font_color", CREAM)
 				body.add_child(message_label)
-			if active_group_chat_id.is_empty() and player_id != CloudAccount.user_id:
+
+			if not requested_group_id.is_empty():
+				var actions := HBoxContainer.new()
+				actions.add_theme_constant_override("separation", 6)
+				body.add_child(actions)
+				if not is_own_message:
+					var more := _make_button("عملیات پیام  ⋮", Color("#294c43"), GOLD)
+					more.custom_minimum_size = Vector2(0, 34)
+					var group_message_id := int(message.get("id", 0))
+					more.pressed.connect(_show_group_message_menu.bind(group_message_id, player_id))
+					actions.add_child(more)
+				if bool(message.get("is_pinned", false)):
+					var pinned_label := Label.new()
+					pinned_label.text = "سنجاق‌شده"
+					pinned_label.add_theme_color_override("font_color", GOLD)
+					actions.add_child(pinned_label)
+				if active_group_role in ["veteran", "deputy", "leader"]:
+					var pin_button := _make_button("برداشتن سنجاق" if bool(message.get("is_pinned", false)) else "سنجاق پیام", Color("#765a31"), CREAM)
+					var pin_message_id := int(message.get("id", 0))
+					var should_pin := not bool(message.get("is_pinned", false))
+					pin_button.pressed.connect(_toggle_group_message_pin.bind(requested_group_id, pin_message_id, should_pin))
+					actions.add_child(pin_button)
+			elif not is_own_message:
 				var report_button := _make_button("گزارش پیام", Color("#713e3b"), CREAM)
 				report_button.custom_minimum_size = Vector2(0, 34)
 				var report_message_id := int(message.get("id", 0))
 				report_button.pressed.connect(_show_chat_report_menu.bind(report_message_id))
 				body.add_child(report_button)
-			if not active_group_chat_id.is_empty() and bool(message.get("is_pinned", false)):
-				var pinned_label := Label.new()
-				pinned_label.text = "پیام سنجاق‌شده"
-				pinned_label.add_theme_color_override("font_color", GOLD)
-				body.add_child(pinned_label)
-			if not active_group_chat_id.is_empty() and active_group_role in ["veteran", "deputy", "leader"]:
-				var pin_button := _make_button("برداشتن سنجاق" if bool(message.get("is_pinned", false)) else "سنجاق پیام", Color("#765a31"), CREAM)
-				var group_message_id := int(message.get("id", 0))
-				var should_pin := not bool(message.get("is_pinned", false))
-				pin_button.pressed.connect(func(): _toggle_group_message_pin(active_group_chat_id, group_message_id, should_pin))
-				body.add_child(pin_button)
-	elif not result.get("ok", false) and still_same_chat and chat_status_label != null and is_instance_valid(chat_status_label):
+	if not result.get("ok", false) and still_same_chat and chat_status_label != null and is_instance_valid(chat_status_label):
 		chat_status_label.text = str(result.get("error", "دریافت پیام‌ها انجام نشد."))
+	if still_same_chat and should_keep_bottom:
+		chat_scroll_to_bottom = true
+		call_deferred("_scroll_chat_to_bottom")
+	else:
+		chat_scroll_to_bottom = false
 	chat_poll_busy = false
+
+func _scroll_chat_to_bottom() -> void:
+	if chat_scroll_container == null or not is_instance_valid(chat_scroll_container):
+		return
+	await get_tree().process_frame
+	var scroll_bar := chat_scroll_container.get_v_scroll_bar()
+	scroll_bar.value = scroll_bar.max_value
+	chat_scroll_to_bottom = false
+
+func _show_group_message_menu(message_id: int, player_id: String) -> void:
+	if message_id <= 0 or player_id.is_empty():
+		return
+	var popup := PopupMenu.new()
+	popup.add_item("مشاهده پروفایل", 0)
+	popup.add_item("دعوت به بازی دونفره", 1)
+	popup.add_separator()
+	popup.add_item("گزارش این پیام", 2)
+	add_child(popup)
+	popup.id_pressed.connect(_on_group_message_action.bind(message_id, player_id, popup))
+	popup.popup_centered(Vector2i(300, 190))
+
+func _on_group_message_action(action_id: int, message_id: int, player_id: String, popup: PopupMenu) -> void:
+	if is_instance_valid(popup):
+		popup.queue_free()
+	match action_id:
+		0:
+			_show_public_profile(player_id)
+		1:
+			_send_duel_invite_to(player_id)
+		2:
+			_show_group_chat_report_menu(message_id)
+
+func _show_group_chat_report_menu(message_id: int) -> void:
+	if message_id <= 0:
+		return
+	var popup := PopupMenu.new()
+	popup.add_item("تبلیغات و هرزنامه", 0)
+	popup.add_item("توهین و آزار", 1)
+	popup.add_item("محتوای نامناسب", 2)
+	popup.add_item("تهدید یا کلاهبرداری", 3)
+	popup.add_item("سایر موارد", 4)
+	add_child(popup)
+	popup.id_pressed.connect(_on_group_report_reason_selected.bind(message_id, active_group_chat_id, popup))
+	popup.popup_centered(Vector2i(300, 250))
+
+func _on_group_report_reason_selected(reason_index: int, message_id: int, group_id: String, popup: PopupMenu) -> void:
+	if is_instance_valid(popup):
+		popup.queue_free()
+	var reasons := ["تبلیغات و هرزنامه", "توهین و آزار", "محتوای نامناسب", "تهدید یا کلاهبرداری", "سایر موارد"]
+	if reason_index < 0 or reason_index >= reasons.size():
+		return
+	var result: Dictionary = await CloudAccount.report_group_chat_message(group_id, message_id, reasons[reason_index])
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "ثبت گزارش پیام گروه انجام نشد.")), RED)
+	else:
+		_set_status("گزارش پیام گروه برای بررسی ثبت شد.", GREEN)
+
 
 func _show_chat_report_menu(message_id: int) -> void:
 	if message_id <= 0:
@@ -2041,26 +2140,69 @@ func _show_group_chat(group_id: String, group_name: String) -> void:
 		chat_poll_timer.stop()
 	active_group_chat_id = group_id
 	active_group_chat_name = group_name
+	chat_scroll_to_bottom = true
 	_clear_content()
+	var header := _panel(GOLD)
+	content_box.add_child(header)
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 10)
+	header.add_child(header_row)
+	var group_icon := Label.new()
+	group_icon.text = "✦"
+	group_icon.add_theme_font_size_override("font_size", 26)
+	group_icon.add_theme_color_override("font_color", GOLD)
+	header_row.add_child(group_icon)
+	var header_text := VBoxContainer.new()
+	header_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(header_text)
 	var heading := Label.new()
-	heading.text = "گفت‌وگوی گروه · " + group_name
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.add_theme_font_size_override("font_size", 22)
+	heading.text = group_name
+	heading.add_theme_font_size_override("font_size", 20)
 	heading.add_theme_color_override("font_color", GOLD)
-	content_box.add_child(heading)
-	var messages_scroll := ScrollContainer.new()
-	messages_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	messages_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	content_box.add_child(messages_scroll)
+	header_text.add_child(heading)
+	var subtitle := Label.new()
+	subtitle.text = "گفت‌وگوی اعضای باشگاه · پیام‌ها هر چند ثانیه به‌روزرسانی می‌شوند"
+	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	subtitle.add_theme_font_size_override("font_size", 11)
+	subtitle.add_theme_color_override("font_color", MUTED)
+	header_text.add_child(subtitle)
+
+	var toolbar := HBoxContainer.new()
+	toolbar.add_theme_constant_override("separation", 7)
+	content_box.add_child(toolbar)
+	var sticker_button := _make_button("استیکرهای من", Color("#765a31"), CREAM)
+	sticker_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sticker_button.pressed.connect(_show_sticker_picker)
+	toolbar.add_child(sticker_button)
+	var invites_button := _make_button("دعوت‌های بازی", Color("#294c43"), GOLD)
+	invites_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	invites_button.pressed.connect(_show_duel_invites)
+	toolbar.add_child(invites_button)
+
+	chat_scroll_container = ScrollContainer.new()
+	chat_scroll_container.custom_minimum_size = Vector2(0, 300)
+	chat_scroll_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	chat_scroll_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chat_scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content_box.add_child(chat_scroll_container)
 	chat_messages_box = VBoxContainer.new()
 	chat_messages_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	chat_messages_box.add_theme_constant_override("separation", 7)
-	messages_scroll.add_child(chat_messages_box)
+	chat_messages_box.add_theme_constant_override("separation", 9)
+	chat_scroll_container.add_child(chat_messages_box)
+
+	chat_status_label = Label.new()
+	chat_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	chat_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	chat_status_label.add_theme_color_override("font_color", MUTED)
+	content_box.add_child(chat_status_label)
+
+	var composer_panel := _panel(Color("#547c6b"))
+	content_box.add_child(composer_panel)
 	var composer := HBoxContainer.new()
 	composer.add_theme_constant_override("separation", 6)
-	content_box.add_child(composer)
+	composer_panel.add_child(composer)
 	chat_input = LineEdit.new()
-	chat_input.placeholder_text = "پیام گروه را بنویس..."
+	chat_input.placeholder_text = "پیامت را برای اعضای گروه بنویس..."
 	chat_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	chat_input.custom_minimum_size.y = 48
 	_style_input(chat_input)
@@ -2069,13 +2211,10 @@ func _show_group_chat(group_id: String, group_name: String) -> void:
 	send.custom_minimum_size = Vector2(76, 48)
 	send.pressed.connect(func(): _send_group_chat_message(group_id, chat_input.text.strip_edges()))
 	composer.add_child(send)
-	var stickers := _make_button("استیکرها", Color("#765a31"), CREAM)
-	stickers.pressed.connect(_show_sticker_picker)
-	content_box.add_child(stickers)
-	chat_status_label = Label.new()
-	chat_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	chat_status_label.add_theme_color_override("font_color", MUTED)
-	content_box.add_child(chat_status_label)
+
+	var back := _make_button("بازگشت به گروه", PANEL_ALT, CREAM)
+	back.pressed.connect(_show_groups)
+	content_box.add_child(back)
 	await _refresh_global_chat()
 	if chat_poll_timer == null:
 		chat_poll_timer = Timer.new()
@@ -2083,9 +2222,6 @@ func _show_group_chat(group_id: String, group_name: String) -> void:
 		chat_poll_timer.timeout.connect(_refresh_global_chat)
 		add_child(chat_poll_timer)
 	chat_poll_timer.start()
-	var back := _make_button("بازگشت به گروه", PANEL_ALT, CREAM)
-	back.pressed.connect(_show_groups)
-	content_box.add_child(back)
 
 func _build_avatar_widget(path: String, frame_id: String, widget_size: int) -> Control:
 	var stack := Control.new()
