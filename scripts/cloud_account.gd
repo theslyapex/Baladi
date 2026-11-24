@@ -20,6 +20,15 @@ var last_refresh_result: Dictionary = {"ok": false, "error": "تمدید نشس�
 func is_authenticated() -> bool:
 	return not access_token.is_empty() and not user_id.is_empty()
 
+func accept_external_session(session_json: String) -> void:
+	var parsed = JSON.parse_string(session_json)
+	if not parsed is Dictionary:
+		return
+	var session: Dictionary = parsed
+	if str(session.get("access_token", "")).is_empty() or str(session.get("refresh_token", "")).is_empty():
+		return
+	_accept_session(session)
+
 func has_saved_session() -> bool:
 	var cfg := ConfigFile.new()
 	if cfg.load(AUTH_SAVE_PATH) != OK:
