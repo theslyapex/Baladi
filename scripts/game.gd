@@ -105,7 +105,9 @@ var auth_login_button: Button
 var auth_mode_toggle_button: Button
 var stage_scroll: ScrollContainer
 var stage_touch_active := false
-var stage_touch_y := 0.0
+var stage_touch_start_y := 0.0
+var stage_touch_scroll_start := 0
+var stage_touch_scrolling := false
 
 var startup_action_taken := false
 var startup_restore_in_progress := false
@@ -3471,16 +3473,29 @@ func _input(event: InputEvent) -> void:
 		return
 	if stage_scroll != null and is_instance_valid(stage_scroll) and stage_scroll.is_visible_in_tree():
 		if event is InputEventScreenTouch:
-			if event.pressed and stage_scroll.get_global_rect().has_point(event.position):
-				stage_touch_active = true
-				stage_touch_y = event.position.y
-			elif not event.pressed:
-				stage_touch_active = false
+			if event.pressed:
+				stage_touch_active = stage_scroll.get_global_rect().has_point(event.position)
+				stage_touch_scrolling = false
+				if stage_touch_active:
+					stage_touch_start_y = event.position.y
+					stage_touch_scroll_start = stage_scroll.scroll_vertical
+					# Letter tracing is the only drag gesture that should take priority over page scrolling.
+					if _letter_at(event.position) >= 0:
+						stage_touch_active = false
+			else:
+					if stage_touch_scrolling:
+					get_viewport().set_input_as_handled()
+					stage_touch_active = false
+					stage_touch_scrolling = false
 		elif event is InputEventScreenDrag and stage_touch_active:
-			var delta_y: float = stage_touch_y - event.position.y
-			stage_scroll.scroll_vertical = clampi(stage_scroll.scroll_vertical + int(delta_y), 0, maxi(0, int(stage_scroll.get_v_scroll_bar().max_value)))
-			stage_touch_y = event.position.y
-			return
+			var drag_distance := stage_touch_start_y - event.position.y
+			if not stage_touch_scrolling and absf(drag_distance) >= 7.0:
+				stage_touch_scrolling = true
+			if stage_touch_scrolling:
+				var scroll_bar := stage_scroll.get_v_scroll_bar()
+				stage_scroll.scroll_vertical = clampi(stage_touch_scroll_start + int(drag_distance), 0, maxi(0, int(scroll_bar.max_value)))
+				get_viewport().set_input_as_handled()
+				return
 	if letters_grid == null or not is_instance_valid(letters_grid):
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
