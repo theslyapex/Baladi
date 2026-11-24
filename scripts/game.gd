@@ -434,7 +434,9 @@ func _build_base() -> void:
 	action_row.add_child(profile_button)
 
 	exit_button = _make_button("خروج", Color("#70413b"), CREAM)
-	exit_button.custom_minimum_size = Vector2(104, 44)
+	exit_button.custom_minimum_size = Vector2(156, 44)
+	exit_button.add_theme_font_size_override("font_size", 13)
+	exit_button.clip_text = false
 	exit_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	exit_button.pressed.connect(_logout)
 	action_row.add_child(exit_button)
@@ -1766,19 +1768,26 @@ func _refresh_global_chat() -> void:
 				sticker_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				body.add_child(sticker_art)
 			else:
-				var message_label := Label.new()
-				var message_value = message.get("body", null)
-				if message_value == null:
-					message_value = message.get("content", message.get("message", message.get("text", "")))
-				var message_text := str(message_value).strip_edges()
-				message_label.text = message_text if not message_text.is_empty() else "متن پیام دریافت نشد"
+				var message_text := ""
+				for text_key in ["body", "content", "message", "text"]:
+					var message_value = message.get(text_key, null)
+					if message_value != null and not str(message_value).strip_edges().is_empty():
+						message_text = str(message_value).strip_edges()
+						break
+				var message_label := RichTextLabel.new()
+				message_label.bbcode_enabled = false
+				message_label.fit_content = true
+				message_label.scroll_active = false
+				message_label.selection_enabled = false
 				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				message_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-				message_label.custom_minimum_size = Vector2(0, 48)
-				message_label.add_theme_font_size_override("font_size", 16)
-				message_label.add_theme_color_override("font_color", CREAM)
+				message_label.custom_minimum_size = Vector2(0, 44)
+				message_label.add_theme_font_size_override("normal_font_size", 16)
+				message_label.add_theme_color_override("default_color", CREAM)
+				message_label.text = message_text if not message_text.is_empty() else "پیام متنی خالی است"
 				body.add_child(message_label)
+				print("[Baladi][Chat] message_id=", message.get("id", 0), " body_chars=", message_text.length(), " keys=", message.keys())
 
 			if not requested_group_id.is_empty():
 				var actions := HBoxContainer.new()
