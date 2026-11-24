@@ -1796,6 +1796,8 @@ func _send_global_chat_message() -> void:
 func _send_group_chat_message(group_id: String, message: String) -> void:
 	if group_id.is_empty() or message.is_empty():
 		return
+	if chat_status_label != null and is_instance_valid(chat_status_label):
+		chat_status_label.text = "در حال ارسال پیام..."
 	var result: Dictionary = await CloudAccount.send_group_chat_message(group_id, message)
 	if not result.get("ok", false):
 		if chat_status_label != null and is_instance_valid(chat_status_label):
@@ -1803,6 +1805,9 @@ func _send_group_chat_message(group_id: String, message: String) -> void:
 		return
 	if chat_input != null and is_instance_valid(chat_input):
 		chat_input.clear()
+	if chat_status_label != null and is_instance_valid(chat_status_label):
+		chat_status_label.text = "پیامت با موفقیت ارسال شد."
+	chat_scroll_to_bottom = true
 	await _refresh_global_chat()
 
 func _show_sticker_picker() -> void:
