@@ -3505,10 +3505,10 @@ func _input(event: InputEvent) -> void:
 					if _letter_at(event.position) >= 0:
 						stage_touch_active = false
 			else:
-					if stage_touch_scrolling:
+				if stage_touch_scrolling:
 					get_viewport().set_input_as_handled()
-					stage_touch_active = false
-					stage_touch_scrolling = false
+				stage_touch_active = false
+				stage_touch_scrolling = false
 		elif event is InputEventScreenDrag and stage_touch_active:
 			var drag_distance := stage_touch_start_y - event.position.y
 			if not stage_touch_scrolling and absf(drag_distance) >= 7.0:
