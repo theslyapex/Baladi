@@ -2027,9 +2027,14 @@ func _render_group_discovery() -> void:
 		title.add_theme_color_override("font_color", CREAM)
 		body.add_child(title)
 		var info := Label.new()
-		info.text = "رهبر: %s%s  ·  اعضا: %d / %d" % [_safe_player_name(group.get("leader_name", null)), ("  ✓" if bool(group.get("leader_is_verified", false)) else ""), int(group.get("member_count", 0)), int(group.get("capacity", 20))]
+		info.text = "رهبر: %s%s  ·  اعضا: %d / %d  ·  سطح %d" % [_safe_player_name(group.get("leader_name", null)), ("  ✓" if bool(group.get("leader_is_verified", false)) else ""), int(group.get("member_count", 0)), int(group.get("capacity", 20)), int(group.get("group_level", 1))]
 		info.add_theme_color_override("font_color", MUTED)
 		body.add_child(info)
+		var group_reward := 120 if int(group.get("group_level", 1)) == 2 else (500 if int(group.get("group_level", 1)) == 3 else 0)
+		var reward_note := Label.new()
+		reward_note.text = "پاداش روزانه هر عضو: %s سکه" % ("بدون پاداش" if group_reward == 0 else _format_coin_price(group_reward))
+		reward_note.add_theme_color_override("font_color", GOLD)
+		body.add_child(reward_note)
 		if int(group.get("member_count", 0)) < int(group.get("capacity", 20)):
 			var join := _make_button("درخواست عضویت / ورود", Color("#287c68"), CREAM)
 			var group_id := str(group.get("id", ""))
@@ -2169,13 +2174,19 @@ func _render_my_group(group: Dictionary, members: Array) -> void:
 		var row_box := VBoxContainer.new()
 		row_box.add_theme_constant_override("separation", 4)
 		row.add_child(row_box)
+		var member_top := HBoxContainer.new()
+		member_top.add_theme_constant_override("separation", 8)
+		row_box.add_child(member_top)
+		var member_avatar := _build_avatar_widget(str(player.get("avatar_path", "")), str(player.get("equipped_frame_id", "frame_default")), 48, str(player.get("equipped_avatar_id", "")))
+		member_top.add_child(member_avatar)
 		var name := _make_button("%s%s  ·  %s" % [_safe_player_name(player.get("display_name", null)), ("  ✓" if bool(player.get("is_verified", false)) else ""), _group_role_label(member_role)], Color("#294c43"), CREAM)
-		name.custom_minimum_size = Vector2(0, 36)
+		name.custom_minimum_size = Vector2(0, 42)
+		name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		if member_id == CloudAccount.user_id:
 			name.disabled = true
 		else:
 			name.pressed.connect(func(): _show_public_profile(member_id))
-		row_box.add_child(name)
+		member_top.add_child(name)
 		if member_id != CloudAccount.user_id and (role == "leader" or role == "deputy"):
 			var target_roles: Array = ["member", "veteran", "deputy"] if role == "leader" else (["veteran"] if member_role == "member" else ["member"] if member_role == "veteran" else [])
 			for target_role in target_roles:
