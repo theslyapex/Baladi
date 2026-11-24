@@ -1861,6 +1861,10 @@ func _show_sticker_picker() -> void:
 	heading.add_theme_font_size_override("font_size", 23)
 	heading.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(heading)
+	var coin_topup := _make_button("خرید سکه · هر ۱٬۰۰۰ سکه ۸٬۹۰۰ تومان", Color("#765a31"), CREAM)
+	coin_topup.custom_minimum_size = Vector2(0, 52)
+	coin_topup.pressed.connect(func(): OS.shell_open("https://alishams.ir/game-coins.html"))
+	content_box.add_child(coin_topup)
 	if guest_mode:
 		_set_status("برای خرید یا ارسال استیکر، وارد حساب کاربری شو.", GOLD)
 	else:
