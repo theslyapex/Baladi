@@ -329,6 +329,9 @@ func unlock_global_chat() -> Dictionary:
 func get_global_chat_messages() -> Dictionary:
 	return await api("global_chat_list")
 
+func report_global_chat_message(message_id: int, reason: String) -> Dictionary:
+	return await api("report_global_chat_message", {"message_id": message_id, "reason": reason})
+
 func send_global_chat_message(message_body: String) -> Dictionary:
 	return await api("global_chat_send", {"body": message_body})
 
