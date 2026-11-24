@@ -65,6 +65,7 @@ var last_checkin_date := ""
 var avatar_path := ""
 var avatar_unlocked := false
 var equipped_frame_id := "frame_default"
+var equipped_avatar_id := ""
 var wins := 0
 var losses := 0
 var chat_unlocked := false
@@ -179,6 +180,7 @@ func _enter_game() -> void:
 	avatar_path = str(profile.get("avatar_path", ""))
 	avatar_unlocked = bool(profile.get("avatar_unlocked", false))
 	equipped_frame_id = str(profile.get("equipped_frame_id", "frame_default"))
+	equipped_avatar_id = str(profile.get("equipped_avatar_id", ""))
 	wins = int(profile.get("wins", 0))
 	losses = int(profile.get("losses", 0))
 	var chat_stamp = profile.get("chat_unlocked_at", null)
@@ -734,6 +736,7 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 	avatar_path = "" if new_avatar_path == null else str(new_avatar_path)
 	avatar_unlocked = bool(profile.get("avatar_unlocked", avatar_unlocked))
 	equipped_frame_id = str(profile.get("equipped_frame_id", equipped_frame_id))
+	equipped_avatar_id = str(profile.get("equipped_avatar_id", equipped_avatar_id))
 	wins = int(profile.get("wins", wins))
 	losses = int(profile.get("losses", losses))
 	chat_unlocked = not str(profile.get("chat_unlocked_at", "")).is_empty()
@@ -1150,7 +1153,7 @@ func _show_profile() -> void:
 	var identity_row := HBoxContainer.new()
 	identity_row.add_theme_constant_override("separation", 14)
 	identity.add_child(identity_row)
-	var avatar := _build_avatar_widget(avatar_path, equipped_frame_id, 76)
+	var avatar := _build_avatar_widget(avatar_path, equipped_frame_id, 76, equipped_avatar_id)
 	identity_row.add_child(avatar)
 	var identity_info := VBoxContainer.new()
 	identity_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1616,7 +1619,7 @@ func _refresh_global_chat() -> void:
 			var sender_row := HBoxContainer.new()
 			sender_row.add_theme_constant_override("separation", 8)
 			body.add_child(sender_row)
-			var message_avatar := _build_avatar_widget(str(player.get("avatar_path", "")), str(player.get("equipped_frame_id", "frame_default")), 42)
+			var message_avatar := _build_avatar_widget(str(player.get("avatar_path", "")), str(player.get("equipped_frame_id", "frame_default")), 42, str(player.get("equipped_avatar_id", "")))
 			sender_row.add_child(message_avatar)
 			var sender_info := VBoxContainer.new()
 			sender_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2275,7 +2278,7 @@ func _show_group_chat(group_id: String, group_name: String) -> void:
 		add_child(chat_poll_timer)
 	chat_poll_timer.start()
 
-func _build_avatar_widget(path: String, frame_id: String, widget_size: int) -> Control:
+func _build_avatar_widget(path: String, frame_id: String, widget_size: int, avatar_id: String = "") -> Control:
 	var stack := Control.new()
 	stack.custom_minimum_size = Vector2(widget_size, widget_size)
 	stack.size = Vector2(widget_size, widget_size)
@@ -2287,6 +2290,10 @@ func _build_avatar_widget(path: String, frame_id: String, widget_size: int) -> C
 	picture.custom_minimum_size = Vector2.ZERO
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.texture = load("res://assets/icons/profile.svg")
+	if not avatar_id.is_empty():
+		var avatar_item_path := "res://assets/avatars/%s.svg" % avatar_id.trim_prefix("avatar_")
+		if ResourceLoader.exists(avatar_item_path):
+			picture.texture = load(avatar_item_path)
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(picture)
@@ -2508,6 +2515,16 @@ func _show_cosmetic_shop() -> void:
 		if item_kind == "frame":
 			var frame_preview := _build_avatar_widget("", item_id, 74)
 			body.add_child(frame_preview)
+		elif item_kind == "avatar":
+			var avatar_preview := TextureRect.new()
+			var avatar_file := item_id.trim_prefix("avatar_")
+			var avatar_asset := "res://assets/avatars/%s.svg" % avatar_file
+			avatar_preview.texture = load(avatar_asset) if ResourceLoader.exists(avatar_asset) else load("res://assets/icons/profile.svg")
+			avatar_preview.custom_minimum_size = Vector2(84, 84)
+			avatar_preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			avatar_preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+			avatar_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			body.add_child(avatar_preview)
 		elif item_kind == "avatar_unlock":
 			var avatar_preview := TextureRect.new()
 			avatar_preview.texture = load("res://assets/icons/profile.svg")
@@ -2538,6 +2555,11 @@ func _show_cosmetic_shop() -> void:
 				var choose_photo := _make_button("انتخاب عکس از گالری", Color("#287c68"), CREAM)
 				choose_photo.pressed.connect(_pick_avatar_from_gallery)
 				body.add_child(choose_photo)
+			elif item_kind == "avatar":
+				var equip_avatar := _make_button("انتخاب این تصویر" if equipped_avatar_id != item_id else "تصویر فعال", Color("#287c68"), CREAM)
+				equip_avatar.disabled = equipped_avatar_id == item_id
+				equip_avatar.pressed.connect(func(): _equip_cosmetic_avatar(item_id))
+				body.add_child(equip_avatar)
 			else:
 				var bought := Label.new()
 				bought.text = "خریداری شده"
@@ -2559,6 +2581,15 @@ func _purchase_cosmetic(cosmetic_id: String) -> void:
 	_apply_cloud_profile(result.get("profile", {}))
 	_animate_coin_reward(-int(result.get("item", {}).get("price_coins", 0)))
 	_show_cosmetic_shop()
+
+func _equip_cosmetic_avatar(avatar_id: String) -> void:
+	var result: Dictionary = await CloudAccount.equip_avatar(avatar_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "انتخاب تصویر پروفایل انجام نشد.")), RED)
+		return
+	_apply_cloud_profile(result.get("profile", {}))
+	equipped_avatar_id = avatar_id
+	_show_profile()
 
 func _equip_cosmetic_frame(frame_id: String) -> void:
 	var result: Dictionary = await CloudAccount.equip_frame(frame_id)
@@ -2706,7 +2737,7 @@ func _show_public_profile(target_user_id: String) -> void:
 		content_box.add_child(back_error)
 		return
 	var player: Dictionary = result.get("profile", {})
-	var public_avatar := _build_avatar_widget(str(player.get("avatar_path", "")), str(player.get("equipped_frame_id", "frame_default")), 92)
+	var public_avatar := _build_avatar_widget(str(player.get("avatar_path", "")), str(player.get("equipped_frame_id", "frame_default")), 92, str(player.get("equipped_avatar_id", "")))
 	content_box.add_child(public_avatar)
 	var heading := Label.new()
 	heading.text = _safe_player_name(player.get("display_name", null)) + ("  ✓" if bool(player.get("is_verified", false)) else "")
