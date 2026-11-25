@@ -433,7 +433,7 @@ func upload_avatar(image: Image) -> Dictionary:
 	return saved
 
 func fetch_admin_notifications() -> Dictionary:
-	return await api("admin_notifications")
+	return await api("notifications_inbox")
 
 func get_leaderboard() -> Dictionary:
 	return await api("leaderboard")
