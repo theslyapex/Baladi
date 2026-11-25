@@ -1,6 +1,7 @@
 package ir.alishams.baladi.community
 
 import android.content.Intent
+import android.util.Log
 import org.godotengine.godot.Godot
 import org.godotengine.godot.plugin.GodotPlugin
 import org.godotengine.godot.plugin.SignalInfo
@@ -21,13 +22,17 @@ class BaladiCommunityWebView(godot: Godot) : GodotPlugin(godot) {
     fun openCommunityChat(accessToken: String, refreshToken: String, expiresAt: Double, userJson: String) {
         runOnHostThread {
             val host = activity ?: return@runOnHostThread
-            val intent = Intent(host, CommunityChatActivity::class.java).apply {
-                putExtra(CommunityChatActivity.EXTRA_ACCESS_TOKEN, accessToken)
-                putExtra(CommunityChatActivity.EXTRA_REFRESH_TOKEN, refreshToken)
-                putExtra(CommunityChatActivity.EXTRA_EXPIRES_AT, expiresAt.toLong())
-                putExtra(CommunityChatActivity.EXTRA_USER_JSON, userJson)
+            try {
+                val intent = Intent(host, CommunityChatActivity::class.java).apply {
+                    putExtra(CommunityChatActivity.EXTRA_ACCESS_TOKEN, accessToken)
+                    putExtra(CommunityChatActivity.EXTRA_REFRESH_TOKEN, refreshToken)
+                    putExtra(CommunityChatActivity.EXTRA_EXPIRES_AT, expiresAt.toLong())
+                    putExtra(CommunityChatActivity.EXTRA_USER_JSON, userJson)
+                }
+                host.startActivity(intent)
+            } catch (error: Throwable) {
+                Log.e("BaladiCommunityChat", "Failed to launch community chat Activity", error)
             }
-            host.startActivity(intent)
         }
     }
 
