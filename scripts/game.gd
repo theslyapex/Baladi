@@ -288,6 +288,7 @@ func _enter_guest() -> void:
 	startup_action_taken = true
 	guest_mode = true
 	_load_save()
+	experience_initialized = true
 	_guest_daily_checkin()
 	cloud_current_level = clampi(cloud_current_level, 1, levels.size() + 1)
 	level_index = clampi(cloud_current_level - 1, 0, max(0, levels.size() - 1))
@@ -389,6 +390,8 @@ func _load_save() -> void:
 	sound_enabled = bool(cfg.get_value("player", "sound_enabled", true))
 	level_index = clampi(int(cfg.get_value("player", "level_index", 0)), 0, max(0, levels.size() - 1))
 	cloud_current_level = int(cfg.get_value("player", "current_level", level_index + 1))
+	experience_total = int(cfg.get_value("player", "xp_total", 0))
+	experience_level = clampi(int(cfg.get_value("player", "experience_level", min(500, floori(float(experience_total) / 1000.0) + 1))), 1, 500)
 	display_name = _safe_player_name(cfg.get_value("player", "display_name", "بازیکن"))
 	daily_streak = int(cfg.get_value("player", "daily_streak", 0))
 	last_checkin_date = str(cfg.get_value("player", "last_checkin_date", ""))
@@ -431,6 +434,8 @@ func _save() -> void:
 	cfg.set_value("player", "level_solved", level_solved)
 	cfg.set_value("player", "completed_levels", completed_levels)
 	cfg.set_value("player", "current_level", cloud_current_level)
+	cfg.set_value("player", "xp_total", experience_total)
+	cfg.set_value("player", "experience_level", experience_level)
 	cfg.set_value("player", "level_bonus_found", level_bonus_found)
 	cfg.set_value("player", "hint_history", hint_history)
 	cfg.set_value("player", "display_name", display_name)
@@ -1544,16 +1549,18 @@ func _show_profile() -> void:
 
 
 func _format_number(value: int) -> String:
-	return _format_grouped_number(value)
+	return str(maxi(0, value))
 
-func _format_grouped_number(value: int) -> String:
-	var raw := str(maxi(0, value))
-	var parts: Array[String] = []
-	while raw.length() > 3:
-		parts.push_front(raw.substr(raw.length() - 3, 3))
-		raw = raw.substr(0, raw.length() - 3)
-	parts.push_front(raw)
-	return "٬".join(parts)
+func _add_local_experience(amount: int) -> void:
+	if amount <= 0 or experience_level >= 500:
+		return
+	var previous_level := experience_level
+	experience_total = mini(499000, experience_total + amount)
+	experience_level = clampi(min(500, floori(float(experience_total) / 1000.0) + 1), 1, 500)
+	_save()
+	if experience_level > previous_level:
+		_show_experience_level_up(experience_level)
+
 
 func _show_experience_level_up(new_level: int) -> void:
 	var dialog := AcceptDialog.new()
@@ -4431,6 +4438,8 @@ func _submit_word() -> void:
 			guest_words.append(matched)
 			level_solved[str(stage_id)] = guest_words
 			coins += 3
+			_add_local_experience(5)
+			_spawn_floating_text("+5 XP", GOLD)
 			_play_sfx("found")
 			_animate_coin_reward(3)
 			if _is_level_complete():
@@ -4463,6 +4472,23 @@ func _submit_word() -> void:
 	_update_controls()
 
 func _check_bonus_word(candidate: String, stage_id: int) -> void:
+	if guest_mode:
+		if not bonus_word_set.has(candidate):
+			_set_status("این واژه در واژه‌نامهٔ جایزه‌ای ثبت نشده است.", RED)
+			return
+		var guest_bonus_words := _bonus_words_for_current_level()
+		if guest_bonus_words.has(candidate):
+			_set_status("این واژه را قبلاً پیدا کرده‌ای؛ پاداش آن قبلاً پرداخت شده است.", GOLD)
+			return
+		guest_bonus_words.append(candidate)
+		level_bonus_found[str(stage_id)] = guest_bonus_words
+		coins += 7
+		_add_local_experience(5)
+		_animate_coin_reward(7)
+		_spawn_floating_text("+5 XP", GOLD)
+		_show_bonus_word_feedback(candidate)
+		_save()
+		return
 	var bonus_result: Dictionary = await CloudAccount.record_word_found(candidate, stage_id)
 	if not bonus_result.get("ok", false):
 		# The immediate invalid-word feedback has already been shown. Only surface
@@ -4532,6 +4558,8 @@ func _complete_guest_level() -> void:
 	levels_completed_count = maxi(levels_completed_count, completed_levels.size())
 	var reward := int(levels[level_index].get("reward", 0))
 	coins += reward
+	_add_local_experience(20)
+	_spawn_floating_text("+20 XP برای تکمیل مرحله", GOLD)
 	cloud_current_level = stage_id + 1
 	if stage_id % 20 == 0:
 		diamonds += 1
