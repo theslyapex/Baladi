@@ -1840,6 +1840,9 @@ func _refresh_duel_round() -> void:
 	if str(state.get("status", "")) == "completed":
 		_show_duel_result(str(state.get("winner_id", "")), int(state.get("winner_elapsed_ms", 0)))
 		return
+	if bool(state.get("waiting_for_opponent", false)):
+		_show_duel_waiting()
+		return
 	duel_round_number = int(state.get("current_round", 1))
 	duel_current_letters = state.get("letters", [])
 	duel_answer_count = int(state.get("answer_count", 0))
@@ -1865,14 +1868,40 @@ func _poll_duel_status() -> void:
 			_show_duel_result(str(state.get("winner_id", "")), int(state.get("winner_elapsed_ms", 0)))
 	duel_poll_busy = false
 
+func _show_duel_waiting() -> void:
+	current_page = "duel_waiting"
+	_clear_content()
+	var waiting_card := _panel(GOLD)
+	content_box.add_child(waiting_card)
+	var waiting_stack := VBoxContainer.new()
+	waiting_stack.add_theme_constant_override("separation", 12)
+	waiting_card.add_child(waiting_stack)
+	var title := Label.new()
+	title.text = "نوبت حریف است"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 25)
+	title.add_theme_color_override("font_color", GOLD)
+	waiting_stack.add_child(title)
+	var message := Label.new()
+	message.text = "تو هر ۱۰ مرحله را کامل کردی. تا یک ثانیه فرصت داریم نتیجه نهایی و احتمال مساوی را مشخص کنیم."
+	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message.add_theme_color_override("font_color", CREAM)
+	waiting_stack.add_child(message)
+	var back := _make_button("بازگشت به نقشه", Color("#203e38"), CREAM)
+	back.pressed.connect(_leave_duel_to_map)
+	content_box.add_child(back)
+
 func _show_duel_result(winner_id: String, elapsed_ms: int) -> void:
 	current_page = "duel_result"
 	if duel_poll_timer != null:
 		duel_poll_timer.stop()
 	duel_mode = false
 	_clear_content()
-	var won := winner_id == CloudAccount.user_id
-	var result_card := _panel(GOLD if won else RED)
+	var is_draw := winner_id.is_empty()
+	var won := not is_draw and winner_id == CloudAccount.user_id
+	var reward_xp := 20 if is_draw else (50 if won else 5)
+	var result_card := _panel(GOLD if won or is_draw else RED)
 	content_box.add_child(result_card)
 	var result_stack := VBoxContainer.new()
 	result_stack.add_theme_constant_override("separation", 10)
@@ -1886,19 +1915,25 @@ func _show_duel_result(winner_id: String, elapsed_ms: int) -> void:
 	result_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	result_stack.add_child(result_art)
 	var heading := Label.new()
-	heading.text = "پیروزی در میدان!" if won else "رقابت به پایان رسید"
+	heading.text = "رقابت پایاپای، مساوی!" if is_draw else ("پیروزی در میدان!" if won else "رقابت به پایان رسید")
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.add_theme_font_size_override("font_size", 27)
 	heading.add_theme_color_override("font_color", GOLD if won else CREAM)
 	result_stack.add_child(heading)
 	var subtitle := Label.new()
-	subtitle.text = "تبریک! این مسابقه را با موفقیت پشت سر گذاشتی." if won else "این بار حریف سریع‌تر بود؛ برای مسابقه بعدی آماده شو."
+	subtitle.text = "هر دو بازیکن تقریباً هم‌زمان به پایان رسیدند." if is_draw else ("تبریک! این مسابقه را با موفقیت پشت سر گذاشتی." if won else "این بار حریف سریع‌تر بود؛ برای مسابقه بعدی آماده شو.")
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	subtitle.add_theme_color_override("font_color", MUTED)
 	result_stack.add_child(subtitle)
+	var xp_label := Label.new()
+	xp_label.text = "+%d XP" % reward_xp
+	xp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	xp_label.add_theme_font_size_override("font_size", 24)
+	xp_label.add_theme_color_override("font_color", GOLD)
+	result_stack.add_child(xp_label)
 	var time_label := Label.new()
-	time_label.text = "زمان ثبت‌شده برنده: %.1f ثانیه" % (float(elapsed_ms) / 1000.0)
+	time_label.text = "اختلاف زمان کمتر از یک ثانیه بود." if is_draw else ("زمان ثبت‌شده برنده: %.1f ثانیه" % (float(elapsed_ms) / 1000.0))
 	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	time_label.add_theme_font_size_override("font_size", 18)
 	time_label.add_theme_color_override("font_color", CREAM)
