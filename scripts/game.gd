@@ -3941,7 +3941,9 @@ func _render_board() -> void:
 		return
 
 	var found_grid := GridContainer.new()
-	found_grid.columns = 2
+	# Three compact word chips fit across the board on the 480px game viewport.
+	# This prevents the third discovered word from wrapping while visible space remains.
+	found_grid.columns = 3
 	found_grid.add_theme_constant_override("h_separation", 7)
 	found_grid.add_theme_constant_override("v_separation", 7)
 	journal.add_child(found_grid)
