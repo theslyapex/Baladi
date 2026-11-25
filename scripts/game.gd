@@ -1838,7 +1838,7 @@ func _refresh_duel_round() -> void:
 	var state: Dictionary = result.get("state", {})
 	_apply_cloud_profile(result.get("profile", {}))
 	if str(state.get("status", "")) == "completed":
-		_show_duel_result(str(state.get("winner_id", "")), int(state.get("winner_elapsed_ms", 0)))
+		_show_duel_result(_duel_winner_id(state), int(state.get("winner_elapsed_ms", 0)))
 		return
 	if bool(state.get("waiting_for_opponent", false)):
 		_show_duel_waiting()
@@ -1865,7 +1865,7 @@ func _poll_duel_status() -> void:
 		_apply_cloud_profile(result.get("profile", {}))
 		var state: Dictionary = result.get("state", {})
 		if str(state.get("status", "")) == "completed":
-			_show_duel_result(str(state.get("winner_id", "")), int(state.get("winner_elapsed_ms", 0)))
+			_show_duel_result(_duel_winner_id(state), int(state.get("winner_elapsed_ms", 0)))
 	duel_poll_busy = false
 
 func _show_duel_waiting() -> void:
@@ -1891,6 +1891,12 @@ func _show_duel_waiting() -> void:
 	var back := _make_button("بازگشت به نقشه", Color("#203e38"), CREAM)
 	back.pressed.connect(_leave_duel_to_map)
 	content_box.add_child(back)
+
+func _duel_winner_id(result: Dictionary) -> String:
+	if bool(result.get("is_draw", false)):
+		return ""
+	var value = result.get("winner_id", "")
+	return "" if value == null else str(value)
 
 func _show_duel_result(winner_id: String, elapsed_ms: int) -> void:
 	current_page = "duel_result"
@@ -4448,7 +4454,7 @@ func _submit_word() -> void:
 				_set_status("این واژه را قبلاً پیدا کرده‌ای.", GOLD)
 			elif duel_data.get("match_complete", false):
 				_play_sfx("complete")
-				_show_duel_result(str(duel_data.get("winner_id", "")), int(duel_data.get("elapsed_ms", 0)))
+				_show_duel_result(_duel_winner_id(duel_data), int(duel_data.get("elapsed_ms", 0)))
 			elif duel_data.get("round_complete", false):
 				_play_sfx("complete")
 				await _refresh_duel_round()
@@ -4899,7 +4905,7 @@ func _use_hint_clue(hint_type: String) -> void:
 					break
 			_set_status("یک حرف موردنیاز در صفحه مشخص شد.", GOLD)
 		if hint_data.get("result", {}).get("match_complete", false):
-			_show_duel_result(str(hint_data.get("result", {}).get("winner_id", "")), int(hint_data.get("result", {}).get("elapsed_ms", 0)))
+			_show_duel_result(_duel_winner_id(hint_data.get("result", {})), int(hint_data.get("result", {}).get("elapsed_ms", 0)))
 		elif hint_data.get("result", {}).get("round_complete", false):
 			await _refresh_duel_round()
 		_update_controls()
@@ -5013,7 +5019,7 @@ func _use_hint() -> void:
 		_animate_coin_reward(-int(hint_data.get("cost", 0)))
 		_set_status("یک واژه با راهنمای مسابقه آشکار شد.", GOLD)
 		if hint_data.get("result", {}).get("match_complete", false):
-			_show_duel_result(str(hint_data.get("result", {}).get("winner_id", "")), int(hint_data.get("result", {}).get("elapsed_ms", 0)))
+			_show_duel_result(_duel_winner_id(hint_data.get("result", {})), int(hint_data.get("result", {}).get("elapsed_ms", 0)))
 		else:
 			await _refresh_duel_round()
 		return
