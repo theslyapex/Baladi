@@ -1395,7 +1395,8 @@ func _show_profile() -> void:
 	if experience_level >= 500:
 		xp_into_level = 1000
 	xp_bar.max_value = 1000
-	xp_bar.value = clampi(xp_into_level, 0, 1000)
+	var xp_target_value := clampi(xp_into_level, 0, 1000)
+	xp_bar.value = 0
 	var xp_bg := StyleBoxFlat.new()
 	xp_bg.bg_color = Color("#09201d")
 	xp_bg.set_corner_radius_all(9)
@@ -1405,6 +1406,8 @@ func _show_profile() -> void:
 	xp_fill.set_corner_radius_all(9)
 	xp_bar.add_theme_stylebox_override("fill", xp_fill)
 	xp_box.add_child(xp_bar)
+	var xp_tween := create_tween()
+	xp_tween.tween_property(xp_bar, "value", xp_target_value, 0.72).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	var xp_hint := Label.new()
 	xp_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	xp_hint.add_theme_font_size_override("font_size", 12)
