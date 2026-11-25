@@ -1385,6 +1385,133 @@ func _show_profile() -> void:
 	back.pressed.connect(_show_map)
 	content_box.add_child(back)
 
+func _show_matchmaking() -> void:
+	current_page = "matchmaking"
+	_clear_content()
+	_add_section_art("assets/backgrounds/letter-wheel.svg", 110)
+	_add_page_heading("حریف‌یابی", "رقیب دلخواهت را پیدا کن و وارد مسابقه شو")
+	var intro := _panel(GOLD)
+	content_box.add_child(intro)
+	var intro_label := Label.new()
+	intro_label.text = "دو راه برای شروع رقابت داری؛ با یک بازیکن آنلاین به‌صورت تصادفی جفت شو یا دوستت را با تگ اختصاصی به مسابقه دعوت کن."
+	intro_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	intro_label.add_theme_color_override("font_color", CREAM)
+	intro_label.add_theme_font_size_override("font_size", 14)
+	intro.add_child(intro_label)
+	var random_card := _panel(TEAL)
+	content_box.add_child(random_card)
+	var random_body := VBoxContainer.new()
+	random_body.add_theme_constant_override("separation", 7)
+	random_card.add_child(random_body)
+	var random_title := Label.new()
+	random_title.text = "حریف‌یابی تصادفی"
+	random_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	random_title.add_theme_font_size_override("font_size", 21)
+	random_title.add_theme_color_override("font_color", GOLD)
+	random_body.add_child(random_title)
+	var random_desc := Label.new()
+	random_desc.text = "به صف بازیکنان منتظر بپیوند. با پیدا شدن حریف، مسابقه ۱۰ مرحله‌ای آغاز می‌شود."
+	random_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	random_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	random_desc.add_theme_color_override("font_color", CREAM)
+	random_body.add_child(random_desc)
+	var random_button := _make_button("پیدا کردن حریف تصادفی", Color("#287c68"), CREAM)
+	random_button.custom_minimum_size.y = 52
+	random_button.pressed.connect(_start_random_matchmaking)
+	random_body.add_child(random_button)
+	var tag_card := _panel(GOLD)
+	content_box.add_child(tag_card)
+	var tag_body := VBoxContainer.new()
+	tag_body.add_theme_constant_override("separation", 8)
+	tag_card.add_child(tag_body)
+	var tag_title := Label.new()
+	tag_title.text = "حریف با تگ بازیکن"
+	tag_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag_title.add_theme_font_size_override("font_size", 20)
+	tag_title.add_theme_color_override("font_color", GOLD)
+	tag_body.add_child(tag_title)
+	var tag_desc := Label.new()
+	tag_desc.text = "تگ اختصاصی دوستت را وارد کن تا دعوت مسابقه برایش ارسال شود."
+	tag_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tag_desc.add_theme_color_override("font_color", MUTED)
+	tag_body.add_child(tag_desc)
+	var tag_input := LineEdit.new()
+	tag_input.placeholder_text = "مثلاً BLD-12345678"
+	tag_input.max_length = 12
+	tag_input.custom_minimum_size.y = 50
+	tag_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_style_input(tag_input)
+	tag_body.add_child(tag_input)
+	var send_button := _make_button("ارسال درخواست مسابقه", Color("#765a31"), CREAM)
+	send_button.custom_minimum_size.y = 50
+	send_button.pressed.connect(func(): _send_duel_invite_by_tag(tag_input.text))
+	tag_body.add_child(send_button)
+	var invites_button := _make_button("درخواست‌های دریافتی", Color("#385b75"), CREAM)
+	invites_button.pressed.connect(_show_duel_invites)
+	content_box.add_child(invites_button)
+	var back := _make_button("بازگشت به نقشه", Color("#203e38"), CREAM)
+	back.pressed.connect(_show_map)
+	content_box.add_child(back)
+
+func _send_duel_invite_by_tag(raw_tag: String) -> void:
+	var normalized_tag := raw_tag.strip_edges().to_upper().replace(" ", "")
+	if not normalized_tag.begins_with("BLD-") or normalized_tag.length() != 12:
+		_set_status("تگ را با قالب BLD-12345678 وارد کن.", RED)
+		return
+	var result: Dictionary = await CloudAccount.send_duel_invite_by_tag(normalized_tag)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "ارسال دعوت ناموفق بود.")), RED)
+		return
+	_set_status("دعوت مسابقه برای صاحب این تگ ارسال شد.", GREEN)
+
+func _start_random_matchmaking() -> void:
+	if guest_mode:
+		_set_status("برای حریف‌یابی باید وارد حساب کاربری شوی.", GOLD)
+		return
+	var result: Dictionary = await CloudAccount.matchmaking_join()
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "ورود به صف حریف‌یابی ناموفق بود.")), RED)
+		return
+	if str(result.get("status", "")) == "matched":
+		_show_duel_game(str(result.get("match_id", "")))
+		return
+	current_page = "matchmaking_wait"
+	_clear_content()
+	_add_page_heading("در جست‌وجوی حریف...", "در حال بررسی بازیکنان آماده مسابقه")
+	var wait_panel := _panel(GOLD)
+	content_box.add_child(wait_panel)
+	var wait_label := Label.new()
+	wait_label.text = "در صف حریف‌یابی هستی. این صفحه را باز نگه دار.\nبه‌محض پیدا شدن بازیکن، مسابقه شروع می‌شود."
+	wait_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	wait_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	wait_label.add_theme_font_size_override("font_size", 17)
+	wait_label.add_theme_color_override("font_color", CREAM)
+	wait_panel.add_child(wait_label)
+	var cancel := _make_button("لغو جست‌وجو", Color("#713e3b"), CREAM)
+	cancel.pressed.connect(_cancel_random_matchmaking)
+	content_box.add_child(cancel)
+	while is_inside_tree() and current_page == "matchmaking_wait":
+		await get_tree().create_timer(2.0).timeout
+		if current_page != "matchmaking_wait":
+			return
+		var state: Dictionary = await CloudAccount.matchmaking_status()
+		if not state.get("ok", false):
+			_set_status(str(state.get("error", "بررسی وضعیت حریف‌یابی ناموفق بود.")), RED)
+			return
+		var status := str(state.get("status", "idle"))
+		if status == "matched":
+			_show_duel_game(str(state.get("match_id", "")))
+			return
+		if status == "expired" or status == "idle":
+			_set_status("زمان انتظار تمام شد. دوباره حریف‌یابی را شروع کن.", GOLD)
+			_show_matchmaking()
+			return
+
+func _cancel_random_matchmaking() -> void:
+	await CloudAccount.matchmaking_cancel()
+	_show_matchmaking()
 func _show_duel_hub() -> void:
 	current_page = "duel_hub"
 	_clear_content()
