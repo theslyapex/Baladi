@@ -121,6 +121,7 @@ var back_navigation := {
 	"group_chat": "groups", "sticker_picker": "global_chat",
 	"cosmetic_shop": "profile", "leaderboard": "map",
 	"duel_invites": "duel_hub", "duel_hub": "profile", "duel_game": "duel_hub",
+	"matchmaking": "map", "matchmaking_tag": "matchmaking", "matchmaking_wait": "matchmaking",
 	"duel_result": "duel_invites", "public_profile": "leaderboard",
 	"avatar_crop": "profile", "game": "map", "map": "exit"
 }
@@ -179,6 +180,7 @@ func _enter_game() -> void:
 	name_change_count = int(profile.get("name_change_count", 0))
 	var profile_name = profile.get("display_name", null)
 	display_name = _safe_player_name(profile_name, CloudAccount.display_name)
+	player_tag = str(profile.get("player_tag", ""))
 	if display_name.is_empty():
 		display_name = CloudAccount.display_name if not CloudAccount.display_name.is_empty() else "بازیکن"
 	daily_streak = int(profile.get("daily_streak", 0))
@@ -830,6 +832,7 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 	diamonds = int(profile.get("diamonds", diamonds))
 	name_change_count = int(profile.get("name_change_count", name_change_count))
 	var profile_name = profile.get("display_name", null)
+	player_tag = str(profile.get("player_tag", player_tag))
 	if profile_name != null and not str(profile_name).strip_edges().is_empty():
 		display_name = str(profile_name)
 	elif display_name.is_empty():
@@ -877,6 +880,11 @@ func _show_map() -> void:
 	greeting.add_theme_font_size_override("font_size", 16)
 	greeting.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(greeting)
+	var matchmaking_home := _make_button("حریف‌یابی آنلاین", Color("#765a31"), CREAM)
+	matchmaking_home.custom_minimum_size.y = 58
+	matchmaking_home.add_theme_font_size_override("font_size", 19)
+	matchmaking_home.pressed.connect(_show_matchmaking)
+	content_box.add_child(matchmaking_home)
 	var diamond_row := HBoxContainer.new()
 	diamond_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	diamond_row.add_theme_constant_override("separation", 7)
