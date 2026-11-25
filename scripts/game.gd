@@ -4291,28 +4291,40 @@ func _submit_word() -> void:
 			_sync_found_word(matched, stage_id)
 			return
 	else:
-		var bonus_result: Dictionary = await CloudAccount.record_word_found(candidate, stage_id)
-		if not bonus_result.get("ok", false):
-			_set_status(str(bonus_result.get("error", "اعتبار واژه بررسی نشد.")), RED)
-		elif bonus_result.get("already_found", false):
-			_set_status("این واژه را قبلاً پیدا کرده‌ای؛ پاداش آن قبلاً پرداخت شده است.", GOLD)
-			var existing_bonus := _bonus_words_for_current_level()
-			if not existing_bonus.has(candidate):
-				existing_bonus.append(candidate)
-				level_bonus_found[str(stage_id)] = existing_bonus
-		else:
-			_apply_cloud_profile(bonus_result.get("profile", {}))
-			var member_bonus := _bonus_words_for_current_level()
-			member_bonus.append(candidate)
-			level_bonus_found[str(stage_id)] = member_bonus
-			var bonus_coins := int(bonus_result.get("coins_awarded", 7))
-			if bonus_coins > 0:
-				_play_sfx("bonus")
-				_animate_coin_reward(bonus_coins)
-			_show_bonus_word_feedback(candidate)
-			_save()
+		# Give immediate feedback for a non-answer. Bonus-word validation must never
+		# keep the selected letters on screen while waiting for the network.
+		_set_status("این واژه پاسخ این مرحله نیست.", RED)
+		_clear_selection()
+		_update_controls()
+		_check_bonus_word(candidate, stage_id)
+		return
 	_clear_selection()
 	_update_controls()
+
+func _check_bonus_word(candidate: String, stage_id: int) -> void:
+	var bonus_result: Dictionary = await CloudAccount.record_word_found(candidate, stage_id)
+	if not bonus_result.get("ok", false):
+		# The immediate invalid-word feedback has already been shown. Only surface
+		# a server error if it is a real connection/validation failure.
+		_set_status(str(bonus_result.get("error", "بررسی واژه جایزه‌ای انجام نشد.")), RED)
+		return
+	if bonus_result.get("already_found", false):
+		_set_status("این واژه را قبلاً پیدا کرده‌ای؛ پاداش آن قبلاً پرداخت شده است.", GOLD)
+		var existing_bonus := _bonus_words_for_current_level()
+		if not existing_bonus.has(candidate):
+			existing_bonus.append(candidate)
+			level_bonus_found[str(stage_id)] = existing_bonus
+	else:
+		_apply_cloud_profile(bonus_result.get("profile", {}))
+		var member_bonus := _bonus_words_for_current_level()
+		member_bonus.append(candidate)
+		level_bonus_found[str(stage_id)] = member_bonus
+		var bonus_coins := int(bonus_result.get("coins_awarded", 7))
+		if bonus_coins > 0:
+			_play_sfx("bonus")
+			_animate_coin_reward(bonus_coins)
+		_show_bonus_word_feedback(candidate)
+		_save()
 
 func _sync_found_word(word: String, stage_id: int) -> void:
 	var word_result: Dictionary = await CloudAccount.record_word_found(word, stage_id)
