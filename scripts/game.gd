@@ -120,7 +120,7 @@ var back_navigation := {
 	"profile": "map", "global_chat": "map", "groups": "map", "settings": "map", "privacy": "settings", "faq": "settings",
 	"group_chat": "groups", "sticker_picker": "global_chat",
 	"cosmetic_shop": "profile", "leaderboard": "map",
-	"duel_invites": "map", "duel_game": "duel_invites",
+	"duel_invites": "duel_hub", "duel_hub": "profile", "duel_game": "duel_hub",
 	"duel_result": "duel_invites", "public_profile": "leaderboard",
 	"avatar_crop": "profile", "game": "map", "map": "exit"
 }
@@ -1487,33 +1487,48 @@ func _show_duel_result(winner_id: String, elapsed_ms: int) -> void:
 	duel_mode = false
 	_clear_content()
 	var won := winner_id == CloudAccount.user_id
+	var result_card := _panel(GOLD if won else RED)
+	content_box.add_child(result_card)
+	var result_stack := VBoxContainer.new()
+	result_stack.add_theme_constant_override("separation", 10)
+	result_card.add_child(result_stack)
 	var result_art := TextureRect.new()
 	result_art.texture = load("res://assets/rewards/treasure-chest.svg") if won else load("res://assets/characters/mascot.svg")
-	result_art.custom_minimum_size = Vector2(128, 92)
+	result_art.custom_minimum_size = Vector2(150, 126)
 	result_art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	result_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	result_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	result_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	content_box.add_child(result_art)
+	result_stack.add_child(result_art)
 	var heading := Label.new()
-	heading.text = "پیروزی در رقابت!" if won else "این بار حریف برنده شد"
+	heading.text = "پیروزی در میدان!" if won else "رقابت به پایان رسید"
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.add_theme_font_size_override("font_size", 27)
-	heading.add_theme_color_override("font_color", GOLD if won else RED)
-	content_box.add_child(heading)
-	var detail := Label.new()
-	detail.text = "زمان ثبت‌شده برنده: %.1f ثانیه" % (float(elapsed_ms) / 1000.0)
-	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	detail.add_theme_font_size_override("font_size", 18)
-	detail.add_theme_color_override("font_color", CREAM)
-	content_box.add_child(detail)
-	var record := Label.new()
-	record.text = "تعداد بردها: %d  ·  تعداد باخت‌ها: %d" % [wins, losses]
-	record.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	record.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	record.add_theme_color_override("font_color", MUTED)
-	content_box.add_child(record)
-	var back := _make_button("بازگشت به نقشه", Color("#287c68"), CREAM)
+	heading.add_theme_color_override("font_color", GOLD if won else CREAM)
+	result_stack.add_child(heading)
+	var subtitle := Label.new()
+	subtitle.text = "تبریک! این مسابقه را با موفقیت پشت سر گذاشتی." if won else "این بار حریف سریع‌تر بود؛ برای مسابقه بعدی آماده شو."
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	subtitle.add_theme_color_override("font_color", MUTED)
+	result_stack.add_child(subtitle)
+	var time_label := Label.new()
+	time_label.text = "زمان ثبت‌شده برنده: %.1f ثانیه" % (float(elapsed_ms) / 1000.0)
+	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	time_label.add_theme_font_size_override("font_size", 18)
+	time_label.add_theme_color_override("font_color", CREAM)
+	result_stack.add_child(time_label)
+	var stats := GridContainer.new()
+	stats.columns = 2
+	stats.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats.add_theme_constant_override("h_separation", 8)
+	result_stack.add_child(stats)
+	_add_profile_stat(stats, "بردهای ثبت‌شده", str(wins), GREEN)
+	_add_profile_stat(stats, "باخت‌های ثبت‌شده", str(losses), RED)
+	var arena := _make_button("بازگشت به میدان رقابت", Color("#765a31"), CREAM)
+	arena.pressed.connect(_show_duel_hub)
+	content_box.add_child(arena)
+	var back := _make_button("بازگشت به نقشه", Color("#203e38"), CREAM)
 	back.pressed.connect(_show_map)
 	content_box.add_child(back)
 
