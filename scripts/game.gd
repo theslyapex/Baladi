@@ -1722,7 +1722,8 @@ func _refresh_global_chat() -> void:
 			time_label.add_theme_color_override("font_color", MUTED)
 			sender_info.add_child(time_label)
 
-			var sticker_id := str(message.get("sticker_id", ""))
+			var sticker_value: Variant = message.get("sticker_id", null)
+			var sticker_id := "" if sticker_value == null else str(sticker_value).strip_edges()
 			if not sticker_id.is_empty():
 				var sticker_art := TextureRect.new()
 				var sticker_file := sticker_id.trim_prefix("sticker_")
@@ -1981,6 +1982,20 @@ func _send_global_chat_message() -> void:
 		return
 	chat_input.clear()
 	await _refresh_global_chat()
+
+func _reveal_group_chat_composer() -> void:
+	if chat_input == null or not is_instance_valid(chat_input):
+		return
+	var node: Node = chat_input
+	while node != null:
+		if node is ScrollContainer:
+			var scroll := node as ScrollContainer
+			var bar := scroll.get_v_scroll_bar()
+			if bar != null:
+				scroll.scroll_vertical = int(bar.max_value)
+				bar.value = bar.max_value
+			return
+		node = node.get_parent()
 
 func _send_group_chat_message(group_id: String, message: String) -> void:
 	if group_id.is_empty() or message.is_empty():
@@ -2508,7 +2523,11 @@ func _show_group_chat(group_id: String, group_name: String) -> void:
 	chat_input.placeholder_text = "پیامت را برای اعضای گروه بنویس..."
 	chat_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	chat_input.custom_minimum_size.y = 48
+	chat_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_style_input(chat_input)
+	chat_input.text_submitted.connect(func(_submitted: String): _send_group_chat_message(group_id, chat_input.text.strip_edges()))
+	chat_input.focus_entered.connect(_reveal_group_chat_composer)
+	chat_input.text_changed.connect(func(_text: String): call_deferred("_reveal_group_chat_composer"))
 	composer.add_child(chat_input)
 	var send := _make_button("ارسال", Color("#287c68"), CREAM)
 	send.custom_minimum_size = Vector2(76, 48)
