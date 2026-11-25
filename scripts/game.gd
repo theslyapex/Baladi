@@ -299,7 +299,7 @@ func _check_admin_notifications() -> void:
 	dialog.ok_button_text = "متوجه شدم"
 	add_child(dialog)
 	dialog.confirmed.connect(dialog.queue_free)
-	dialog.canceled.connect(dialog.queue_free)
+	dialog.close_requested.connect(dialog.queue_free)
 	dialog.popup_centered(Vector2i(520, 320))
 
 func _logout() -> void:
