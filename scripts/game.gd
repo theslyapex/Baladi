@@ -4547,7 +4547,9 @@ func _sync_found_word(word: String, stage_id: int) -> void:
 		var completion: Dictionary = await CloudAccount.complete_level(stage_id)
 		if completion.get("ok", false):
 			_apply_cloud_profile(completion.get("profile", {}))
-			_spawn_floating_text("+۲۰ XP برای تکمیل مرحله", GOLD)
+			var completion_xp := int(completion.get("xp_awarded", 0))
+			if completion_xp > 0:
+				_spawn_floating_text("+%d XP برای تکمیل مرحله" % completion_xp, GOLD)
 			_show_stage_complete(int(levels[level_index].get("reward", 0)))
 		else:
 			_set_status(str(completion.get("error", "ثبت تکمیل مرحله انجام نشد.")), RED)
