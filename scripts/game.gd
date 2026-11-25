@@ -230,6 +230,7 @@ func _enter_game() -> void:
 		add_child(session_timer)
 	session_timer.start()
 	_show_map()
+	await _check_admin_notifications()
 
 func _enter_guest() -> void:
 	startup_action_taken = true
@@ -286,17 +287,20 @@ func _check_admin_notifications() -> void:
 	var notifications = response.get("notifications", [])
 	if not notifications is Array:
 		return
+	var lines := PackedStringArray()
 	for item in notifications:
-		if not item is Dictionary:
-			continue
-		var dialog := AcceptDialog.new()
-		dialog.title = str(item.get("title", "پیام مدیریت بازی"))
-		dialog.dialog_text = str(item.get("body", ""))
-		dialog.ok_button_text = "متوجه شدم"
-		add_child(dialog)
-		dialog.confirmed.connect(dialog.queue_free)
-		dialog.canceled.connect(dialog.queue_free)
-		dialog.popup_centered(Vector2i(520, 300))
+		if item is Dictionary:
+			lines.append("• " + str(item.get("title", "پیام مدیریت بازی")) + "\\n" + str(item.get("body", "")))
+	if lines.is_empty():
+		return
+	var dialog := AcceptDialog.new()
+	dialog.title = "پیام جدید از مدیریت بلدی؟"
+	dialog.dialog_text = "\\n\\n".join(lines)
+	dialog.ok_button_text = "متوجه شدم"
+	add_child(dialog)
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.popup_centered(Vector2i(520, 320))
 
 func _logout() -> void:
 	_save()
