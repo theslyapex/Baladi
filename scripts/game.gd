@@ -4174,7 +4174,7 @@ func _input(event: InputEvent) -> void:
 				page_touch_scrolling = false
 				page_touch_scroll = null
 		elif event is InputEventScreenDrag and page_touch_active and page_touch_scroll != null and is_instance_valid(page_touch_scroll):
-			var drag := event.position - page_touch_start
+			var drag: Vector2 = event.position - page_touch_start
 			if not page_touch_scrolling and absf(drag.y) >= 8.0 and absf(drag.y) > absf(drag.x) * 1.15:
 				page_touch_scrolling = true
 			if page_touch_scrolling:
@@ -4196,7 +4196,7 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventScreenTouch and event.pressed:
 		_begin_trace(event.position)
 	elif event is InputEventScreenDrag and is_dragging:
-		_update_trace(event.position)
+		_continue_trace(event.position)
 	elif event is InputEventScreenTouch and not event.pressed:
 		_finish_trace()
 
