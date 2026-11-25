@@ -1441,7 +1441,7 @@ func _show_profile() -> void:
 		verified_note.add_theme_color_override("font_color", Color("#35a9ff"))
 		identity_info.add_child(verified_note)
 	var player_tag := Label.new()
-	player_tag.text = "ماجراجوی واژه‌ها  ·  سطح %d" % maxi(1, int(ceil(float(cloud_current_level) / 20.0)))
+	player_tag.text = "ماجراجوی واژه‌ها  ·  سطح تجربه %d" % experience_level
 	player_tag.add_theme_font_size_override("font_size", 13)
 	player_tag.add_theme_color_override("font_color", GOLD)
 	identity_info.add_child(player_tag)
