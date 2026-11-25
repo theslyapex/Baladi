@@ -875,22 +875,34 @@ func _show_map() -> void:
 	coin_label.text = "%d" % coins
 
 	_add_page_heading("نقشه مراحل", "۲۰۰ مرحله برای کشف واژه‌ها و سرزمین‌های تازه")
+	var greeting_panel := _panel(Color("#9a8050"))
+	greeting_panel.add_theme_constant_override("separation", 0)
+	content_box.add_child(greeting_panel)
 	var greeting := Label.new()
 	greeting.text = "سلام، %s! آماده‌ای؟" % display_name
 	greeting.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	greeting.add_theme_font_size_override("font_size", 16)
+	greeting.add_theme_font_size_override("font_size", 17)
 	greeting.add_theme_color_override("font_color", GOLD)
-	content_box.add_child(greeting)
-	var incoming_duels := _make_button("درخواست‌های مسابقه", Color("#385b75"), CREAM)
-	incoming_duels.custom_minimum_size.y = 46
+	greeting_panel.add_child(greeting)
+
+	var action_row := HBoxContainer.new()
+	action_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	action_row.add_theme_constant_override("separation", 10)
+	content_box.add_child(action_row)
+	var incoming_duels := _make_button("◈  درخواست‌های مسابقه\nدعوت‌های دریافتی", Color("#173d43"), CREAM)
+	incoming_duels.custom_minimum_size = Vector2(0, 76)
+	incoming_duels.add_theme_font_size_override("font_size", 14)
+	_style_home_action_button(incoming_duels, Color("#6ca9b4"))
 	incoming_duels.pressed.connect(_show_duel_invites)
-	content_box.add_child(incoming_duels)
+	action_row.add_child(incoming_duels)
 	_update_duel_invite_badge(incoming_duels)
-	var matchmaking_home := _make_button("حریف‌یابی آنلاین", Color("#765a31"), CREAM)
-	matchmaking_home.custom_minimum_size.y = 58
-	matchmaking_home.add_theme_font_size_override("font_size", 19)
+	var matchmaking_home := _make_button("✦  حریف‌یابی آنلاین\nپیدا کردن رقیب", Color("#51402a"), CREAM)
+	matchmaking_home.custom_minimum_size = Vector2(0, 76)
+	matchmaking_home.add_theme_font_size_override("font_size", 14)
+	_style_home_action_button(matchmaking_home, GOLD)
 	matchmaking_home.pressed.connect(_show_matchmaking)
-	content_box.add_child(matchmaking_home)
+	action_row.add_child(matchmaking_home)
+
 	var diamond_row := HBoxContainer.new()
 	diamond_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	diamond_row.add_theme_constant_override("separation", 7)
@@ -906,40 +918,42 @@ func _show_map() -> void:
 	diamond_label.add_theme_font_size_override("font_size", 15)
 	diamond_row.add_child(diamond_label)
 	content_box.add_child(diamond_row)
-	var guide_panel := _panel(Color("#287c68"))
+
+	var guide_panel := _panel(Color("#927a48"))
 	guide_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content_box.add_child(guide_panel)
-	var guide_body := VBoxContainer.new()
-	guide_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	guide_body.add_theme_constant_override("separation", 6)
-	guide_panel.add_child(guide_body)
-	var guide_mascot := TextureRect.new()
-	guide_mascot.texture = load("res://assets/characters/mascot.svg")
-	guide_mascot.custom_minimum_size = Vector2(0, 76)
-	guide_mascot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	guide_mascot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	guide_mascot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	guide_mascot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	guide_body.add_child(guide_mascot)
+	var guide_box := VBoxContainer.new()
+	guide_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	guide_box.add_theme_constant_override("separation", 5)
+	guide_panel.add_child(guide_box)
+	var guide_title := Label.new()
+	guide_title.text = "سفر تو ادامه دارد"
+	guide_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	guide_title.add_theme_font_size_override("font_size", 17)
+	guide_title.add_theme_color_override("font_color", GOLD)
+	guide_box.add_child(guide_title)
 	var guide_text := Label.new()
-	guide_text.text = "من راهنمای توام! هر ۲۰ مرحله یک سرزمین تازه منتظرته."
-	guide_text.custom_minimum_size = Vector2(0, 42)
+	guide_text.text = "هر ۲۰ مرحله، سرزمینی تازه با رازها و واژه‌های جدید پیش روی توست."
+	guide_text.custom_minimum_size = Vector2(0, 34)
 	guide_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	guide_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	guide_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	guide_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	guide_text.add_theme_font_size_override("font_size", 14)
+	guide_text.add_theme_font_size_override("font_size", 13)
 	guide_text.add_theme_color_override("font_color", CREAM)
-	guide_body.add_child(guide_text)
+	guide_box.add_child(guide_text)
 
+	var map_frame := _panel(Color("#9a8050"))
+	map_frame.add_theme_constant_override("separation", 0)
+	content_box.add_child(map_frame)
 	var map_art := TextureRect.new()
-	map_art.texture = load("res://assets/backgrounds/wordlands.svg")
-	map_art.custom_minimum_size = Vector2(0, 116)
+	map_art.texture = load("res://assets/backgrounds/wordlands-cinematic.jpg")
+	map_art.custom_minimum_size = Vector2(0, 154)
 	map_art.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	map_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	map_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	content_box.add_child(map_art)
+	map_frame.add_child(map_art)
 
 	var completed_count := completed_levels.size()
 	var progress_panel := _panel()
@@ -1391,6 +1405,35 @@ func _show_profile() -> void:
 	back.pressed.connect(_show_map)
 	content_box.add_child(back)
 
+func _style_home_action_button(button: Button, accent: Color) -> void:
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.add_theme_color_override("font_color", CREAM)
+	button.add_theme_color_override("font_hover_color", Color("#fff3d0"))
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color("#142f2b")
+	normal.border_color = accent.darkened(0.12)
+	normal.set_border_width_all(2)
+	normal.set_corner_radius_all(19)
+	normal.shadow_color = Color(0, 0, 0, 0.34)
+	normal.shadow_size = 9
+	normal.shadow_offset = Vector2(0, 4)
+	normal.content_margin_left = 7
+	normal.content_margin_right = 7
+	normal.content_margin_top = 9
+	normal.content_margin_bottom = 9
+	button.add_theme_stylebox_override("normal", normal)
+	var hover := normal.duplicate()
+	hover.bg_color = Color("#1c4039")
+	hover.border_color = accent.lightened(0.12)
+	hover.shadow_size = 12
+	button.add_theme_stylebox_override("hover", hover)
+	var pressed := normal.duplicate()
+	pressed.bg_color = Color("#0d2622")
+	pressed.shadow_size = 2
+	pressed.shadow_offset = Vector2(0, 1)
+	button.add_theme_stylebox_override("pressed", pressed)
+	button.add_theme_stylebox_override("focus", hover)
+
 func _update_duel_invite_badge(button: Button) -> void:
 	if guest_mode:
 		return
@@ -1399,7 +1442,7 @@ func _update_duel_invite_badge(button: Button) -> void:
 		return
 	if result.get("ok", false):
 		var count := (result.get("invites", []) as Array).size()
-		button.text = "درخواست‌های مسابقه  ·  %d" % count if count > 0 else "درخواست‌های مسابقه"
+		button.text = "◈  درخواست‌های مسابقه\n%d دعوت تازه" % count if count > 0 else "◈  درخواست‌های مسابقه\nدعوت‌های دریافتی"
 func _show_matchmaking() -> void:
 	current_page = "matchmaking"
 	_clear_content()
