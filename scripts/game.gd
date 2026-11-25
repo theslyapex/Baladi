@@ -1280,6 +1280,22 @@ func _show_profile() -> void:
 	player_tag.add_theme_font_size_override("font_size", 13)
 	player_tag.add_theme_color_override("font_color", GOLD)
 	identity_info.add_child(player_tag)
+	var tag_row := HBoxContainer.new()
+	tag_row.add_theme_constant_override("separation", 8)
+	identity_info.add_child(tag_row)
+	var tag_value := Label.new()
+	tag_value.text = "تگ بازیکن: " + (player_tag if not player_tag.is_empty() else "در حال دریافت")
+	tag_value.add_theme_font_size_override("font_size", 14)
+	tag_value.add_theme_color_override("font_color", GOLD)
+	tag_row.add_child(tag_value)
+	if not player_tag.is_empty():
+		var copy_tag := _make_button("کپی", Color("#287c68"), CREAM)
+		copy_tag.custom_minimum_size = Vector2(68, 34)
+		copy_tag.pressed.connect(func():
+			DisplayServer.clipboard_set(player_tag)
+			_set_status("تگ بازیکن کپی شد.", GREEN)
+		)
+		tag_row.add_child(copy_tag)
 
 	var name_title := Label.new()
 	name_title.text = "نام نمایشی"
