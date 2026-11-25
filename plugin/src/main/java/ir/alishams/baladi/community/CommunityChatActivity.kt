@@ -38,7 +38,7 @@ class CommunityChatActivity : Activity() {
             Log.e(TAG, "Community chat Activity initialization failed", error)
             try {
                 val fallback = TextView(this).apply {
-                    text = "باز کردن انجمن گفت‌وگو با خطا مواجه شد. بازی را نبندید؛ دوباره تلاش کنید."
+                    text = "باز کردن انجمن گفت‌وگو با خطا مواجه شد.\\n\\nنوع خطا: ${error.javaClass.simpleName}\\nجزئیات: ${error.message ?: "بدون توضیح"}\\n\\nاز این صفحه عکس بگیر و برای پشتیبانی بفرست."
                     textSize = 16f
                     setTextColor(android.graphics.Color.WHITE)
                     setBackgroundColor(android.graphics.Color.rgb(12, 16, 11))
