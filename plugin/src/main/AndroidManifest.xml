@@ -1,13 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application>
+        <meta-data
+            android:name="org.godotengine.plugin.v2.BaladiPushNotifications"
+            android:value="ir.alishams.baladi.push.BaladiPushNotifications" />
         <meta-data
             android:name="org.godotengine.plugin.v2.${godotPluginName}"
             android:value="${godotPluginPackageName}.BaladiMediaPicker" />
         <meta-data
             android:name="org.godotengine.plugin.v2.BaladiCommunityWebView"
             android:value="ir.alishams.baladi.community.BaladiCommunityWebView" />
+        <service
+            android:name="ir.alishams.baladi.push.BaladiFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <provider
+            android:name="ir.alishams.baladi.push.BaladiFirebaseInitProvider"
+            android:authorities="${applicationId}.baladi-firebase-init"
+            android:exported="false"
+            android:initOrder="101" />
         <activity
             android:name="ir.alishams.baladi.community.CommunityChatActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
