@@ -601,7 +601,7 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await db.rpc("baladi_duel_state", { p_user_id: user.id, p_match_id: matchId });
       if (error) return out({ error: error.message || "وضعیت مسابقه دریافت نشد." }, 409, origin);
       const { data: profile, error: profileError } = await db.from("baladi_game_profiles")
-        .select("coins,wins,losses,current_level,display_name").eq("user_id", user.id).single();
+        .select("coins,wins,losses,current_level,display_name,xp_total,experience_level").eq("user_id", user.id).single();
       if (profileError) throw profileError;
       return out({ ok: true, state: data, profile }, 200, origin);
     }
@@ -614,7 +614,7 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await db.rpc("baladi_duel_submit_word", { p_user_id: user.id, p_match_id: matchId, p_word: word });
       if (error) return out({ error: error.message || "بررسی واژه انجام نشد." }, 409, origin);
       const { data: profile, error: profileError } = await db.from("baladi_game_profiles")
-        .select("coins,wins,losses,current_level,display_name").eq("user_id", user.id).single();
+        .select("coins,wins,losses,current_level,display_name,xp_total,experience_level").eq("user_id", user.id).single();
       if (profileError) throw profileError;
       return out({ ok: true, result: data, profile }, 200, origin);
     }
@@ -626,7 +626,7 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await db.rpc("baladi_duel_spend_hint", { p_user_id: user.id, p_match_id: matchId, p_hint_type: hintType });
       if (error) return out({ error: error.message || "استفاده از راهنمای مسابقه انجام نشد." }, 409, origin);
       const { data: profile, error: profileError } = await db.from("baladi_game_profiles")
-        .select("coins,wins,losses,current_level,display_name").eq("user_id", user.id).single();
+        .select("coins,wins,losses,current_level,display_name,xp_total,experience_level").eq("user_id", user.id).single();
       if (profileError) throw profileError;
       return out({ ok: true, result: data, profile }, 200, origin);
     }
