@@ -20,8 +20,6 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.webkit.WebViewCompat
-import androidx.webkit.WebViewFeature
 import org.json.JSONObject
 
 class CommunityChatActivity : Activity() {
@@ -89,9 +87,7 @@ class CommunityChatActivity : Activity() {
         val refreshToken = intent.getStringExtra(EXTRA_REFRESH_TOKEN).orEmpty()
         val expiresAt = intent.getLongExtra(EXTRA_EXPIRES_AT, 0L)
         val userJson = intent.getStringExtra(EXTRA_USER_JSON).orEmpty()
-        if (accessToken.isNotBlank() && refreshToken.isNotBlank() && userJson.isNotBlank()) {
-            installSessionBootstrap(accessToken, refreshToken, expiresAt, userJson)
-        }
+        val bootstrapHtml = buildSessionBootstrapHtml(accessToken, refreshToken, expiresAt, userJson)
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -161,12 +157,21 @@ class CommunityChatActivity : Activity() {
             }
         }
 
-        webView.loadUrl(CHAT_URL)
+        if (bootstrapHtml != null) {
+            webView.loadDataWithBaseURL("https://alishams.ir/", bootstrapHtml, "text/html", "UTF-8", null)
+        } else {
+            webView.loadUrl(CHAT_URL)
+        }
     }
 
-    private fun installSessionBootstrap(accessToken: String, refreshToken: String, expiresAt: Long, userJson: String) {
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) return
-        try {
+    private fun buildSessionBootstrapHtml(
+        accessToken: String,
+        refreshToken: String,
+        expiresAt: Long,
+        userJson: String
+    ): String? {
+        if (accessToken.isBlank() || refreshToken.isBlank() || userJson.isBlank()) return null
+        return try {
             val user = JSONObject(userJson)
             val session = JSONObject()
                 .put("access_token", accessToken)
@@ -177,28 +182,29 @@ class CommunityChatActivity : Activity() {
                 .put("user", user)
             val key = JSONObject.quote(AUTH_STORAGE_KEY)
             val value = JSONObject.quote(session.toString())
-            val script = """
-                (function () {
-                  const key = $key;
-                  const initial = $value;
-                  try {
-                    if (!sessionStorage.getItem("__baladiSessionSeeded")) {
-                      localStorage.setItem(key, initial);
+            """
+                <!doctype html>
+                <html><head><meta charset="utf-8"></head>
+                <body><script>
+                  (function () {
+                    try {
+                      localStorage.setItem($key, $value);
                       sessionStorage.setItem("__baladiSessionSeeded", "1");
-                    }
-                  } catch (_) {}
-                  const originalSetItem = Storage.prototype.setItem;
-                  Storage.prototype.setItem = function (name, value) {
-                    originalSetItem.call(this, name, value);
-                    if (name === key && window.BaladiCommunityBridge) {
-                      try { window.BaladiCommunityBridge.onSessionChanged(value); } catch (_) {}
-                    }
-                  };
-                })();
+                    } catch (e) {}
+                    const originalSetItem = Storage.prototype.setItem;
+                    Storage.prototype.setItem = function (name, value) {
+                      originalSetItem.call(this, name, value);
+                      if (name === $key && window.BaladiCommunityBridge) {
+                        try { window.BaladiCommunityBridge.onSessionChanged(value); } catch (e) {}
+                      }
+                    };
+                    window.location.replace("$CHAT_URL");
+                  })();
+                </script></body></html>
             """.trimIndent()
-            WebViewCompat.addDocumentStartJavaScript(webView, script, setOf("https://alishams.ir", "https://www.alishams.ir"))
-        } catch (_: Exception) {
-            // Keep the page usable; it can still display its normal sign-in gate.
+        } catch (error: Exception) {
+            Log.e(TAG, "Could not create community session bootstrap", error)
+            null
         }
     }
 
