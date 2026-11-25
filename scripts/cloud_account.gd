@@ -5,6 +5,8 @@ const SUPABASE_KEY := "sb_publishable_UW2Wzzp8Y-KKd82nZHQUKA_RGl876RB"
 const AUTH_PATH := SUPABASE_URL + "/auth/v1"
 const GAME_API := SUPABASE_URL + "/functions/v1/baladi-game"
 const AUTH_SAVE_PATH := "user://baladi_auth.cfg"
+const PUSH_SAVE_PATH := "user://baladi_push.cfg"
+var fcm_token := ""
 
 var access_token := ""
 var refresh_token := ""
@@ -432,6 +434,35 @@ func upload_avatar(image: Image) -> Dictionary:
 	saved["avatar_path"] = avatar_path
 	return saved
 
+func register_push_token(token: String, device_label: String = "") -> Dictionary:
+	if token.strip_edges().is_empty():
+		return {"ok": false, "error": "شناسه اعلان خالی است."}
+	var result: Dictionary = await api("register_push_token", {
+		"fcm_token": token.strip_edges(),
+		"platform": "android",
+		"device_label": device_label.substr(0, 80)
+	})
+	if result.get("ok", false):
+		fcm_token = token.strip_edges()
+		var cfg := ConfigFile.new()
+		cfg.set_value("push", "fcm_token", fcm_token)
+		cfg.save(PUSH_SAVE_PATH)
+	return result
+
+func unregister_push_token() -> Dictionary:
+	if fcm_token.is_empty():
+		var cfg := ConfigFile.new()
+		if cfg.load(PUSH_SAVE_PATH) == OK:
+			fcm_token = str(cfg.get_value("push", "fcm_token", ""))
+	if fcm_token.is_empty() or not is_authenticated():
+		return {"ok": true}
+	var result: Dictionary = await api("unregister_push_token", {"fcm_token": fcm_token})
+	if result.get("ok", false):
+		fcm_token = ""
+		var cfg := ConfigFile.new()
+		cfg.save(PUSH_SAVE_PATH)
+	return result
+
 func fetch_admin_notifications() -> Dictionary:
 	return await api("notifications_inbox")
 
@@ -442,5 +473,6 @@ func get_public_profile(target_user_id: String) -> Dictionary:
 	return await api("public_profile", {"user_id": target_user_id})
 
 func sign_out() -> void:
+	await unregister_push_token()
 	await end_session()
 	_clear_auth()
