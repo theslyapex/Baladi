@@ -22,5 +22,11 @@ class AndroidExportPlugin extends EditorExportPlugin:
             return PackedStringArray(["res://addons/baladi_media_picker/bin/debug/BaladiMediaPicker-debug.aar"])
         return PackedStringArray(["res://addons/baladi_media_picker/bin/release/BaladiMediaPicker-release.aar"])
 
+    func _get_android_dependencies(platform, debug):
+        return PackedStringArray(["com.google.firebase:firebase-messaging:24.1.2"])
+
+    func _get_android_dependencies_maven_repos(platform, debug):
+        return PackedStringArray(["https://maven.google.com"])
+
     func _get_name():
         return PLUGIN_NAME
