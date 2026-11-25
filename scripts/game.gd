@@ -59,6 +59,7 @@ var profile_name_input: LineEdit
 var profile_rename_button: Button
 var profile_status_label: Label
 var display_name := "بازیکن"
+var account_player_tag := ""
 var is_verified := false
 var diamonds := 0
 var name_change_count := 0
