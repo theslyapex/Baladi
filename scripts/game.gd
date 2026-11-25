@@ -3251,7 +3251,7 @@ func _build_avatar_widget(path: String, frame_id: String, widget_size: int, avat
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.texture = load("res://assets/icons/profile.svg")
 	if not avatar_id.is_empty():
-		var avatar_item_path := "res://assets/avatars/%s.svg" % avatar_id.trim_prefix("avatar_")
+		var avatar_item_path := "res://assets/avatars/%s.png" % avatar_id.trim_prefix("avatar_")
 		if ResourceLoader.exists(avatar_item_path):
 			picture.texture = load(avatar_item_path)
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
@@ -3473,7 +3473,7 @@ func _show_cosmetic_shop() -> void:
 		elif item_kind == "avatar":
 			var avatar_preview := TextureRect.new()
 			var avatar_file := item_id.trim_prefix("avatar_")
-			var avatar_asset := "res://assets/avatars/%s.svg" % avatar_file
+			var avatar_asset := "res://assets/avatars/%s.png" % avatar_file
 			avatar_preview.texture = load(avatar_asset) if ResourceLoader.exists(avatar_asset) else load("res://assets/icons/profile.svg")
 			avatar_preview.custom_minimum_size = Vector2(108, 108)
 			avatar_preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
