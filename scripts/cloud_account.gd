@@ -278,6 +278,18 @@ func get_duel_invites() -> Dictionary:
 func send_duel_invite(recipient_id: String) -> Dictionary:
 	return await api("send_duel_invite", {"recipient_id": recipient_id})
 
+func send_duel_invite_by_tag(player_tag: String) -> Dictionary:
+	return await api("send_duel_invite_by_tag", {"player_tag": player_tag})
+
+func matchmaking_join() -> Dictionary:
+	return await api("matchmaking_join")
+
+func matchmaking_status() -> Dictionary:
+	return await api("matchmaking_status")
+
+func matchmaking_cancel() -> Dictionary:
+	return await api("matchmaking_cancel")
+
 func accept_duel_invite(invite_id: String) -> Dictionary:
 	return await api("accept_duel_invite", {"invite_id": invite_id})
 
