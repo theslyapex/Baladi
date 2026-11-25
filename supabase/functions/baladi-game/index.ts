@@ -313,8 +313,21 @@ Deno.serve(async (req: Request) => {
         .eq("month_key", previousMonth.key).lte("rank", 3).order("rank", { ascending: true });
       if (winnersError) throw winnersError;
 
+      const monthlyRows = monthly.data?.leaderboard || [];
+      const monthlyIds = monthlyRows.map((item: any) => item.user_id).filter((id: string) => uuid(id));
+      const { data: monthlyProfiles, error: monthlyProfilesError } = monthlyIds.length
+        ? await db.from("baladi_game_profiles").select("user_id,xp_total").in("user_id", monthlyIds)
+        : { data: [], error: null };
+      if (monthlyProfilesError) throw monthlyProfilesError;
+      const monthlyExperience = new Map((monthlyProfiles || []).map((profile: any) => [
+        profile.user_id, Math.min(500, Math.floor(Number(profile.xp_total || 0) / 1000) + 1)
+      ]));
+      const monthlyWithLevels = monthlyRows.map((item: any) => ({
+        ...item, experience_level: monthlyExperience.get(item.user_id) || 1
+      }));
+
       const { data, error } = await db.from("baladi_game_profiles")
-        .select("user_id,display_name,current_level,coins,wins,losses,avatar_path,equipped_frame_id,equipped_avatar_id,is_verified")
+        .select("user_id,display_name,current_level,xp_total,coins,wins,losses,avatar_path,equipped_frame_id,equipped_avatar_id,is_verified")
         .order("current_level", { ascending: false })
         .order("coins", { ascending: false })
         .order("wins", { ascending: false })
@@ -324,7 +337,7 @@ Deno.serve(async (req: Request) => {
       return out({
         ok: true,
         leaderboard: rows,
-        monthly_leaderboard: monthly.data?.leaderboard || [],
+        monthly_leaderboard: monthlyWithLevels,
         monthly_month_key: currentMonth.key,
         previous_month_key: previousMonth.key,
         previous_month_winners: previousWinners || [],
