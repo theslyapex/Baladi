@@ -432,6 +432,9 @@ func upload_avatar(image: Image) -> Dictionary:
 	saved["avatar_path"] = avatar_path
 	return saved
 
+func fetch_admin_notifications() -> Dictionary:
+	return await api("admin_notifications")
+
 func get_leaderboard() -> Dictionary:
 	return await api("leaderboard")
 
