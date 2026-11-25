@@ -3238,6 +3238,20 @@ func _show_group_chat(group_id: String, group_name: String) -> void:
 		add_child(chat_poll_timer)
 	chat_poll_timer.start()
 
+func _load_avatar_texture(avatar_file: String) -> Texture2D:
+	var clean_name := avatar_file.trim_prefix("avatar_").get_basename()
+	var image_path := "res://assets/avatars/%s.png" % clean_name
+	var png_bytes := FileAccess.get_file_as_bytes(image_path)
+	if png_bytes.is_empty():
+		push_warning("Baladi avatar PNG is missing or empty: " + image_path)
+		return null
+	var avatar_image := Image.new()
+	var image_error := avatar_image.load_png_from_buffer(png_bytes)
+	if image_error != OK:
+		push_warning("Baladi avatar PNG could not be decoded: " + image_path + " error=" + str(image_error))
+		return null
+	return ImageTexture.create_from_image(avatar_image)
+
 func _build_avatar_widget(path: String, frame_id: String, widget_size: int, avatar_id: String = "") -> Control:
 	var stack := Control.new()
 	stack.custom_minimum_size = Vector2(widget_size, widget_size)
@@ -3251,9 +3265,9 @@ func _build_avatar_widget(path: String, frame_id: String, widget_size: int, avat
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.texture = load("res://assets/icons/profile.svg")
 	if not avatar_id.is_empty():
-		var avatar_item_path := "res://assets/avatars/%s.png" % avatar_id.trim_prefix("avatar_")
-		if ResourceLoader.exists(avatar_item_path):
-			picture.texture = load(avatar_item_path)
+		var avatar_texture := _load_avatar_texture(avatar_id)
+		if avatar_texture != null:
+			picture.texture = avatar_texture
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(picture)
@@ -3473,8 +3487,8 @@ func _show_cosmetic_shop() -> void:
 		elif item_kind == "avatar":
 			var avatar_preview := TextureRect.new()
 			var avatar_file := item_id.trim_prefix("avatar_")
-			var avatar_asset := "res://assets/avatars/%s.png" % avatar_file
-			avatar_preview.texture = load(avatar_asset) if ResourceLoader.exists(avatar_asset) else load("res://assets/icons/profile.svg")
+			var avatar_texture := _load_avatar_texture(avatar_file)
+			avatar_preview.texture = avatar_texture if avatar_texture != null else load("res://assets/icons/profile.svg")
 			avatar_preview.custom_minimum_size = Vector2(108, 108)
 			avatar_preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			avatar_preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
