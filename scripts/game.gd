@@ -884,6 +884,7 @@ func _show_map() -> void:
 	incoming_duels.custom_minimum_size.y = 46
 	incoming_duels.pressed.connect(_show_duel_invites)
 	content_box.add_child(incoming_duels)
+	_update_duel_invite_badge(incoming_duels)
 	var matchmaking_home := _make_button("حریف‌یابی آنلاین", Color("#765a31"), CREAM)
 	matchmaking_home.custom_minimum_size.y = 58
 	matchmaking_home.add_theme_font_size_override("font_size", 19)
@@ -1389,6 +1390,15 @@ func _show_profile() -> void:
 	back.pressed.connect(_show_map)
 	content_box.add_child(back)
 
+func _update_duel_invite_badge(button: Button) -> void:
+	if guest_mode:
+		return
+	var result: Dictionary = await CloudAccount.get_duel_invites()
+	if not is_instance_valid(button) or current_page != "map":
+		return
+	if result.get("ok", false):
+		var count := (result.get("invites", []) as Array).size()
+		button.text = "درخواست‌های مسابقه  ·  %d" % count if count > 0 else "درخواست‌های مسابقه"
 func _show_matchmaking() -> void:
 	current_page = "matchmaking"
 	_clear_content()
