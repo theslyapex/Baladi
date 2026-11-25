@@ -1346,12 +1346,11 @@ func _show_profile() -> void:
 	var leaderboard_button := _make_button("جدول رتبه‌بندی بازیکنان", Color("#245448"), GOLD)
 	leaderboard_button.pressed.connect(_show_leaderboard)
 	content_box.add_child(leaderboard_button)
-	var duel_invites_button := _make_button("درخواست‌های بازی دونفره", Color("#385b75"), CREAM)
-	duel_invites_button.pressed.connect(_show_duel_invites)
-	content_box.add_child(duel_invites_button)
-	var resume_duel_button := _make_button("ادامه مسابقه فعال", Color("#287c68"), CREAM)
-	resume_duel_button.pressed.connect(_resume_active_duel)
-	content_box.add_child(resume_duel_button)
+	var duel_hub_button := _make_button("ورود به میدان رقابت آنلاین", Color("#765a31"), CREAM)
+	duel_hub_button.custom_minimum_size.y = 60
+	duel_hub_button.add_theme_font_size_override("font_size", 17)
+	duel_hub_button.pressed.connect(_show_duel_hub)
+	content_box.add_child(duel_hub_button)
 
 	profile_status_label = Label.new()
 	profile_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1360,6 +1359,69 @@ func _show_profile() -> void:
 	content_box.add_child(profile_status_label)
 	var back := _make_button("بازگشت به نقشه مراحل", Color("#294c43"), CREAM)
 	back.pressed.connect(_show_map)
+	content_box.add_child(back)
+
+func _show_duel_hub() -> void:
+	current_page = "duel_hub"
+	_clear_content()
+	_add_section_art("assets/backgrounds/letter-wheel.svg", 118)
+	_add_page_heading("میدان رقابت آنلاین", "رو‌در‌رو با بازیکنان واقعی رقابت کن")
+	var hero := _panel(GOLD)
+	content_box.add_child(hero)
+	var hero_stack := VBoxContainer.new()
+	hero_stack.add_theme_constant_override("separation", 7)
+	hero.add_child(hero_stack)
+	var hero_title := Label.new()
+	hero_title.text = "آماده‌ای قهرمان؟"
+	hero_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hero_title.add_theme_font_size_override("font_size", 23)
+	hero_title.add_theme_color_override("font_color", GOLD)
+	hero_stack.add_child(hero_title)
+	var hero_subtitle := Label.new()
+	hero_subtitle.text = "۱۰ مرحله واژه‌یابی؛ سرعت و دقتت را به حریف ثابت کن."
+	hero_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hero_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hero_subtitle.add_theme_color_override("font_color", CREAM)
+	hero_stack.add_child(hero_subtitle)
+	var stats := GridContainer.new()
+	stats.columns = 3
+	stats.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats.add_theme_constant_override("h_separation", 7)
+	stats.add_theme_constant_override("v_separation", 7)
+	content_box.add_child(stats)
+	_add_profile_stat(stats, "برد", str(wins), GREEN)
+	_add_profile_stat(stats, "باخت", str(losses), RED)
+	var total := wins + losses
+	_add_profile_stat(stats, "نرخ برد", "%d٪" % int(round(float(wins) * 100.0 / float(total))) if total > 0 else "۰٪", GOLD)
+	var active_result: Dictionary = await CloudAccount.get_active_duel()
+	if not is_inside_tree() or current_page != "duel_hub":
+		return
+	var active_match_id := str(active_result.get("match_id", "")) if active_result.get("ok", false) else ""
+	var active_card := _panel(TEAL if not active_match_id.is_empty() else PANEL_ALT)
+	content_box.add_child(active_card)
+	var active_stack := VBoxContainer.new()
+	active_stack.add_theme_constant_override("separation", 7)
+	active_card.add_child(active_stack)
+	var active_title := Label.new()
+	active_title.text = "مسابقه در جریان" if not active_match_id.is_empty() else "مسابقه فعالی نداری"
+	active_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	active_title.add_theme_font_size_override("font_size", 18)
+	active_title.add_theme_color_override("font_color", TEAL if not active_match_id.is_empty() else CREAM)
+	active_stack.add_child(active_title)
+	var active_button := _make_button("ادامه مسابقه" if not active_match_id.is_empty() else "بررسی مسابقه فعال", Color("#287c68"), CREAM)
+	active_button.pressed.connect(_resume_active_duel)
+	active_stack.add_child(active_button)
+	var invites_button := _make_button("درخواست‌های دریافتی", Color("#385b75"), CREAM)
+	invites_button.pressed.connect(_show_duel_invites)
+	content_box.add_child(invites_button)
+	var leaderboard_button := _make_button("پیدا کردن حریف از جدول بازیکنان", Color("#765a31"), CREAM)
+	leaderboard_button.pressed.connect(_show_leaderboard)
+	content_box.add_child(leaderboard_button)
+	var refresh_button := _make_button("به‌روزرسانی وضعیت رقابت", PANEL_ALT, CREAM)
+	refresh_button.pressed.connect(_show_duel_hub)
+	content_box.add_child(refresh_button)
+	var back := _make_button("بازگشت به پروفایل", Color("#203e38"), CREAM)
+	back.pressed.connect(_show_profile)
 	content_box.add_child(back)
 
 func _current_letters() -> Array:
@@ -1484,44 +1546,69 @@ func _show_duel_invites() -> void:
 	current_page = "duel_invites"
 	_clear_content()
 	_add_section_art("assets/backgrounds/letter-wheel.svg", 92)
-	var heading := Label.new()
-	heading.text = "درخواست‌های مسابقه"
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.add_theme_font_size_override("font_size", 24)
-	heading.add_theme_color_override("font_color", GOLD)
-	content_box.add_child(heading)
+	_add_page_heading("درخواست‌های مسابقه", "دعوت بازیکنان را بررسی کن و وارد رقابت شو")
 	var result: Dictionary = await CloudAccount.get_duel_invites()
+	if not is_inside_tree() or current_page != "duel_invites":
+		return
 	if not result.get("ok", false):
 		_set_status(str(result.get("error", "درخواست‌ها بارگذاری نشدند.")), RED)
 	else:
 		var invites: Array = result.get("invites", [])
+		var count_label := Label.new()
+		count_label.text = "%d درخواست در انتظار پاسخ" % invites.size()
+		count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		count_label.add_theme_color_override("font_color", GOLD)
+		content_box.add_child(count_label)
 		if invites.is_empty():
+			var empty_card := _panel(PANEL_ALT)
+			content_box.add_child(empty_card)
 			var empty := Label.new()
-			empty.text = "در حال حاضر دعوت مسابقه‌ای نداری."
+			empty.text = "فعلاً دعوتی نداری. از جدول بازیکنان می‌توانی دوستانت را به مسابقه دعوت کنی."
 			empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			empty.add_theme_color_override("font_color", MUTED)
-			content_box.add_child(empty)
+			empty_card.add_child(empty)
 		for invite in invites:
 			var invite_id := str(invite.get("id", ""))
 			var sender: Dictionary = invite.get("sender", {})
 			var card := _panel(GOLD)
 			content_box.add_child(card)
 			var body := VBoxContainer.new()
-			body.add_theme_constant_override("separation", 7)
+			body.add_theme_constant_override("separation", 8)
 			card.add_child(body)
+			var identity := HBoxContainer.new()
+			identity.add_theme_constant_override("separation", 10)
+			body.add_child(identity)
+			var avatar := _build_avatar_widget(str(sender.get("avatar_path", "")), str(sender.get("equipped_frame_id", "")), 62, str(sender.get("equipped_avatar_id", "")))
+			identity.add_child(avatar)
+			var identity_text := VBoxContainer.new()
+			identity_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			identity_text.alignment = BoxContainer.ALIGNMENT_CENTER
+			identity.add_child(identity_text)
 			var name := Label.new()
-			name.text = "%s تو را به رقابت دعوت کرده است." % _safe_player_name(sender.get("display_name", null))
-			name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			name.text = _safe_player_name(sender.get("display_name", null)) + ("  ✓" if bool(sender.get("is_verified", false)) else "")
+			name.add_theme_font_size_override("font_size", 17)
 			name.add_theme_color_override("font_color", CREAM)
-			body.add_child(name)
-			var accept := _make_button("پذیرش و شروع مسابقه", Color("#287c68"), CREAM)
+			identity_text.add_child(name)
+			var level := Label.new()
+			level.text = "سطح %d · دعوت به رقابت ۱۰ مرحله‌ای" % maxi(1, int(ceil(float(sender.get("current_level", 1)) / 20.0)))
+			level.add_theme_font_size_override("font_size", 12)
+			level.add_theme_color_override("font_color", GOLD)
+			identity_text.add_child(level)
+			var actions := HBoxContainer.new()
+			actions.add_theme_constant_override("separation", 8)
+			body.add_child(actions)
+			var accept := _make_button("پذیرش و شروع", Color("#287c68"), CREAM)
 			accept.pressed.connect(func(): _accept_duel_invite(invite_id))
-			body.add_child(accept)
+			actions.add_child(accept)
 			var decline := _make_button("رد دعوت", Color("#713e3b"), CREAM)
 			decline.pressed.connect(func(): _decline_duel_invite(invite_id))
-			body.add_child(decline)
-	var back := _make_button("بازگشت به پروفایل", PANEL_ALT, CREAM)
-	back.pressed.connect(_show_profile)
+			actions.add_child(decline)
+	var refresh := _make_button("به‌روزرسانی درخواست‌ها", PANEL_ALT, CREAM)
+	refresh.pressed.connect(_show_duel_invites)
+	content_box.add_child(refresh)
+	var back := _make_button("بازگشت به میدان رقابت", Color("#203e38"), CREAM)
+	back.pressed.connect(_show_duel_hub)
 	content_box.add_child(back)
 
 func _accept_duel_invite(invite_id: String) -> void:
