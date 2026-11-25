@@ -1,6 +1,12 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import groovy.json.JsonSlurper
 
+plugins {
+    id("com.android.library")
+    id("org.jetbrains.kotlin.android")
+}
+
+
 val firebaseJson = System.getenv("GOOGLE_SERVICES_JSON")
 val firebaseRoot = firebaseJson?.takeIf { it.isNotBlank() }?.let { JsonSlurper().parseText(it) as Map<*, *> }
 val firebaseProject = firebaseRoot?.get("project_info") as? Map<*, *>
@@ -12,12 +18,10 @@ val firebaseProjectId = firebaseProject?.get("project_id")?.toString() ?: ""
 val firebaseSenderId = firebaseProject?.get("project_number")?.toString() ?: ""
 val firebaseAppId = firebaseClientInfo?.get("mobilesdk_app_id")?.toString() ?: ""
 val firebasePackage = firebaseAndroidInfo?.get("package_name")?.toString() ?: ""
-fun buildConfigString(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
-
-plugins {
-    id("com.android.library")
-    id("org.jetbrains.kotlin.android")
+if (firebaseJson?.isNotBlank() == true && firebasePackage != "ir.alishams.baladi") {
+    throw GradleException("Firebase Android package must be ir.alishams.baladi.")
 }
+fun buildConfigString(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 val pluginName = "BaladiMediaPicker"
 val pluginPackageName = "ir.alishams.baladi.mediapicker"
