@@ -47,7 +47,26 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Validate Firebase Android configuration
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          raw = os.environ.get("GOOGLE_SERVICES_JSON", "")
+          if not raw.strip():
+              raise SystemExit("Missing GOOGLE_SERVICES_JSON repository secret.")
+          data = json.loads(raw)
+          clients = data.get("client", [])
+          matching = [c for c in clients if c.get("client_info", {}).get("android_client_info", {}).get("package_name") == "ir.alishams.baladi"]
+          if data.get("project_info", {}).get("project_id") != "baladi-game" or not matching:
+              raise SystemExit("Firebase config does not match ir.alishams.baladi / baladi-game.")
+          print("Firebase Android configuration validated.")
+          PY
+
       - name: Build Baladi media picker Android plugin
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           gradle --no-daemon :plugin:assembleDebug :plugin:assembleRelease
           mkdir -p addons/baladi_media_picker/bin/debug addons/baladi_media_picker/bin/release
