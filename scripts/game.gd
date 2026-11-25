@@ -880,6 +880,10 @@ func _show_map() -> void:
 	greeting.add_theme_font_size_override("font_size", 16)
 	greeting.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(greeting)
+	var incoming_duels := _make_button("درخواست‌های مسابقه", Color("#385b75"), CREAM)
+	incoming_duels.custom_minimum_size.y = 46
+	incoming_duels.pressed.connect(_show_duel_invites)
+	content_box.add_child(incoming_duels)
 	var matchmaking_home := _make_button("حریف‌یابی آنلاین", Color("#765a31"), CREAM)
 	matchmaking_home.custom_minimum_size.y = 58
 	matchmaking_home.add_theme_font_size_override("font_size", 19)
@@ -3396,6 +3400,12 @@ func _show_public_profile(target_user_id: String) -> void:
 	heading.add_theme_font_size_override("font_size", 25)
 	heading.add_theme_color_override("font_color", GOLD)
 	content_box.add_child(heading)
+	var public_tag := Label.new()
+	public_tag.text = "تگ بازیکن: " + str(player.get("player_tag", "نامشخص"))
+	public_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	public_tag.add_theme_color_override("font_color", GOLD)
+	public_tag.add_theme_font_size_override("font_size", 15)
+	content_box.add_child(public_tag)
 	var stats := GridContainer.new()
 	stats.columns = 2
 	stats.add_theme_constant_override("h_separation", 8)
