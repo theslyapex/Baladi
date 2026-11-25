@@ -81,7 +81,7 @@ class BaladiPushNotifications(godot: Godot) : GodotPlugin(godot) {
             emitSignal("notification_error", "راه‌اندازی سرویس اعلان ناموفق بود.")
             return
         }
-        FirebaseMessaging.getInstance(app).token
+        FirebaseMessaging.getInstance().token
             .addOnSuccessListener { token ->
                 if (token.isNotBlank()) emitSignal("notification_token_received", token)
             }
