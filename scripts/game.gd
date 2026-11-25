@@ -1071,6 +1071,34 @@ func _show_map() -> void:
 	progress.custom_minimum_size.y = 12
 	progress_box.add_child(progress)
 
+	var experience_panel := _panel(Color("#a77a35"))
+	content_box.add_child(experience_panel)
+	var experience_box := VBoxContainer.new()
+	experience_box.add_theme_constant_override("separation", 6)
+	experience_panel.add_child(experience_box)
+	var experience_title := Label.new()
+	experience_title.text = "سطح تجربه  ·  سطح %d" % experience_level
+	experience_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	experience_title.add_theme_font_size_override("font_size", 17)
+	experience_title.add_theme_color_override("font_color", GOLD)
+	experience_box.add_child(experience_title)
+	var experience_detail := Label.new()
+	if experience_level >= 500:
+		experience_detail.text = "به بالاترین سطح تجربه رسیدی!  ·  %s XP" % _format_coin_price(experience_total)
+	else:
+		experience_detail.text = "%s از ۱٬۰۰۰ XP تا سطح بعدی" % _format_coin_price(experience_total % 1000)
+	experience_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	experience_detail.add_theme_font_size_override("font_size", 12)
+	experience_detail.add_theme_color_override("font_color", CREAM)
+	experience_box.add_child(experience_detail)
+	var experience_progress := ProgressBar.new()
+	experience_progress.min_value = 0
+	experience_progress.max_value = 1000
+	experience_progress.value = 1000 if experience_level >= 500 else experience_total % 1000
+	experience_progress.show_percentage = false
+	experience_progress.custom_minimum_size.y = 9
+	experience_box.add_child(experience_progress)
+
 	var utility_row := HBoxContainer.new()
 	utility_row.add_theme_constant_override("separation", 9)
 	content_box.add_child(utility_row)
@@ -3591,8 +3619,9 @@ func _show_leaderboard() -> void:
 					var rank := int(player.get("rank", 0))
 					var medal := "🥇" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "#%d" % rank))
 					var player_name := _safe_player_name(player.get("display_name", null)) + ("  ✓" if bool(player.get("is_verified", false)) else "")
-					var row_text := "%s  %s\nواژه: %s  ·  مرحله: %s\nسکه: %s  ·  برد: %s" % [
-						medal, player_name,
+					var player_experience_level := int(player.get("experience_level", 1))
+					var row_text := "%s  %s  ·  سطح %d\nواژه: %s  ·  مرحله: %s\nسکه: %s  ·  برد: %s" % [
+						medal, player_name, player_experience_level,
 						_format_coin_price(int(player.get("valid_words", 0))),
 						_format_coin_price(int(player.get("highest_level", 0))),
 						_format_coin_price(int(player.get("coins_earned", 0))),
@@ -3638,8 +3667,9 @@ func _show_leaderboard() -> void:
 				var player_id := str(player.get("user_id", ""))
 				var rank := int(player.get("rank", 0))
 				var player_name := _safe_player_name(player.get("display_name", null)) + ("  ✓" if bool(player.get("is_verified", false)) else "")
-				var row := _make_button("#%d   %s   ·   مرحله %d   ·   %s سکه" % [
-					rank, player_name, int(player.get("current_level", 1)),
+				var player_experience_level := int(player.get("experience_level", 1))
+				var row := _make_button("#%d   %s   ·   سطح %d   ·   مرحله %d   ·   %s سکه" % [
+					rank, player_name, player_experience_level, int(player.get("current_level", 1)),
 					_format_coin_price(int(player.get("coins", 0)))
 				], PANEL_ALT, CREAM)
 				row.pressed.connect(func(): _show_public_profile(player_id))
