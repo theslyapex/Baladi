@@ -16,6 +16,9 @@ const TEAL := Color("#55c6b5")
 var levels: Array = []
 var level_index := 0
 var cloud_current_level := 1
+var experience_total := 0
+var experience_level := 1
+var experience_initialized := false
 var coins := 100
 var level_solved: Dictionary = {}
 var completed_levels: Array = []
@@ -239,6 +242,9 @@ func _enter_game() -> void:
 	# Public chat is available to every signed-in player; no coin unlock flag is required.
 	chat_unlocked = true
 	cloud_current_level = int(profile.get("current_level", 1))
+	experience_total = int(profile.get("xp_total", 0))
+	experience_level = clampi(int(profile.get("experience_level", min(500, floori(float(experience_total) / 1000.0) + 1))), 1, 500)
+	experience_initialized = true
 	level_index = clampi(cloud_current_level - 1, 0, max(0, levels.size() - 1))
 	var remote_completed = profile.get("completed_levels", [])
 	if remote_completed is Array:
@@ -931,6 +937,11 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 	# Keep legacy profile flags from re-locking the public chat.
 	chat_unlocked = true
 	cloud_current_level = int(profile.get("current_level", cloud_current_level))
+	var previous_experience_level := experience_level
+	experience_total = int(profile.get("xp_total", experience_total))
+	experience_level = clampi(int(profile.get("experience_level", min(500, floori(float(experience_total) / 1000.0) + 1))), 1, 500)
+	if experience_initialized and experience_level > previous_experience_level:
+		_show_experience_level_up(experience_level)
 	var remote_completed = profile.get("completed_levels", completed_levels)
 	if remote_completed is Array:
 		completed_levels = remote_completed.duplicate()
@@ -1351,6 +1362,51 @@ func _show_profile() -> void:
 
 	_add_page_heading("پروفایل بازیکن", "پیشرفت، آمار و تنظیمات هویت بازی تو")
 
+	var xp_panel := _panel(Color("#d2a84d"))
+	xp_panel.custom_minimum_size.y = 112
+	content_box.add_child(xp_panel)
+	var xp_box := VBoxContainer.new()
+	xp_box.add_theme_constant_override("separation", 7)
+	xp_panel.add_child(xp_box)
+	var xp_header := HBoxContainer.new()
+	xp_header.add_theme_constant_override("separation", 8)
+	xp_box.add_child(xp_header)
+	var xp_level_label := Label.new()
+	xp_level_label.text = "سطح تجربه  %d / ۵۰۰" % experience_level
+	xp_level_label.add_theme_font_size_override("font_size", 18)
+	xp_level_label.add_theme_color_override("font_color", GOLD)
+	xp_header.add_child(xp_level_label)
+	var xp_total_label := Label.new()
+	xp_total_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	xp_total_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	xp_total_label.text = "%s XP" % _format_number(experience_total)
+	xp_total_label.add_theme_font_size_override("font_size", 15)
+	xp_total_label.add_theme_color_override("font_color", CREAM)
+	xp_header.add_child(xp_total_label)
+	var xp_bar := ProgressBar.new()
+	xp_bar.custom_minimum_size.y = 17
+	xp_bar.show_percentage = false
+	var xp_into_level := experience_total - ((experience_level - 1) * 1000)
+	if experience_level >= 500:
+		xp_into_level = 1000
+	xp_bar.max_value = 1000
+	xp_bar.value = clampi(xp_into_level, 0, 1000)
+	var xp_bg := StyleBoxFlat.new()
+	xp_bg.bg_color = Color("#09201d")
+	xp_bg.set_corner_radius_all(9)
+	xp_bar.add_theme_stylebox_override("background", xp_bg)
+	var xp_fill := StyleBoxFlat.new()
+	xp_fill.bg_color = Color("#edc879")
+	xp_fill.set_corner_radius_all(9)
+	xp_bar.add_theme_stylebox_override("fill", xp_fill)
+	xp_box.add_child(xp_bar)
+	var xp_hint := Label.new()
+	xp_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	xp_hint.add_theme_font_size_override("font_size", 12)
+	xp_hint.add_theme_color_override("font_color", MUTED)
+	xp_hint.text = "بالاترین سطح را به دست آورده‌ای!" if experience_level >= 500 else "%s از ۱٬۰۰۰ XP تا سطح بعدی" % _format_number(xp_into_level)
+	xp_box.add_child(xp_hint)
+
 	var identity := _panel(Color("#a77a35"))
 	identity.custom_minimum_size.y = 132
 	content_box.add_child(identity)
@@ -1485,6 +1541,35 @@ func _show_profile() -> void:
 	var back := _make_button("بازگشت به نقشه مراحل", Color("#294c43"), CREAM)
 	back.pressed.connect(_show_map)
 	content_box.add_child(back)
+
+
+func _format_number(value: int) -> String:
+	return str(value).reverse().substr(0, 3) if false else _format_grouped_number(value)
+
+func _format_grouped_number(value: int) -> String:
+	var raw := str(maxi(0, value))
+	var parts: Array[String] = []
+	while raw.length() > 3:
+		parts.push_front(raw.substr(raw.length() - 3, 3))
+		raw = raw.substr(0, raw.length() - 3)
+	parts.push_front(raw)
+	return "٬".join(parts)
+
+func _show_experience_level_up(new_level: int) -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = "ارتقای سطح!"
+	dialog.dialog_text = "تبریک! به سطح %d رسیدی.\nماجراجویی واژه‌ها ادامه دارد!" % new_level
+	dialog.ok_button_text = "ادامه می‌دهم"
+	add_child(dialog)
+	dialog.popup_centered(Vector2i(360, 220))
+	dialog.pivot_offset = dialog.size / 2.0
+	dialog.scale = Vector2(0.72, 0.72)
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(dialog, "scale", Vector2.ONE, 0.38)
+	dialog.confirmed.connect(dialog.queue_free)
+	_spawn_floating_text("ارتقای سطح تجربه  +%d" % new_level, GOLD)
+
 
 func _style_home_action_button(button: Button, accent: Color) -> void:
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
