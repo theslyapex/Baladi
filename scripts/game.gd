@@ -4192,7 +4192,7 @@ func _input(event: InputEvent) -> void:
 		else:
 			_finish_trace()
 	elif event is InputEventMouseMotion and is_dragging:
-		_update_trace(event.position)
+		_continue_trace(event.position)
 	elif event is InputEventScreenTouch and event.pressed:
 		_begin_trace(event.position)
 	elif event is InputEventScreenDrag and is_dragging:
