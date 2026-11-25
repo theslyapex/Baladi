@@ -180,7 +180,7 @@ func _enter_game() -> void:
 	name_change_count = int(profile.get("name_change_count", 0))
 	var profile_name = profile.get("display_name", null)
 	display_name = _safe_player_name(profile_name, CloudAccount.display_name)
-	player_tag = str(profile.get("player_tag", ""))
+	account_player_tag = str(profile.get("player_tag", ""))
 	if display_name.is_empty():
 		display_name = CloudAccount.display_name if not CloudAccount.display_name.is_empty() else "بازیکن"
 	daily_streak = int(profile.get("daily_streak", 0))
@@ -832,7 +832,7 @@ func _apply_cloud_profile(profile: Dictionary) -> void:
 	diamonds = int(profile.get("diamonds", diamonds))
 	name_change_count = int(profile.get("name_change_count", name_change_count))
 	var profile_name = profile.get("display_name", null)
-	player_tag = str(profile.get("player_tag", player_tag))
+	account_player_tag = str(profile.get("player_tag", account_player_tag))
 	if profile_name != null and not str(profile_name).strip_edges().is_empty():
 		display_name = str(profile_name)
 	elif display_name.is_empty():
@@ -1288,15 +1288,15 @@ func _show_profile() -> void:
 	tag_row.add_theme_constant_override("separation", 8)
 	identity_info.add_child(tag_row)
 	var tag_value := Label.new()
-	tag_value.text = "تگ بازیکن: " + (player_tag if not player_tag.is_empty() else "در حال دریافت")
+	tag_value.text = "تگ بازیکن: " + (account_player_tag if not account_player_tag.is_empty() else "در حال دریافت")
 	tag_value.add_theme_font_size_override("font_size", 14)
 	tag_value.add_theme_color_override("font_color", GOLD)
 	tag_row.add_child(tag_value)
-	if not player_tag.is_empty():
+	if not account_player_tag.is_empty():
 		var copy_tag := _make_button("کپی", Color("#287c68"), CREAM)
 		copy_tag.custom_minimum_size = Vector2(68, 34)
 		copy_tag.pressed.connect(func():
-			DisplayServer.clipboard_set(player_tag)
+			DisplayServer.clipboard_set(account_player_tag)
 			_set_status("تگ بازیکن کپی شد.", GREEN)
 		)
 		tag_row.add_child(copy_tag)
