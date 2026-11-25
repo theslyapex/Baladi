@@ -53,6 +53,8 @@ var auth_password_input: LineEdit
 var auth_name_input: LineEdit
 var auth_status_label: Label
 var session_timer: Timer
+var notification_poll_timer: Timer
+var notifications_poll_busy := false
 var exit_button: Button
 var profile_button: Button
 var profile_name_input: LineEdit
@@ -229,6 +231,12 @@ func _enter_game() -> void:
 		session_timer.timeout.connect(_heartbeat)
 		add_child(session_timer)
 	session_timer.start()
+	if notification_poll_timer == null:
+		notification_poll_timer = Timer.new()
+		notification_poll_timer.wait_time = 30.0
+		notification_poll_timer.timeout.connect(_check_admin_notifications)
+		add_child(notification_poll_timer)
+	notification_poll_timer.start()
 	_show_map()
 	await _check_admin_notifications()
 
@@ -279,28 +287,32 @@ func _heartbeat() -> void:
 		await _check_admin_notifications()
 
 func _check_admin_notifications() -> void:
-	if guest_mode or not CloudAccount.is_authenticated():
+	if notifications_poll_busy or guest_mode or not CloudAccount.is_authenticated():
 		return
+	notifications_poll_busy = true
 	var response: Dictionary = await CloudAccount.fetch_admin_notifications()
+	notifications_poll_busy = false
 	if not response.get("ok", false):
 		return
 	var notifications = response.get("notifications", [])
-	if not notifications is Array:
+	if not notifications is Array or notifications.is_empty():
 		return
 	var lines := PackedStringArray()
 	for item in notifications:
 		if item is Dictionary:
-			lines.append("• " + str(item.get("title", "پیام مدیریت بازی")) + "\\n" + str(item.get("body", "")))
+			var title := str(item.get("title", "اعلان جدید"))
+			var body := str(item.get("body", ""))
+			lines.append("◆ " + title + "\\n" + body)
 	if lines.is_empty():
 		return
 	var dialog := AcceptDialog.new()
-	dialog.title = "پیام جدید از مدیریت بلدی؟"
+	dialog.title = "اعلان‌های جدید بلدی؟"
 	dialog.dialog_text = "\\n\\n".join(lines)
 	dialog.ok_button_text = "متوجه شدم"
 	add_child(dialog)
 	dialog.confirmed.connect(dialog.queue_free)
 	dialog.close_requested.connect(dialog.queue_free)
-	dialog.popup_centered(Vector2i(520, 320))
+	dialog.popup_centered(Vector2i(560, 420))
 
 func _logout() -> void:
 	_save()
