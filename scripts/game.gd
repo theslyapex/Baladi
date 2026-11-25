@@ -3240,7 +3240,7 @@ func _show_group_chat(group_id: String, group_name: String) -> void:
 
 func _load_avatar_texture(avatar_file: String) -> Texture2D:
 	var clean_name := avatar_file.trim_prefix("avatar_").get_basename()
-	var image_path := "res://assets/avatars/%s.png" % clean_name
+	var image_path := "res://assets/avatars/%s.jpg" % clean_name
 	# PNGs are imported by Godot into the PCK. Load the imported Texture2D
 	# through ResourceLoader instead of reading the source bytes with FileAccess.
 	var avatar_texture := ResourceLoader.load(image_path) as Texture2D
