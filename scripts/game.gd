@@ -112,6 +112,11 @@ var stage_touch_active := false
 var stage_touch_start_y := 0.0
 var stage_touch_scroll_start := 0
 var stage_touch_scrolling := false
+var page_touch_scroll: ScrollContainer
+var page_touch_active := false
+var page_touch_scrolling := false
+var page_touch_start := Vector2.ZERO
+var page_touch_scroll_start := 0
 
 var startup_action_taken := false
 var startup_restore_in_progress := false
@@ -4130,36 +4135,55 @@ func _finish_trace() -> void:
 	if not selected_word.is_empty():
 		_submit_word()
 
+func _find_scroll_container_at(node: Node, point: Vector2) -> ScrollContainer:
+	var best: ScrollContainer = null
+	if node is ScrollContainer:
+		var candidate := node as ScrollContainer
+		if candidate.is_visible_in_tree() and candidate.get_global_rect().has_point(point):
+			best = candidate
+	for child in node.get_children():
+		var found := _find_scroll_container_at(child, point)
+		if found != null:
+			if best == null or found.get_global_rect().get_area() < best.get_global_rect().get_area():
+				best = found
+	return best
+
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ESCAPE or event.keycode == KEY_BACK):
 		_handle_back_request()
 		get_viewport().set_input_as_handled()
 		return
-	if stage_scroll != null and is_instance_valid(stage_scroll) and stage_scroll.is_visible_in_tree():
+
+	# Allow vertical touch-drag scrolling from every child control, not only empty background.
+	# Keep custom drag interactions (letter tracing and avatar cropping) in control.
+	if current_page != "avatar_crop":
 		if event is InputEventScreenTouch:
 			if event.pressed:
-				stage_touch_active = stage_scroll.get_global_rect().has_point(event.position)
-				stage_touch_scrolling = false
-				if stage_touch_active:
-					stage_touch_start_y = event.position.y
-					stage_touch_scroll_start = stage_scroll.scroll_vertical
-					# Letter tracing is the only drag gesture that should take priority over page scrolling.
-					if _letter_at(event.position) >= 0:
-						stage_touch_active = false
+				page_touch_scroll = _find_scroll_container_at(get_tree().root, event.position)
+				page_touch_active = page_touch_scroll != null
+				page_touch_scrolling = false
+				page_touch_start = event.position
+				page_touch_scroll_start = page_touch_scroll.scroll_vertical if page_touch_active else 0
+				if page_touch_active and letters_grid != null and is_instance_valid(letters_grid) and _letter_at(event.position) >= 0:
+					page_touch_active = false
+					page_touch_scroll = null
 			else:
-				if stage_touch_scrolling:
+				if page_touch_scrolling:
 					get_viewport().set_input_as_handled()
-				stage_touch_active = false
-				stage_touch_scrolling = false
-		elif event is InputEventScreenDrag and stage_touch_active:
-			var drag_distance: float = float(stage_touch_start_y) - event.position.y
-			if not stage_touch_scrolling and absf(drag_distance) >= 7.0:
-				stage_touch_scrolling = true
-			if stage_touch_scrolling:
-				var scroll_bar := stage_scroll.get_v_scroll_bar()
-				stage_scroll.scroll_vertical = clampi(stage_touch_scroll_start + int(drag_distance), 0, maxi(0, int(scroll_bar.max_value)))
+				page_touch_active = false
+				page_touch_scrolling = false
+				page_touch_scroll = null
+		elif event is InputEventScreenDrag and page_touch_active and page_touch_scroll != null and is_instance_valid(page_touch_scroll):
+			var drag := event.position - page_touch_start
+			if not page_touch_scrolling and absf(drag.y) >= 8.0 and absf(drag.y) > absf(drag.x) * 1.15:
+				page_touch_scrolling = true
+			if page_touch_scrolling:
+				var scroll_bar := page_touch_scroll.get_v_scroll_bar()
+				var max_scroll := maxi(0, int(scroll_bar.max_value))
+				page_touch_scroll.scroll_vertical = clampi(page_touch_scroll_start - int(drag.y), 0, max_scroll)
 				get_viewport().set_input_as_handled()
 				return
+
 	if letters_grid == null or not is_instance_valid(letters_grid):
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -4168,16 +4192,13 @@ func _input(event: InputEvent) -> void:
 		else:
 			_finish_trace()
 	elif event is InputEventMouseMotion and is_dragging:
-		if event.button_mask & MOUSE_BUTTON_MASK_LEFT:
-			_continue_trace(event.position)
-	elif event is InputEventScreenTouch:
-		if event.pressed:
-			_begin_trace(event.position, event.index)
-		elif is_dragging and (active_pointer == -1 or active_pointer == event.index):
-			_finish_trace()
+		_update_trace(event.position)
+	elif event is InputEventScreenTouch and event.pressed:
+		_begin_trace(event.position)
 	elif event is InputEventScreenDrag and is_dragging:
-		if active_pointer == -1 or active_pointer == event.index:
-			_continue_trace(event.position)
+		_update_trace(event.position)
+	elif event is InputEventScreenTouch and not event.pressed:
+		_finish_trace()
 
 func _update_selection_label() -> void:
 	if selection_label == null or not is_instance_valid(selection_label):
