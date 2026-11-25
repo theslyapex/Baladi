@@ -1544,7 +1544,7 @@ func _show_profile() -> void:
 
 
 func _format_number(value: int) -> String:
-	return str(value).reverse().substr(0, 3) if false else _format_grouped_number(value)
+	return _format_grouped_number(value)
 
 func _format_grouped_number(value: int) -> String:
 	var raw := str(maxi(0, value))
@@ -4484,6 +4484,9 @@ func _check_bonus_word(candidate: String, stage_id: int) -> void:
 		if bonus_coins > 0:
 			_play_sfx("bonus")
 			_animate_coin_reward(bonus_coins)
+		var bonus_xp := int(bonus_result.get("xp_awarded", 0))
+		if bonus_xp > 0 and current_page == "game":
+			_spawn_floating_text("+%d XP" % bonus_xp, GOLD)
 		_show_bonus_word_feedback(candidate)
 		_save()
 
@@ -4507,11 +4510,15 @@ func _sync_found_word(word: String, stage_id: int) -> void:
 		var awarded := int(word_result.get("coins_awarded", 3))
 		if awarded > 0:
 			_animate_coin_reward(awarded)
+		var awarded_xp := int(word_result.get("xp_awarded", 0))
+		if awarded_xp > 0 and current_page == "game":
+			_spawn_floating_text("+%d XP" % awarded_xp, GOLD)
 	_save()
 	if pending_word_syncs == 0 and current_page == "game" and not duel_mode and not levels.is_empty() and int(levels[level_index].get("id", level_index + 1)) == stage_id and _is_level_complete():
 		var completion: Dictionary = await CloudAccount.complete_level(stage_id)
 		if completion.get("ok", false):
 			_apply_cloud_profile(completion.get("profile", {}))
+			_spawn_floating_text("+۲۰ XP برای تکمیل مرحله", GOLD)
 			_show_stage_complete(int(levels[level_index].get("reward", 0)))
 		else:
 			_set_status(str(completion.get("error", "ثبت تکمیل مرحله انجام نشد.")), RED)
