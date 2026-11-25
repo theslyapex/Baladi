@@ -275,6 +275,28 @@ func _guest_daily_checkin() -> void:
 func _heartbeat() -> void:
 	if not guest_mode and CloudAccount.is_authenticated():
 		await CloudAccount.touch_session()
+		await _check_admin_notifications()
+
+func _check_admin_notifications() -> void:
+	if guest_mode or not CloudAccount.is_authenticated():
+		return
+	var response: Dictionary = await CloudAccount.fetch_admin_notifications()
+	if not response.get("ok", false):
+		return
+	var notifications = response.get("data", {}).get("notifications", [])
+	if not notifications is Array:
+		return
+	for item in notifications:
+		if not item is Dictionary:
+			continue
+		var dialog := AcceptDialog.new()
+		dialog.title = str(item.get("title", "پیام مدیریت بازی"))
+		dialog.dialog_text = str(item.get("body", ""))
+		dialog.ok_button_text = "متوجه شدم"
+		add_child(dialog)
+		dialog.confirmed.connect(dialog.queue_free)
+		dialog.canceled.connect(dialog.queue_free)
+		dialog.popup_centered(Vector2i(520, 300))
 
 func _logout() -> void:
 	_save()
