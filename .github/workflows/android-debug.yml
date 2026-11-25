@@ -50,19 +50,17 @@ jobs:
       - name: Validate Firebase Android configuration
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        shell: bash
         run: |
-          python3 - <<'PY'
-          import json, os
-          raw = os.environ.get("GOOGLE_SERVICES_JSON", "")
-          if not raw.strip():
-              raise SystemExit("Missing GOOGLE_SERVICES_JSON repository secret.")
-          data = json.loads(raw)
-          clients = data.get("client", [])
-          matching = [c for c in clients if c.get("client_info", {}).get("android_client_info", {}).get("package_name") == "ir.alishams.baladi"]
-          if data.get("project_info", {}).get("project_id") != "baladi-game" or not matching:
-              raise SystemExit("Firebase config does not match ir.alishams.baladi / baladi-game.")
-          print("Firebase Android configuration validated.")
-          PY
+          set -euo pipefail
+          if [ -z "${GOOGLE_SERVICES_JSON:-}" ]; then
+            echo "Missing GOOGLE_SERVICES_JSON repository secret."
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON" | grep -Fq '"project_id": "baladi-game"'
+          printf '%s' "$GOOGLE_SERVICES_JSON" | grep -Fq '"package_name": "ir.alishams.baladi"'
+          printf '%s' "$GOOGLE_SERVICES_JSON" | grep -Fq '"project_number": "473411798857"'
+          echo "Firebase Android configuration validated."
 
       - name: Build Baladi media picker Android plugin
         env:
