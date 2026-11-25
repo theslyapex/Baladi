@@ -8,6 +8,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
+import android.util.Log
+import android.widget.TextView
 import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
@@ -30,6 +32,28 @@ class CommunityChatActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        try {
+            initializeCommunityChat()
+        } catch (error: Throwable) {
+            Log.e(TAG, "Community chat Activity initialization failed", error)
+            try {
+                val fallback = TextView(this).apply {
+                    text = "باز کردن انجمن گفت‌وگو با خطا مواجه شد. بازی را نبندید؛ دوباره تلاش کنید."
+                    textSize = 16f
+                    setTextColor(android.graphics.Color.WHITE)
+                    setBackgroundColor(android.graphics.Color.rgb(12, 16, 11))
+                    gravity = android.view.Gravity.CENTER
+                    setPadding(32, 32, 32, 32)
+                }
+                setContentView(fallback)
+            } catch (fallbackError: Throwable) {
+                Log.e(TAG, "Community chat fallback view failed", fallbackError)
+                finish()
+            }
+        }
+    }
+
+    private fun initializeCommunityChat() {
         window.setFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
             WindowManager.LayoutParams.FLAG_FULLSCREEN
@@ -221,13 +245,20 @@ class CommunityChatActivity : Activity() {
         fileCallback = null
         pendingWebPermission?.deny()
         pendingWebPermission = null
-        webView.stopLoading()
-        webView.loadUrl("about:blank")
-        webView.destroy()
+        if (::webView.isInitialized) {
+            try {
+                webView.stopLoading()
+                webView.loadUrl("about:blank")
+                webView.destroy()
+            } catch (error: Throwable) {
+                Log.e(TAG, "WebView cleanup failed", error)
+            }
+        }
         super.onDestroy()
     }
 
     companion object {
+        private const val TAG = "BaladiCommunityChat"
         const val CHAT_URL = "https://alishams.ir/community-chat.html"
         const val EXTRA_ACCESS_TOKEN = "community_access_token"
         const val EXTRA_REFRESH_TOKEN = "community_refresh_token"
