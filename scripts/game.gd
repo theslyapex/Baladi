@@ -2030,6 +2030,8 @@ func _refresh_global_chat() -> void:
 				message_label.scroll_active = false
 				message_label.selection_enabled = false
 				message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+				message_label.layout_direction = Control.LAYOUT_DIRECTION_RTL
 				message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				message_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 				message_label.custom_minimum_size = Vector2(0, 44)
