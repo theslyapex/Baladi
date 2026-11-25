@@ -55,6 +55,7 @@ var auth_status_label: Label
 var session_timer: Timer
 var notification_poll_timer: Timer
 var notifications_poll_busy := false
+var push_notifications_plugin: Object
 var exit_button: Button
 var profile_button: Button
 var profile_name_input: LineEdit
@@ -135,6 +136,14 @@ var back_navigation := {
 }
 
 func _ready() -> void:
+	if OS.get_name() == "Android" and Engine.has_singleton("BaladiPushNotifications"):
+		push_notifications_plugin = Engine.get_singleton("BaladiPushNotifications")
+		if not push_notifications_plugin.notification_token_received.is_connected(_on_push_notification_token_received):
+			push_notifications_plugin.notification_token_received.connect(_on_push_notification_token_received)
+		if not push_notifications_plugin.notification_error.is_connected(_on_push_notification_error):
+			push_notifications_plugin.notification_error.connect(_on_push_notification_error)
+		if not push_notifications_plugin.notification_opened.is_connected(_on_push_notification_opened):
+			push_notifications_plugin.notification_opened.connect(_on_push_notification_opened)
 	back_confirm = ConfirmationDialog.new()
 	back_confirm.title = "خروج از بازی"
 	back_confirm.dialog_text = "می‌خواهی از برنامه خارج شوی؟"
@@ -159,6 +168,34 @@ func _ready() -> void:
 	else:
 		print("[Baladi] No saved account; showing sign-in screen.")
 		_show_auth()
+
+func _on_push_notification_token_received(token: String) -> void:
+	if not CloudAccount.is_authenticated():
+		return
+	var result: Dictionary = await CloudAccount.register_push_token(token, OS.get_model_name())
+	if not result.get("ok", false):
+		push_warning("Baladi push token registration failed: " + str(result.get("error", "")))
+
+func _on_push_notification_error(message: String) -> void:
+	push_warning("Baladi push notifications: " + message)
+
+func _on_push_notification_opened(_payload: String) -> void:
+	if CloudAccount.is_authenticated():
+		await _check_admin_notifications()
+
+func _request_push_notifications() -> void:
+	if push_notifications_plugin == null or not CloudAccount.is_authenticated():
+		return
+	if push_notifications_plugin.hasPermission():
+		push_notifications_plugin.getToken()
+		return
+	var cfg := ConfigFile.new()
+	var asked_before := cfg.load("user://baladi_push_permission.cfg") == OK and bool(cfg.get_value("push", "permission_requested", false))
+	if asked_before:
+		return
+	cfg.set_value("push", "permission_requested", true)
+	cfg.save("user://baladi_push_permission.cfg")
+	push_notifications_plugin.requestPermission()
 
 func _load_bonus_dictionary() -> void:
 	if not FileAccess.file_exists(BONUS_DICTIONARY_PATH):
@@ -238,6 +275,7 @@ func _enter_game() -> void:
 		add_child(notification_poll_timer)
 	notification_poll_timer.start()
 	_show_map()
+	_request_push_notifications()
 	await _check_admin_notifications()
 
 func _enter_guest() -> void:
