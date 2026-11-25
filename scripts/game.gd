@@ -1725,15 +1725,30 @@ func _refresh_global_chat() -> void:
 			var sticker_value: Variant = message.get("sticker_id", null)
 			var sticker_id := "" if sticker_value == null else str(sticker_value).strip_edges()
 			if not sticker_id.is_empty():
+				var sticker_panel := PanelContainer.new()
+				sticker_panel.custom_minimum_size = Vector2(0, 166)
+				sticker_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+				var sticker_style := StyleBoxFlat.new()
+				sticker_style.bg_color = Color("#102f29")
+				sticker_style.border_color = Color("#b99755", 0.72)
+				sticker_style.set_border_width_all(1)
+				sticker_style.set_corner_radius_all(18)
+				sticker_style.content_margin_left = 8
+				sticker_style.content_margin_right = 8
+				sticker_style.content_margin_top = 8
+				sticker_style.content_margin_bottom = 8
+				sticker_panel.add_theme_stylebox_override("panel", sticker_style)
 				var sticker_art := TextureRect.new()
 				var sticker_file := sticker_id.trim_prefix("sticker_")
 				var sticker_path := "res://assets/stickers/%s.svg" % sticker_file
 				if ResourceLoader.exists(sticker_path):
 					sticker_art.texture = load(sticker_path)
-				sticker_art.custom_minimum_size = Vector2(112, 112)
+				sticker_art.custom_minimum_size = Vector2(148, 148)
 				sticker_art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 				sticker_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-				body.add_child(sticker_art)
+				sticker_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				sticker_panel.add_child(sticker_art)
+				body.add_child(sticker_panel)
 			else:
 				var message_text := ""
 				for text_key in ["body", "content", "message", "text"]:
@@ -2015,6 +2030,132 @@ func _send_group_chat_message(group_id: String, message: String) -> void:
 	await _refresh_global_chat()
 
 func _show_sticker_picker() -> void:
+	if active_group_chat_id.is_empty():
+		_show_global_sticker_picker()
+		return
+	if guest_mode:
+		_set_status("برای ارسال استیکر باید وارد حساب کاربری شوی.", GOLD)
+		return
+	var popup := PopupPanel.new()
+	popup.name = "GroupOwnedStickerPicker"
+	popup.size = Vector2i(340, 460)
+	var shell := VBoxContainer.new()
+	shell.custom_minimum_size = Vector2(320, 430)
+	shell.add_theme_constant_override("separation", 10)
+	popup.add_child(shell)
+	var title := Label.new()
+	title.text = "استیکرهای خریداری‌شده من"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 19)
+	title.add_theme_color_override("font_color", GOLD)
+	shell.add_child(title)
+	var subtitle := Label.new()
+	subtitle.text = "برای ارسال، استیکر دلخواهت را انتخاب کن."
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_size_override("font_size", 11)
+	subtitle.add_theme_color_override("font_color", MUTED)
+	shell.add_child(subtitle)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	shell.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 9)
+	grid.add_theme_constant_override("v_separation", 9)
+	scroll.add_child(grid)
+	var loading := Label.new()
+	loading.text = "در حال دریافت استیکرها..."
+	loading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	loading.add_theme_color_override("font_color", MUTED)
+	shell.add_child(loading)
+	var close := _make_button("بستن", PANEL_ALT, CREAM)
+	close.pressed.connect(popup.hide)
+	shell.add_child(close)
+	add_child(popup)
+	popup.popup_centered()
+	var result: Dictionary = await CloudAccount.get_cosmetics_catalog()
+	if not is_instance_valid(popup):
+		return
+	loading.queue_free()
+	if not result.get("ok", false):
+		var error_label := Label.new()
+		error_label.text = str(result.get("error", "دریافت استیکرها ناموفق بود."))
+		error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		error_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		grid.add_child(error_label)
+		return
+	var owned: Dictionary = {}
+	for entry in result.get("owned", []):
+		owned[str(entry.get("cosmetic_id", ""))] = true
+	var count := 0
+	for item in result.get("catalog", []):
+		if str(item.get("kind", "")) != "sticker":
+			continue
+		var sticker_id := str(item.get("id", ""))
+		if not owned.has(sticker_id):
+			continue
+		count += 1
+		var tile := Button.new()
+		tile.custom_minimum_size = Vector2(142, 158)
+		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tile.focus_mode = Control.FOCUS_NONE
+		var tile_style := StyleBoxFlat.new()
+		tile_style.bg_color = Color("#183b34")
+		tile_style.border_color = Color("#b99755")
+		tile_style.set_border_width_all(1)
+		tile_style.set_corner_radius_all(14)
+		tile.add_theme_stylebox_override("normal", tile_style)
+		var hover_style := tile_style.duplicate()
+		hover_style.bg_color = Color("#245747")
+		tile.add_theme_stylebox_override("hover", hover_style)
+		var tile_body := VBoxContainer.new()
+		tile_body.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		tile_body.add_theme_constant_override("separation", 4)
+		tile.add_child(tile_body)
+		var art := TextureRect.new()
+		var asset_path := "res://" + str(item.get("asset_path", ""))
+		if ResourceLoader.exists(asset_path):
+			art.texture = load(asset_path)
+		art.custom_minimum_size = Vector2(0, 112)
+		art.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		art.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tile_body.add_child(art)
+		var name_label := Label.new()
+		name_label.text = str(item.get("display_name", "استیکر"))
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_label.add_theme_font_size_override("font_size", 12)
+		name_label.add_theme_color_override("font_color", CREAM)
+		tile_body.add_child(name_label)
+		tile.pressed.connect(_on_group_sticker_selected.bind(sticker_id, popup))
+		grid.add_child(tile)
+	if count == 0:
+		var empty := Label.new()
+		empty.text = "هنوز استیکری خریداری نکرده‌ای."
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.add_theme_color_override("font_color", MUTED)
+		grid.add_child(empty)
+
+func _on_group_sticker_selected(sticker_id: String, popup: PopupPanel) -> void:
+	if is_instance_valid(popup):
+		popup.hide()
+		popup.queue_free()
+	if active_group_chat_id.is_empty() or sticker_id.is_empty():
+		return
+	var target_group := active_group_chat_id
+	var result: Dictionary = await CloudAccount.send_group_chat_sticker(target_group, sticker_id)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "ارسال استیکر انجام نشد.")), RED)
+		return
+	_set_status("استیکر با موفقیت ارسال شد.", GREEN)
+	chat_scroll_to_bottom = true
+	await _refresh_global_chat()
+
+func _show_global_sticker_picker() -> void:
 	current_page = "sticker_picker"
 	_clear_content()
 	var heading := Label.new()
@@ -2072,10 +2213,8 @@ func _show_sticker_picker() -> void:
 				price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 				price_label.add_theme_color_override("font_color", GOLD)
 				card_body.add_child(price_label)
-				var can_send_sticker := not active_group_chat_id.is_empty() or chat_unlocked
-				var action_text := "ارسال استیکر" if owned.has(sticker_id) and can_send_sticker else ("برای ارسال، چت را باز کن" if owned.has(sticker_id) else "خرید · %s سکه" % _format_coin_price(item.get("price_coins", 0)))
+				var action_text := "ارسال استیکر" if owned.has(sticker_id) else "خرید · %s سکه" % _format_coin_price(item.get("price_coins", 0))
 				var action := _make_button(action_text, Color("#765a31"), CREAM)
-				action.disabled = owned.has(sticker_id) and not can_send_sticker
 				action.pressed.connect(func():
 					if owned.has(sticker_id):
 						_send_global_chat_sticker(sticker_id)
@@ -2083,14 +2222,10 @@ func _show_sticker_picker() -> void:
 						_purchase_sticker(sticker_id)
 				)
 				card_body.add_child(action)
-
 		else:
 			_set_status(str(result.get("error", "فروشگاه استیکر بارگذاری نشد.")), RED)
 	var back := _make_button("بازگشت به چت", PANEL_ALT, CREAM)
-	if active_group_chat_id.is_empty():
-		back.pressed.connect(_show_global_chat)
-	else:
-		back.pressed.connect(func(): _show_group_chat(active_group_chat_id, active_group_chat_name))
+	back.pressed.connect(_show_global_chat)
 	content_box.add_child(back)
 
 func _purchase_sticker(sticker_id: String) -> void:
