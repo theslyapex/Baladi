@@ -283,7 +283,7 @@ func _check_admin_notifications() -> void:
 	var response: Dictionary = await CloudAccount.fetch_admin_notifications()
 	if not response.get("ok", false):
 		return
-	var notifications = response.get("data", {}).get("notifications", [])
+	var notifications = response.get("notifications", [])
 	if not notifications is Array:
 		return
 	for item in notifications:
